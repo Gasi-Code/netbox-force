@@ -20,7 +20,7 @@ source /opt/netbox/venv/bin/activate
 pip install -e /pfad/zu/netbox-force/
 
 # Oder direkt aus dem Repository:
-pip install git+https://github.com/Netbox-Force/netbox-force.git
+pip install git+https://github.com/gasi-code/netbox-force.git
 ```
 
 ## Konfiguration

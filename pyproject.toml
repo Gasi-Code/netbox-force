@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Netbox-Force/netbox-force"
+Repository = "https://github.com/gasi-code/netbox-force"
 
 [tool.setuptools.packages.find]
 include = ["netbox_force*"]
