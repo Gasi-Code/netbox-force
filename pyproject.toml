@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-force"
+version = "2.0.0"
+description = "NetBox plugin for enforcing changelog messages, validation policies, and compliance rules"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "hannIT AöR"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Repository = "https://github.com/Netbox-Force/netbox-force"
+
+[tool.setuptools.packages.find]
+include = ["netbox_force*"]
+
+[tool.pytest.ini_options]
+testpaths = ["netbox_force/tests"]
+python_files = ["test_*.py"]
