@@ -5,7 +5,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Erzwingt Changelog-Messages und weitere Policies bei Objekt-Änderungen'
-    version = '2.0.0'
+    version = '2.1.0'
     author = 'hannIT AöR'
     base_url = 'netbox-force'
     min_version = '4.0.0'

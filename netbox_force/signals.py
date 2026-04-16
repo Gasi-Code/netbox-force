@@ -2,8 +2,8 @@ import logging
 
 from django.db.models.signals import pre_save, pre_delete
 from django.dispatch import receiver
-from django.core.exceptions import ValidationError
 
+from utilities.exceptions import AbortRequest
 from netbox.plugins import get_plugin_config
 
 from .middleware import get_current_request
@@ -28,12 +28,19 @@ EXEMPT_MODELS = {
     'extras.objectchange',
     'extras.journalentry',
     'extras.cachedvalue',
-    'extras.configrevision',
     'extras.notification',
     'extras.notificationgroup',
     'extras.subscription',
+    'extras.bookmark',
+    'extras.savedfilter',
+    'extras.imageattachment',
+    'extras.eventrule',
+    'extras.customlink',
+    'extras.exporttemplate',
 
-    # Jobs & Managed Files
+    # Core System-Objekte (NetBox 4.x)
+    'core.configrevision',
+    'core.objecttype',
     'core.job',
     'core.managedfile',
     'core.datasource',
@@ -52,6 +59,9 @@ IGNORED_FIELDS = {
     'last_updated', 'created', 'modified',
     'last_login', 'date_joined', 'last_activity',
 }
+
+# Sentinel-Wert: unterscheidet "noch nicht geprüft" von "geprüft, nichts gefunden"
+_NOT_CHECKED = object()
 
 
 # =============================================================================
@@ -90,9 +100,9 @@ def get_changelog_comment(request):
         return None
 
     # Per-Request-Cache um bei Bulk-Operationen nicht wiederholt zu parsen
-    cached = getattr(request, '_netbox_force_changelog_comment', None)
-    if cached is not None:
-        return cached if cached else None
+    cached = getattr(request, '_netbox_force_changelog_comment', _NOT_CHECKED)
+    if cached is not _NOT_CHECKED:
+        return cached
 
     field_names = ('changelog_message', 'comments', '_changelog_message')
     result = None
@@ -115,7 +125,7 @@ def get_changelog_comment(request):
                 result = val
                 break
 
-    request._netbox_force_changelog_comment = result or ''
+    request._netbox_force_changelog_comment = result  # None oder String
     return result
 
 
@@ -151,18 +161,14 @@ def build_error_message(instance, request=None):
 
     if is_api:
         return (
-            f"Changelog entry required. When modifying \"{model_verbose}\", "
-            f"include a \"changelog_message\" field in the request body "
-            f"(min {min_len} characters)."
+            f"Changelog entry required. Include a 'changelog_message' field "
+            f"in the request body (min {min_len} characters)."
         )
 
     return (
-        f"Changelog-Eintrag erforderlich!\n\n"
-        f"Beim Ändern von \"{model_verbose}\" muss eine Begründung "
-        f"im Feld 'Änderungsgrund / Changelog' eingetragen werden "
-        f"(mind. {min_len} Zeichen).\n\n"
-        f"Tipp: Klicke oben links im Browser auf \u2190 (Zurück), "
-        f"um deine Änderungen nicht zu verlieren."
+        f"Changelog-Eintrag erforderlich! Beim Ändern von '{model_verbose}' "
+        f"muss im Feld 'Änderungsgrund / Changelog' eine Begründung "
+        f"eingetragen werden (mind. {min_len} Zeichen)."
     )
 
 
@@ -174,7 +180,7 @@ def build_error_message(instance, request=None):
 def enforce_changelog_on_save(sender, instance, **kwargs):
     """
     Wird vor jedem Model-Save aufgerufen.
-    Bricht mit ValidationError ab wenn kein Changelog vorhanden.
+    Bricht mit AbortRequest ab wenn kein Changelog vorhanden.
     """
     request = get_current_request()
     model_label = get_model_label(instance)
@@ -196,9 +202,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
-        logger.info("pre_save: %s changelog missing or too short (got %s, need %d), blocking",
-                     model_label, len(comment) if comment else 0, min_len)
-        raise ValidationError(build_error_message(instance, request))
+        username = getattr(getattr(request, 'user', None), 'username', 'unknown')
+        logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
+                     model_label, len(comment) if comment else 0, min_len, username)
+        raise AbortRequest(build_error_message(instance, request))
 
 
 @receiver(pre_delete)
@@ -230,5 +237,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
-        logger.info("pre_delete: %s changelog missing or too short, blocking", model_label)
-        raise ValidationError(build_error_message(instance, request))
+        username = getattr(getattr(request, 'user', None), 'username', 'unknown')
+        logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
+                     model_label, username)
+        raise AbortRequest(build_error_message(instance, request))

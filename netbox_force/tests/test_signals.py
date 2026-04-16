@@ -3,7 +3,6 @@ from unittest.mock import patch, MagicMock, PropertyMock
 
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import AnonymousUser
-from django.core.exceptions import ValidationError
 
 from netbox_force.signals import (
     get_model_label,
