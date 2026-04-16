@@ -8,10 +8,10 @@ from .models import ForceSettings
 
 
 class ForceSettingsView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Einstellungsseite für das NetBox Force Plugin."""
+    """Settings page for the NetBox Force plugin."""
 
     def test_func(self):
-        return self.request.user.is_staff
+        return self.request.user.is_superuser
 
     def get(self, request):
         settings = ForceSettings.get_settings()
@@ -30,7 +30,7 @@ class ForceSettingsView(LoginRequiredMixin, UserPassesTestMixin, View):
         form = ForceSettingsForm(request.POST, instance=settings)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Einstellungen gespeichert.')
+            messages.success(request, 'Settings saved successfully.')
             return redirect('plugins:netbox_force:settings')
         return render(request, 'netbox_force/settings.html', {
             'form': form,
