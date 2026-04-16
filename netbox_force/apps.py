@@ -7,6 +7,18 @@ _menu_items = (
         link='plugins:netbox_force:settings',
         link_text='Settings',
     ),
+    PluginMenuItem(
+        link='plugins:netbox_force:rule_list',
+        link_text='Validation Rules',
+    ),
+    PluginMenuItem(
+        link='plugins:netbox_force:violation_list',
+        link_text='Violations',
+    ),
+    PluginMenuItem(
+        link='plugins:netbox_force:dashboard',
+        link_text='Dashboard',
+    ),
 )
 
 
@@ -14,7 +26,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '3.1.0'
+    version = '4.0.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'

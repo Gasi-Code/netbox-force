@@ -1,7 +1,9 @@
 import logging
+import re
 
 from django.db.models.signals import pre_save, pre_delete
 from django.dispatch import receiver
+from django.utils import timezone
 
 from utilities.exceptions import AbortRequest
 from netbox.plugins import get_plugin_config
@@ -48,8 +50,10 @@ EXEMPT_MODELS = {
     'core.datasourcefile',
     'core.autosyncrecord',
 
-    # Own settings model (singleton)
+    # Own plugin models
     'netbox_force.forcesettings',
+    'netbox_force.validationrule',
+    'netbox_force.violation',
 }
 
 # HTTP methods that require a changelog (save)
@@ -66,6 +70,13 @@ IGNORED_FIELDS = {
 
 # Sentinel value: distinguishes "not yet checked" from "checked, nothing found"
 _NOT_CHECKED = object()
+
+# Weekday names for error messages
+_WEEKDAY_NAMES = {
+    'de': {1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa', 7: 'So'},
+    'en': {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'},
+    'es': {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'},
+}
 
 
 # =============================================================================
@@ -212,6 +223,222 @@ def check_blacklist(comment):
     return matched
 
 
+# =============================================================================
+# NEW V4 CHECK FUNCTIONS
+# =============================================================================
+
+def check_change_window(settings):
+    """
+    Checks if changes are allowed in the current time window.
+    Returns None if OK, or an error message string if outside the window.
+    """
+    if not settings or not settings.change_window_enabled:
+        return None
+
+    if not settings.change_window_start or not settings.change_window_end:
+        return None
+
+    now = timezone.localtime(timezone.now())
+    current_time = now.time()
+    current_weekday = now.isoweekday()  # 1=Monday, 7=Sunday
+
+    # Check weekday
+    allowed_weekdays = settings.get_allowed_weekdays()
+    if allowed_weekdays and current_weekday not in allowed_weekdays:
+        return _build_change_window_message(settings)
+
+    # Check time — handle overnight windows (e.g. 22:00 to 06:00)
+    start = settings.change_window_start
+    end = settings.change_window_end
+
+    if start <= end:
+        # Normal window: e.g. 08:00 to 18:00
+        if not (start <= current_time <= end):
+            return _build_change_window_message(settings)
+    else:
+        # Overnight window: e.g. 22:00 to 06:00
+        if not (current_time >= start or current_time <= end):
+            return _build_change_window_message(settings)
+
+    return None
+
+
+def _build_change_window_message(settings):
+    """Builds the change window error message."""
+    language = getattr(settings, 'language', 'de')
+    start_str = settings.change_window_start.strftime('%H:%M') if settings.change_window_start else '?'
+    end_str = settings.change_window_end.strftime('%H:%M') if settings.change_window_end else '?'
+
+    weekday_names = _WEEKDAY_NAMES.get(language, _WEEKDAY_NAMES['en'])
+    allowed = settings.get_allowed_weekdays()
+    weekdays_str = ', '.join(weekday_names.get(d, str(d)) for d in sorted(allowed)) if allowed else '?'
+
+    return get_message('change_window', language,
+                       start=start_str, end=end_str, weekdays=weekdays_str)
+
+
+def check_ticket_reference(comment, settings, instance, request):
+    """
+    Checks if the changelog comment contains a required ticket reference.
+    Returns None if OK, or an error message string if missing.
+    """
+    if not settings:
+        return None
+
+    pattern = getattr(settings, 'ticket_pattern', '')
+    if not pattern or not pattern.strip():
+        return None
+
+    if not comment:
+        return _build_ticket_message(settings, instance, request, pattern)
+
+    try:
+        if not re.search(pattern.strip(), comment):
+            return _build_ticket_message(settings, instance, request, pattern)
+    except re.error:
+        logger.warning("Invalid ticket pattern regex: %s — skipping check", pattern)
+        return None
+
+    return None
+
+
+def _build_ticket_message(settings, instance, request, pattern):
+    """Builds the ticket reference error message."""
+    language = getattr(settings, 'language', 'de')
+    is_api = (request and hasattr(request, 'path_info')
+              and request.path_info.startswith('/api/'))
+    if is_api:
+        return get_api_message('ticket_missing', pattern=pattern)
+    return get_message('ticket_missing', language, pattern=pattern)
+
+
+def check_naming_conventions(instance, model_label, request=None):
+    """
+    Checks naming convention rules for the given instance.
+    Returns None if OK, or an error message string for the first violation.
+    """
+    try:
+        from .models import ValidationRule
+        rules = ValidationRule.get_rules_for_model(model_label, rule_type='naming')
+    except Exception:
+        return None
+
+    if not rules:
+        return None
+
+    settings = _get_settings()
+    language = getattr(settings, 'language', 'de') if settings else 'en'
+    model_verbose = instance._meta.verbose_name.capitalize()
+
+    is_api = (request and hasattr(request, 'path_info')
+              and request.path_info.startswith('/api/'))
+
+    for rule in rules:
+        value = getattr(instance, rule.field_name, None)
+        if value is None:
+            logger.debug("Naming rule: field '%s' not found on %s, skipping",
+                         rule.field_name, model_label)
+            continue
+
+        value_str = str(value)
+        if not rule.regex_pattern:
+            continue
+
+        try:
+            if not re.fullmatch(rule.regex_pattern, value_str):
+                custom_msg = rule.error_message or ''
+                if is_api:
+                    return get_api_message('naming_violation',
+                                           field=rule.field_name,
+                                           model=model_verbose,
+                                           custom_msg=custom_msg)
+                return get_message('naming_violation', language,
+                                   field=rule.field_name,
+                                   model=model_verbose,
+                                   custom_msg=custom_msg)
+        except re.error:
+            logger.warning("Invalid naming rule regex: %s — skipping rule",
+                           rule.regex_pattern)
+            continue
+
+    return None
+
+
+def check_required_fields(instance, model_label, request=None):
+    """
+    Checks required field rules for the given instance.
+    Returns None if OK, or an error message string for the first violation.
+    """
+    try:
+        from .models import ValidationRule
+        rules = ValidationRule.get_rules_for_model(model_label, rule_type='required')
+    except Exception:
+        return None
+
+    if not rules:
+        return None
+
+    settings = _get_settings()
+    language = getattr(settings, 'language', 'de') if settings else 'en'
+    model_verbose = instance._meta.verbose_name.capitalize()
+
+    is_api = (request and hasattr(request, 'path_info')
+              and request.path_info.startswith('/api/'))
+
+    for rule in rules:
+        if not hasattr(instance, rule.field_name):
+            logger.debug("Required field rule: field '%s' not found on %s, skipping",
+                         rule.field_name, model_label)
+            continue
+
+        value = getattr(instance, rule.field_name, None)
+
+        # Check for empty: None, empty string, blank string
+        is_empty = (value is None
+                    or (isinstance(value, str) and not value.strip())
+                    or value == '')
+
+        if is_empty:
+            if is_api:
+                return get_api_message('required_field',
+                                       field=rule.field_name,
+                                       model=model_verbose)
+            return get_message('required_field', language,
+                               field=rule.field_name,
+                               model=model_verbose)
+
+    return None
+
+
+def log_violation(username, model_label, instance, action, reason, message,
+                  comment=None):
+    """
+    Writes a Violation audit log entry (only if audit_log_enabled).
+    Never raises — logging failures must not block enforcement.
+    """
+    settings = _get_settings()
+    if not settings or not getattr(settings, 'audit_log_enabled', False):
+        return
+
+    try:
+        from .models import Violation
+        Violation.objects.create(
+            username=username,
+            model_label=model_label,
+            object_repr=str(instance)[:200],
+            action=action,
+            reason=reason,
+            message=message,
+            attempted_comment=comment or '',
+        )
+    except Exception:
+        logger.error("Failed to write violation audit log entry", exc_info=True)
+
+
+# =============================================================================
+# ERROR MESSAGE BUILDERS (existing)
+# =============================================================================
+
 def build_error_message(instance, request=None, reason='changelog_required'):
     """Builds the error message — multilingual and API-aware."""
     model_verbose = instance._meta.verbose_name.capitalize()
@@ -254,11 +481,19 @@ def build_blacklist_message(instance, request, matched_words):
 def enforce_changelog_on_save(sender, instance, **kwargs):
     """
     Called before every model save.
-    Aborts with AbortRequest if no changelog is present or blacklist match.
+    Runs the full enforcement chain:
+    1. Exemption checks (model, user, method, create flag, real changes)
+    2. Change window check
+    3. Changelog presence + length
+    4. Blacklist check
+    5. Ticket reference check
+    6. Naming convention check
+    7. Required field check
     """
     request = get_current_request()
     model_label = get_model_label(instance)
 
+    # --- Exemption checks ---
     if is_exempt_model(instance):
         logger.debug("pre_save: %s is exempt model, skipping", model_label)
         return
@@ -270,7 +505,8 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         return
 
     # New object? Check enforce_on_create setting
-    if not instance.pk and not _get_setting('enforce_on_create', False):
+    is_new = not instance.pk
+    if is_new and not _get_setting('enforce_on_create', False):
         logger.debug("pre_save: %s new object, enforce_on_create=False, skipping", model_label)
         return
 
@@ -278,22 +514,68 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         logger.debug("pre_save: %s no real changes, skipping", model_label)
         return
 
+    settings = _get_settings()
+    username = getattr(getattr(request, 'user', None), 'username', 'unknown')
+    action = 'create' if is_new else 'edit'
+
+    # --- Change window check ---
+    window_error = check_change_window(settings)
+    if window_error:
+        logger.info("pre_save: %s outside change window, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'change_window', window_error)
+        raise AbortRequest(window_error)
+
+    # --- Changelog presence + length ---
     min_len = _get_setting('min_length', 2)
     comment = get_changelog_comment(request)
-    username = getattr(getattr(request, 'user', None), 'username', 'unknown')
 
-    # Changelog present and long enough?
     if not comment or len(comment) < min_len:
+        reason = 'too_short' if comment else 'missing_changelog'
+        error_msg = build_error_message(instance, request)
         logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
                      model_label, len(comment) if comment else 0, min_len, username)
-        raise AbortRequest(build_error_message(instance, request))
+        log_violation(username, model_label, instance, action,
+                      reason, error_msg, comment)
+        raise AbortRequest(error_msg)
 
-    # Check blacklist
+    # --- Blacklist check ---
     matched = check_blacklist(comment)
     if matched:
+        error_msg = build_blacklist_message(instance, request, matched)
         logger.info("pre_save: %s changelog matches blacklist %s, blocking user '%s'",
                      model_label, matched, username)
-        raise AbortRequest(build_blacklist_message(instance, request, matched))
+        log_violation(username, model_label, instance, action,
+                      'blacklisted', error_msg, comment)
+        raise AbortRequest(error_msg)
+
+    # --- Ticket reference check ---
+    ticket_error = check_ticket_reference(comment, settings, instance, request)
+    if ticket_error:
+        logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'ticket_missing', ticket_error, comment)
+        raise AbortRequest(ticket_error)
+
+    # --- Naming convention check ---
+    naming_error = check_naming_conventions(instance, model_label, request)
+    if naming_error:
+        logger.info("pre_save: %s naming convention violation, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'naming_violation', naming_error, comment)
+        raise AbortRequest(naming_error)
+
+    # --- Required field check ---
+    required_error = check_required_fields(instance, model_label, request)
+    if required_error:
+        logger.info("pre_save: %s required field missing, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'required_field', required_error, comment)
+        raise AbortRequest(required_error)
 
 
 @receiver(pre_delete)
@@ -301,6 +583,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     """
     Called before every model delete.
     Only active if enforce_on_delete is True.
+    Runs: exemption checks, change window, changelog, blacklist, ticket reference.
+    (Naming and required field checks are skipped on deletion.)
     """
     if not _get_setting('enforce_on_delete', True):
         return
@@ -318,17 +602,46 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         logger.debug("pre_delete: %s no request or method not enforced, skipping", model_label)
         return
 
-    min_len = _get_setting('min_length', 2)
-    comment = get_changelog_comment(request)
+    settings = _get_settings()
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
 
+    # --- Change window check ---
+    window_error = check_change_window(settings)
+    if window_error:
+        logger.info("pre_delete: %s outside change window, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, 'delete',
+                      'change_window', window_error)
+        raise AbortRequest(window_error)
+
+    # --- Changelog presence + length ---
+    min_len = _get_setting('min_length', 2)
+    comment = get_changelog_comment(request)
+
     if not comment or len(comment) < min_len:
+        reason = 'too_short' if comment else 'missing_changelog'
+        error_msg = build_error_message(instance, request)
         logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
                      model_label, username)
-        raise AbortRequest(build_error_message(instance, request))
+        log_violation(username, model_label, instance, 'delete',
+                      reason, error_msg, comment)
+        raise AbortRequest(error_msg)
 
+    # --- Blacklist check ---
     matched = check_blacklist(comment)
     if matched:
+        error_msg = build_blacklist_message(instance, request, matched)
         logger.info("pre_delete: %s changelog matches blacklist %s, blocking user '%s'",
                      model_label, matched, username)
-        raise AbortRequest(build_blacklist_message(instance, request, matched))
+        log_violation(username, model_label, instance, 'delete',
+                      'blacklisted', error_msg, comment)
+        raise AbortRequest(error_msg)
+
+    # --- Ticket reference check ---
+    ticket_error = check_ticket_reference(comment, settings, instance, request)
+    if ticket_error:
+        logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, 'delete',
+                      'ticket_missing', ticket_error, comment)
+        raise AbortRequest(ticket_error)

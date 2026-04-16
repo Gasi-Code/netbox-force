@@ -1,0 +1,367 @@
+"""
+Dynamic UI translations for the NetBox Force plugin.
+Used by views to provide language-dependent labels in templates.
+"""
+
+UI_STRINGS = {
+    'de': {
+        # Tabs
+        'tab_settings': 'Einstellungen',
+        'tab_rules': 'Validierungsregeln',
+        'tab_violations': 'Verstöße',
+        'tab_dashboard': 'Dashboard',
+
+        # Section headers
+        'section_language': 'Sprache',
+        'section_enforcement': 'Erzwingungsregeln',
+        'section_blocked_phrases': 'Gesperrte Begriffe',
+        'section_exemptions': 'Ausnahmen',
+        'section_ticket': 'Ticket-Referenz',
+        'section_change_window': 'Änderungsfenster',
+        'section_audit_log': 'Audit-Log',
+
+        # Field labels
+        'label_language': 'Sprache',
+        'label_min_length': 'Mindestlänge Changelog',
+        'label_enforce_on_create': 'Beim Erstellen erzwingen',
+        'label_enforce_on_delete': 'Beim Löschen erzwingen',
+        'label_exempt_users': 'Ausgenommene Benutzer',
+        'label_blacklisted_phrases': 'Gesperrte Begriffe',
+        'label_extra_exempt_models': 'Ausgenommene Modelle',
+        'label_ticket_pattern': 'Ticket-Muster (Regex)',
+        'label_change_window_enabled': 'Änderungsfenster aktivieren',
+        'label_change_window_start': 'Startzeit',
+        'label_change_window_end': 'Endzeit',
+        'label_change_window_weekdays': 'Erlaubte Wochentage',
+        'label_audit_log_enabled': 'Audit-Log aktivieren',
+        'label_audit_log_retention_days': 'Aufbewahrungsdauer (Tage)',
+
+        # Help texts
+        'help_language': 'Sprache für Fehlermeldungen in der NetBox-UI. API-Nachrichten sind immer auf Englisch.',
+        'help_min_length': 'Mindestanzahl an Zeichen für einen Changelog-Eintrag.',
+        'help_enforce_on_create': 'Wenn aktiviert, wird auch beim Erstellen neuer Objekte ein Changelog-Eintrag verlangt.',
+        'help_enforce_on_delete': 'Wenn aktiviert, wird auch beim Löschen von Objekten ein Changelog-Eintrag verlangt.',
+        'help_exempt_users': 'Ein Benutzername pro Zeile.',
+        'help_blacklisted_phrases': 'Ein Begriff pro Zeile. Changelog-Einträge die diese Begriffe (als ganze Wörter) enthalten, werden abgelehnt.',
+        'help_extra_exempt_models': 'Ein Model pro Zeile (Format: app.model, z.B. myplugin.mymodel).',
+        'help_ticket_pattern': 'Regex-Muster für erforderliche Ticket-Referenzen (z.B. JIRA-\\d+ oder #\\d+). Leer lassen zum Deaktivieren.',
+        'help_change_window_enabled': 'Wenn aktiviert, sind Änderungen nur innerhalb des definierten Zeitfensters erlaubt.',
+        'help_change_window_start': 'Beginn des erlaubten Änderungszeitraums.',
+        'help_change_window_end': 'Ende des erlaubten Änderungszeitraums.',
+        'help_change_window_weekdays': 'Kommagetrennte ISO-Wochentage (1=Montag, 7=Sonntag).',
+        'help_audit_log_enabled': 'Wenn aktiviert, werden alle abgelehnten Änderungen protokolliert.',
+        'help_audit_log_retention_days': 'Anzahl der Tage, die Audit-Einträge aufbewahrt werden.',
+
+        # Buttons
+        'btn_save': 'Speichern',
+        'btn_add_rule': 'Regel hinzufügen',
+        'btn_edit': 'Bearbeiten',
+        'btn_delete': 'Löschen',
+        'btn_cancel': 'Abbrechen',
+        'btn_confirm_delete': 'Löschen bestätigen',
+        'btn_apply_filter': 'Filter anwenden',
+        'btn_clear_filter': 'Filter zurücksetzen',
+
+        # Rules page
+        'rules_title': 'Validierungsregeln',
+        'rules_empty': 'Keine Validierungsregeln definiert.',
+        'rules_col_type': 'Typ',
+        'rules_col_model': 'Model',
+        'rules_col_field': 'Feld',
+        'rules_col_pattern': 'Muster',
+        'rules_col_message': 'Fehlermeldung',
+        'rules_col_enabled': 'Aktiv',
+        'rules_col_actions': 'Aktionen',
+        'rule_add_title': 'Regel hinzufügen',
+        'rule_edit_title': 'Regel bearbeiten',
+        'rule_delete_title': 'Regel löschen',
+        'rule_delete_confirm': 'Soll diese Regel wirklich gelöscht werden?',
+        'rule_type_naming': 'Namenskonvention',
+        'rule_type_required': 'Pflichtfeld',
+
+        # Violations page
+        'violations_title': 'Verstöße',
+        'violations_empty': 'Keine Verstöße erfasst.',
+        'violations_disabled_warning': 'Das Audit-Log ist deaktiviert. Verstöße werden nicht aufgezeichnet.',
+        'violations_col_timestamp': 'Zeitstempel',
+        'violations_col_username': 'Benutzer',
+        'violations_col_model': 'Model',
+        'violations_col_object': 'Objekt',
+        'violations_col_action': 'Aktion',
+        'violations_col_reason': 'Grund',
+        'violations_col_message': 'Nachricht',
+        'filter_reason': 'Grund',
+        'filter_username': 'Benutzer',
+        'filter_date_from': 'Von',
+        'filter_date_to': 'Bis',
+        'filter_all': 'Alle',
+
+        # Dashboard
+        'dashboard_title': 'Dashboard',
+        'dashboard_feature_status': 'Feature-Status',
+        'dashboard_total_violations': 'Verstöße gesamt',
+        'dashboard_by_reason': 'Verstöße nach Grund',
+        'dashboard_top_users': 'Top 10 Benutzer',
+        'dashboard_over_time': 'Verstöße (letzte 30 Tage)',
+        'dashboard_active_rules': 'Aktive Regeln',
+        'dashboard_enabled': 'Aktiviert',
+        'dashboard_disabled': 'Deaktiviert',
+        'dashboard_changelog_enforcement': 'Changelog-Erzwingung',
+        'dashboard_ticket_reference': 'Ticket-Referenz',
+        'dashboard_change_window': 'Änderungsfenster',
+        'dashboard_audit_log': 'Audit-Log',
+        'dashboard_no_data': 'Keine Daten vorhanden.',
+
+        # Info sidebar
+        'info_title': 'Info',
+        'info_plugin': 'Plugin',
+        'info_version': 'Version',
+        'info_author': 'Autor',
+        'info_note': 'Änderungen werden sofort wirksam. Diese Einstellungen überschreiben Werte aus configuration.py.',
+    },
+
+    'en': {
+        # Tabs
+        'tab_settings': 'Settings',
+        'tab_rules': 'Validation Rules',
+        'tab_violations': 'Violations',
+        'tab_dashboard': 'Dashboard',
+
+        # Section headers
+        'section_language': 'Language',
+        'section_enforcement': 'Enforcement Rules',
+        'section_blocked_phrases': 'Blocked Phrases',
+        'section_exemptions': 'Exemptions',
+        'section_ticket': 'Ticket Reference',
+        'section_change_window': 'Change Window',
+        'section_audit_log': 'Audit Log',
+
+        # Field labels
+        'label_language': 'Language',
+        'label_min_length': 'Minimum changelog length',
+        'label_enforce_on_create': 'Enforce on create',
+        'label_enforce_on_delete': 'Enforce on delete',
+        'label_exempt_users': 'Exempt users',
+        'label_blacklisted_phrases': 'Blocked phrases',
+        'label_extra_exempt_models': 'Exempt models',
+        'label_ticket_pattern': 'Ticket pattern (Regex)',
+        'label_change_window_enabled': 'Enable change window',
+        'label_change_window_start': 'Start time',
+        'label_change_window_end': 'End time',
+        'label_change_window_weekdays': 'Allowed weekdays',
+        'label_audit_log_enabled': 'Enable audit log',
+        'label_audit_log_retention_days': 'Retention period (days)',
+
+        # Help texts
+        'help_language': 'Language for error messages in the NetBox UI. API messages are always in English.',
+        'help_min_length': 'Minimum number of characters required for a changelog entry.',
+        'help_enforce_on_create': 'If enabled, a changelog entry is also required when creating new objects.',
+        'help_enforce_on_delete': 'If enabled, a changelog entry is also required when deleting objects.',
+        'help_exempt_users': 'One username per line.',
+        'help_blacklisted_phrases': 'One phrase per line. Changelog entries containing any of these phrases (as whole words) will be rejected.',
+        'help_extra_exempt_models': 'One model per line (format: app.model, e.g. myplugin.mymodel).',
+        'help_ticket_pattern': 'Regex pattern for required ticket references (e.g. JIRA-\\d+ or #\\d+). Leave empty to disable.',
+        'help_change_window_enabled': 'If enabled, changes are only allowed within the defined time window.',
+        'help_change_window_start': 'Start of the allowed change period.',
+        'help_change_window_end': 'End of the allowed change period.',
+        'help_change_window_weekdays': 'Comma-separated ISO weekday numbers (1=Monday, 7=Sunday).',
+        'help_audit_log_enabled': 'If enabled, all rejected changes are logged for compliance tracking.',
+        'help_audit_log_retention_days': 'Number of days to retain audit log entries.',
+
+        # Buttons
+        'btn_save': 'Save',
+        'btn_add_rule': 'Add Rule',
+        'btn_edit': 'Edit',
+        'btn_delete': 'Delete',
+        'btn_cancel': 'Cancel',
+        'btn_confirm_delete': 'Confirm Delete',
+        'btn_apply_filter': 'Apply Filter',
+        'btn_clear_filter': 'Clear Filter',
+
+        # Rules page
+        'rules_title': 'Validation Rules',
+        'rules_empty': 'No validation rules defined.',
+        'rules_col_type': 'Type',
+        'rules_col_model': 'Model',
+        'rules_col_field': 'Field',
+        'rules_col_pattern': 'Pattern',
+        'rules_col_message': 'Error Message',
+        'rules_col_enabled': 'Enabled',
+        'rules_col_actions': 'Actions',
+        'rule_add_title': 'Add Rule',
+        'rule_edit_title': 'Edit Rule',
+        'rule_delete_title': 'Delete Rule',
+        'rule_delete_confirm': 'Are you sure you want to delete this rule?',
+        'rule_type_naming': 'Naming Convention',
+        'rule_type_required': 'Required Field',
+
+        # Violations page
+        'violations_title': 'Violations',
+        'violations_empty': 'No violations recorded.',
+        'violations_disabled_warning': 'Audit logging is disabled. Violations are not being recorded.',
+        'violations_col_timestamp': 'Timestamp',
+        'violations_col_username': 'User',
+        'violations_col_model': 'Model',
+        'violations_col_object': 'Object',
+        'violations_col_action': 'Action',
+        'violations_col_reason': 'Reason',
+        'violations_col_message': 'Message',
+        'filter_reason': 'Reason',
+        'filter_username': 'User',
+        'filter_date_from': 'From',
+        'filter_date_to': 'To',
+        'filter_all': 'All',
+
+        # Dashboard
+        'dashboard_title': 'Dashboard',
+        'dashboard_feature_status': 'Feature Status',
+        'dashboard_total_violations': 'Total Violations',
+        'dashboard_by_reason': 'Violations by Reason',
+        'dashboard_top_users': 'Top 10 Users',
+        'dashboard_over_time': 'Violations (Last 30 Days)',
+        'dashboard_active_rules': 'Active Rules',
+        'dashboard_enabled': 'Enabled',
+        'dashboard_disabled': 'Disabled',
+        'dashboard_changelog_enforcement': 'Changelog Enforcement',
+        'dashboard_ticket_reference': 'Ticket Reference',
+        'dashboard_change_window': 'Change Window',
+        'dashboard_audit_log': 'Audit Log',
+        'dashboard_no_data': 'No data available.',
+
+        # Info sidebar
+        'info_title': 'Info',
+        'info_plugin': 'Plugin',
+        'info_version': 'Version',
+        'info_author': 'Author',
+        'info_note': 'Changes take effect immediately. These settings override values from configuration.py.',
+    },
+
+    'es': {
+        # Tabs
+        'tab_settings': 'Configuración',
+        'tab_rules': 'Reglas de Validación',
+        'tab_violations': 'Infracciones',
+        'tab_dashboard': 'Panel',
+
+        # Section headers
+        'section_language': 'Idioma',
+        'section_enforcement': 'Reglas de Aplicación',
+        'section_blocked_phrases': 'Frases Bloqueadas',
+        'section_exemptions': 'Exenciones',
+        'section_ticket': 'Referencia de Ticket',
+        'section_change_window': 'Ventana de Cambios',
+        'section_audit_log': 'Registro de Auditoría',
+
+        # Field labels
+        'label_language': 'Idioma',
+        'label_min_length': 'Longitud mínima del changelog',
+        'label_enforce_on_create': 'Aplicar al crear',
+        'label_enforce_on_delete': 'Aplicar al eliminar',
+        'label_exempt_users': 'Usuarios exentos',
+        'label_blacklisted_phrases': 'Frases bloqueadas',
+        'label_extra_exempt_models': 'Modelos exentos',
+        'label_ticket_pattern': 'Patrón de ticket (Regex)',
+        'label_change_window_enabled': 'Activar ventana de cambios',
+        'label_change_window_start': 'Hora de inicio',
+        'label_change_window_end': 'Hora de fin',
+        'label_change_window_weekdays': 'Días permitidos',
+        'label_audit_log_enabled': 'Activar registro de auditoría',
+        'label_audit_log_retention_days': 'Retención (días)',
+
+        # Help texts
+        'help_language': 'Idioma para mensajes de error en la UI de NetBox. Los mensajes de API siempre son en inglés.',
+        'help_min_length': 'Número mínimo de caracteres requeridos para una entrada de changelog.',
+        'help_enforce_on_create': 'Si está activado, también se requiere una entrada de changelog al crear nuevos objetos.',
+        'help_enforce_on_delete': 'Si está activado, también se requiere una entrada de changelog al eliminar objetos.',
+        'help_exempt_users': 'Un nombre de usuario por línea.',
+        'help_blacklisted_phrases': 'Una frase por línea. Las entradas de changelog que contengan estas frases (como palabras completas) serán rechazadas.',
+        'help_extra_exempt_models': 'Un modelo por línea (formato: app.model, ej. myplugin.mymodel).',
+        'help_ticket_pattern': 'Patrón regex para referencias de tickets requeridas (ej. JIRA-\\d+ o #\\d+). Dejar vacío para desactivar.',
+        'help_change_window_enabled': 'Si está activado, los cambios solo se permiten dentro de la ventana de tiempo definida.',
+        'help_change_window_start': 'Inicio del período de cambios permitido.',
+        'help_change_window_end': 'Fin del período de cambios permitido.',
+        'help_change_window_weekdays': 'Números de días ISO separados por comas (1=Lunes, 7=Domingo).',
+        'help_audit_log_enabled': 'Si está activado, todos los cambios rechazados se registran para seguimiento de cumplimiento.',
+        'help_audit_log_retention_days': 'Número de días para retener las entradas del registro de auditoría.',
+
+        # Buttons
+        'btn_save': 'Guardar',
+        'btn_add_rule': 'Agregar Regla',
+        'btn_edit': 'Editar',
+        'btn_delete': 'Eliminar',
+        'btn_cancel': 'Cancelar',
+        'btn_confirm_delete': 'Confirmar Eliminación',
+        'btn_apply_filter': 'Aplicar Filtro',
+        'btn_clear_filter': 'Limpiar Filtro',
+
+        # Rules page
+        'rules_title': 'Reglas de Validación',
+        'rules_empty': 'No hay reglas de validación definidas.',
+        'rules_col_type': 'Tipo',
+        'rules_col_model': 'Modelo',
+        'rules_col_field': 'Campo',
+        'rules_col_pattern': 'Patrón',
+        'rules_col_message': 'Mensaje de Error',
+        'rules_col_enabled': 'Activo',
+        'rules_col_actions': 'Acciones',
+        'rule_add_title': 'Agregar Regla',
+        'rule_edit_title': 'Editar Regla',
+        'rule_delete_title': 'Eliminar Regla',
+        'rule_delete_confirm': '¿Está seguro de que desea eliminar esta regla?',
+        'rule_type_naming': 'Convención de Nombres',
+        'rule_type_required': 'Campo Obligatorio',
+
+        # Violations page
+        'violations_title': 'Infracciones',
+        'violations_empty': 'No se registraron infracciones.',
+        'violations_disabled_warning': 'El registro de auditoría está desactivado. Las infracciones no se están registrando.',
+        'violations_col_timestamp': 'Marca de Tiempo',
+        'violations_col_username': 'Usuario',
+        'violations_col_model': 'Modelo',
+        'violations_col_object': 'Objeto',
+        'violations_col_action': 'Acción',
+        'violations_col_reason': 'Razón',
+        'violations_col_message': 'Mensaje',
+        'filter_reason': 'Razón',
+        'filter_username': 'Usuario',
+        'filter_date_from': 'Desde',
+        'filter_date_to': 'Hasta',
+        'filter_all': 'Todos',
+
+        # Dashboard
+        'dashboard_title': 'Panel',
+        'dashboard_feature_status': 'Estado de Funciones',
+        'dashboard_total_violations': 'Infracciones Totales',
+        'dashboard_by_reason': 'Infracciones por Razón',
+        'dashboard_top_users': 'Top 10 Usuarios',
+        'dashboard_over_time': 'Infracciones (Últimos 30 Días)',
+        'dashboard_active_rules': 'Reglas Activas',
+        'dashboard_enabled': 'Activado',
+        'dashboard_disabled': 'Desactivado',
+        'dashboard_changelog_enforcement': 'Aplicación de Changelog',
+        'dashboard_ticket_reference': 'Referencia de Ticket',
+        'dashboard_change_window': 'Ventana de Cambios',
+        'dashboard_audit_log': 'Registro de Auditoría',
+        'dashboard_no_data': 'No hay datos disponibles.',
+
+        # Info sidebar
+        'info_title': 'Info',
+        'info_plugin': 'Plugin',
+        'info_version': 'Versión',
+        'info_author': 'Autor',
+        'info_note': 'Los cambios surten efecto inmediatamente. Estas configuraciones anulan los valores de configuration.py.',
+    },
+}
+
+
+def get_ui_string(key, language='de'):
+    """Returns a single translated UI string for the given key and language."""
+    lang_strings = UI_STRINGS.get(language, UI_STRINGS['en'])
+    return lang_strings.get(key, UI_STRINGS['en'].get(key, key))
+
+
+def get_all_ui_strings(language='de'):
+    """Returns the full UI strings dict for a language, falling back to English."""
+    base = dict(UI_STRINGS['en'])
+    base.update(UI_STRINGS.get(language, {}))
+    return base

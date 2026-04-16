@@ -13,6 +13,22 @@ MESSAGES = {
             "Unzulässiger Changelog-Eintrag! Der Text enthält gesperrte "
             "Begriffe: {words}"
         ),
+        'ticket_missing': (
+            "Ticket-Referenz erforderlich! Der Changelog-Eintrag muss eine "
+            "Ticket-Referenz enthalten, die dem Muster entspricht: {pattern}"
+        ),
+        'naming_violation': (
+            "Namenskonvention verletzt! Das Feld '{field}' bei '{model}' "
+            "entspricht nicht dem erforderlichen Muster. {custom_msg}"
+        ),
+        'required_field': (
+            "Pflichtfeld fehlt! Das Feld '{field}' bei '{model}' "
+            "darf nicht leer sein."
+        ),
+        'change_window': (
+            "Änderungen sind außerhalb des Änderungsfensters nicht erlaubt "
+            "({start} - {end}, {weekdays})."
+        ),
         'action_create': 'Erstellen',
         'action_edit': 'Ändern',
         'action_delete': 'Löschen',
@@ -27,6 +43,22 @@ MESSAGES = {
             "Invalid changelog entry! The text contains prohibited "
             "terms: {words}"
         ),
+        'ticket_missing': (
+            "Ticket reference required! The changelog entry must contain "
+            "a ticket reference matching the pattern: {pattern}"
+        ),
+        'naming_violation': (
+            "Naming convention violated! The field '{field}' on '{model}' "
+            "does not match the required pattern. {custom_msg}"
+        ),
+        'required_field': (
+            "Required field missing! The field '{field}' on '{model}' "
+            "must not be empty."
+        ),
+        'change_window': (
+            "Changes are not allowed outside the change window "
+            "({start} - {end}, {weekdays})."
+        ),
         'action_create': 'creating',
         'action_edit': 'modifying',
         'action_delete': 'deleting',
@@ -40,6 +72,23 @@ MESSAGES = {
         'blacklisted': (
             "Entrada de registro de cambios no válida. El texto contiene "
             "términos prohibidos: {words}"
+        ),
+        'ticket_missing': (
+            "Se requiere referencia de ticket. La entrada del registro de "
+            "cambios debe contener una referencia de ticket que coincida "
+            "con el patrón: {pattern}"
+        ),
+        'naming_violation': (
+            "Convención de nombres violada. El campo '{field}' en '{model}' "
+            "no coincide con el patrón requerido. {custom_msg}"
+        ),
+        'required_field': (
+            "Campo obligatorio faltante. El campo '{field}' en '{model}' "
+            "no debe estar vacío."
+        ),
+        'change_window': (
+            "No se permiten cambios fuera de la ventana de cambios "
+            "({start} - {end}, {weekdays})."
         ),
         'action_create': 'crear',
         'action_edit': 'modificar',
@@ -56,6 +105,22 @@ API_MESSAGES = {
     ),
     'blacklisted': (
         "Invalid changelog entry. The text contains prohibited terms: {words}"
+    ),
+    'ticket_missing': (
+        "Ticket reference required. The changelog entry must contain a "
+        "ticket reference matching the pattern: {pattern}"
+    ),
+    'naming_violation': (
+        "Naming convention violated. The field '{field}' on '{model}' "
+        "does not match the required pattern. {custom_msg}"
+    ),
+    'required_field': (
+        "Required field missing. The field '{field}' on '{model}' "
+        "must not be empty."
+    ),
+    'change_window': (
+        "Changes are not allowed outside the change window "
+        "({start} - {end}, {weekdays})."
     ),
 }
 

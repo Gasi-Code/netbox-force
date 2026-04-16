@@ -1,0 +1,146 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}
+NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% else %}{{ ui.rule_add_title|default:"Add Rule" }}{% endif %}
+{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-{% if editing %}pencil{% else %}plus{% endif %}"></i>
+                {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% else %}{{ ui.rule_add_title|default:"Add Rule" }}{% endif %}
+            </h5>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="id_rule_type" class="form-label">{{ ui.rules_col_type|default:"Type" }}</label>
+                        {{ form.rule_type }}
+                        {% if form.rule_type.errors %}
+                            <div class="invalid-feedback d-block">{{ form.rule_type.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">
+                            <strong>{{ ui.rule_type_naming|default:"Naming Convention" }}:</strong>
+                            Field value must match a regex pattern.<br>
+                            <strong>{{ ui.rule_type_required|default:"Required Field" }}:</strong>
+                            Field must have a non-empty value.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_model_label" class="form-label">{{ ui.rules_col_model|default:"Model" }}</label>
+                        {{ form.model_label }}
+                        {% if form.model_label.errors %}
+                            <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Format: app.model (e.g. dcim.device, ipam.ipaddress)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_field_name" class="form-label">{{ ui.rules_col_field|default:"Field" }}</label>
+                        {{ form.field_name }}
+                        {% if form.field_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.field_name.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">The model field to validate (e.g. name, description, tenant)</div>
+                    </div>
+
+                    <div class="mb-3" id="regex-pattern-group">
+                        <label for="id_regex_pattern" class="form-label">{{ ui.rules_col_pattern|default:"Pattern" }}</label>
+                        {{ form.regex_pattern }}
+                        {% if form.regex_pattern.errors %}
+                            <div class="invalid-feedback d-block">{{ form.regex_pattern.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Only for naming rules. The field value must fully match this regex pattern.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_error_message" class="form-label">{{ ui.rules_col_message|default:"Error Message" }}</label>
+                        {{ form.error_message }}
+                        {% if form.error_message.errors %}
+                            <div class="invalid-feedback d-block">{{ form.error_message.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Shown to the user when validation fails. Leave empty for default message.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.enabled }}
+                        <label class="form-check-label" for="id_enabled">{{ ui.rules_col_enabled|default:"Enabled" }}</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'plugins:netbox_force:rule_list' %}" class="btn btn-outline-secondary">
+                            {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# Info Sidebar #}
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-help-circle"></i> Help
+            </h5>
+            <div class="card-body small">
+                <p><strong>{{ ui.rule_type_naming|default:"Naming Convention" }}</strong></p>
+                <p>Ensures that a field value matches a regex pattern. Uses Python's <code>re.fullmatch()</code>, so the entire value must match.</p>
+                <p>Examples:</p>
+                <ul>
+                    <li><code>^[A-Z]{3}-\d{3}$</code> — matches ABC-123</li>
+                    <li><code>^(prod|dev|staging)-.*</code> — must start with prefix</li>
+                </ul>
+                <hr>
+                <p><strong>{{ ui.rule_type_required|default:"Required Field" }}</strong></p>
+                <p>Ensures that a field is not empty, null, or blank. Useful for fields that are optional in NetBox by default but required by your organization.</p>
+                <hr>
+                <p><strong>Common models:</strong></p>
+                <ul class="small">
+                    <li><code>dcim.device</code></li>
+                    <li><code>dcim.site</code></li>
+                    <li><code>dcim.rack</code></li>
+                    <li><code>ipam.ipaddress</code></li>
+                    <li><code>ipam.prefix</code></li>
+                    <li><code>tenancy.tenant</code></li>
+                    <li><code>virtualization.virtualmachine</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show/hide regex pattern field based on rule type
+    (function() {
+        const ruleType = document.getElementById('id_rule_type');
+        const regexGroup = document.getElementById('regex-pattern-group');
+        if (ruleType && regexGroup) {
+            function toggle() {
+                regexGroup.style.display = ruleType.value === 'required' ? 'none' : '';
+            }
+            toggle();
+            ruleType.addEventListener('change', toggle);
+        }
+    })();
+</script>
+{% endblock content %}

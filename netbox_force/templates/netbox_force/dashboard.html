@@ -1,0 +1,190 @@
+{% extends 'base/layout.html' %}
+{% load i18n %}
+
+{% block title %}NetBox Force - {{ ui.tab_dashboard|default:"Dashboard" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+
+    {# Feature Status #}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-toggle-switch"></i> {{ ui.dashboard_feature_status|default:"Feature Status" }}
+            </h5>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td>{{ ui.dashboard_changelog_enforcement|default:"Changelog Enforcement" }}</td>
+                            <td class="text-end">
+                                <span class="badge bg-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ ui.dashboard_ticket_reference|default:"Ticket Reference" }}</td>
+                            <td class="text-end">
+                                {% if settings.ticket_pattern %}
+                                    <span class="badge bg-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ ui.dashboard_change_window|default:"Change Window" }}</td>
+                            <td class="text-end">
+                                {% if settings.change_window_enabled %}
+                                    <span class="badge bg-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ ui.dashboard_audit_log|default:"Audit Log" }}</td>
+                            <td class="text-end">
+                                {% if settings.audit_log_enabled %}
+                                    <span class="badge bg-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ ui.dashboard_active_rules|default:"Active Rules" }}</td>
+                            <td class="text-end">
+                                <span class="badge bg-info">{{ active_rules_count }}</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# Total Violations #}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-counter"></i> {{ ui.dashboard_total_violations|default:"Total Violations" }}
+            </h5>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <span class="display-1 text-{% if total_violations > 0 %}warning{% else %}success{% endif %}">
+                    {{ total_violations }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {# Violations by Reason #}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-chart-bar"></i> {{ ui.dashboard_by_reason|default:"Violations by Reason" }}
+            </h5>
+            <div class="card-body">
+                {% if violations_by_reason %}
+                {% for item in violations_by_reason %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>{{ item.display }}</span>
+                        <strong>{{ item.count }}</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        {% widthratio item.count total_violations 100 as pct %}
+                        <div class="progress-bar bg-warning" role="progressbar"
+                             style="width: {{ pct }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center my-3">{{ ui.dashboard_no_data|default:"No data available." }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Top 10 Users #}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-account-group"></i> {{ ui.dashboard_top_users|default:"Top 10 Users" }}
+            </h5>
+            <div class="card-body">
+                {% if violations_by_user %}
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>{{ ui.violations_col_username|default:"User" }}</th>
+                            <th class="text-end">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in violations_by_user %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><code>{{ item.username }}</code></td>
+                            <td class="text-end"><strong>{{ item.count }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center my-3">{{ ui.dashboard_no_data|default:"No data available." }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Violations Over Time (Last 30 Days) #}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-chart-timeline-variant"></i> {{ ui.dashboard_over_time|default:"Violations (Last 30 Days)" }}
+            </h5>
+            <div class="card-body">
+                {% if violations_over_time %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            {% for item in violations_over_time %}
+                            <tr>
+                                <td class="text-nowrap small" style="width: 120px;">{{ item.day|date:"Y-m-d" }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 20px;">
+                                            {% if max_daily_count > 0 %}
+                                                {% widthratio item.count max_daily_count 100 as bar_width %}
+                                            {% else %}
+                                                {% with bar_width=0 %}{% endwith %}
+                                            {% endif %}
+                                            <div class="progress-bar bg-info" role="progressbar"
+                                                 style="width: {{ bar_width }}%">
+                                                {% if bar_width > 15 %}{{ item.count }}{% endif %}
+                                            </div>
+                                        </div>
+                                        {% if bar_width <= 15 %}
+                                            <small class="text-muted">{{ item.count }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center my-3">{{ ui.dashboard_no_data|default:"No data available." }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock content %}

@@ -1,0 +1,154 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.tab_violations|default:"Violations" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+
+        {% if not audit_enabled %}
+        <div class="alert alert-warning d-flex align-items-center mb-4">
+            <i class="mdi mdi-alert mdi-24px me-2"></i>
+            <span>{{ ui.violations_disabled_warning|default:"Audit logging is disabled. Violations are not being recorded." }}</span>
+        </div>
+        {% endif %}
+
+        {# Filter Bar #}
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="filter_reason" class="form-label">{{ ui.filter_reason|default:"Reason" }}</label>
+                        <select name="reason" id="filter_reason" class="form-select form-select-sm">
+                            <option value="">{{ ui.filter_all|default:"All" }}</option>
+                            {% for code, label in reason_choices %}
+                            <option value="{{ code }}" {% if filter_reason == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter_username" class="form-label">{{ ui.filter_username|default:"User" }}</label>
+                        <input type="text" name="username" id="filter_username" value="{{ filter_username }}"
+                               class="form-control form-control-sm" placeholder="username">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filter_date_from" class="form-label">{{ ui.filter_date_from|default:"From" }}</label>
+                        <input type="date" name="date_from" id="filter_date_from" value="{{ filter_date_from }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filter_date_to" class="form-label">{{ ui.filter_date_to|default:"To" }}</label>
+                        <input type="date" name="date_to" id="filter_date_to" value="{{ filter_date_to }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="mdi mdi-magnify"></i> {{ ui.btn_apply_filter|default:"Apply" }}
+                        </button>
+                        <a href="{% url 'plugins:netbox_force:violation_list' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="mdi mdi-close"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# Violations Table #}
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-alert-circle"></i> {{ ui.violations_title|default:"Violations" }}
+                {% if violations.paginator.count > 0 %}
+                    <span class="badge bg-secondary ms-2">{{ violations.paginator.count }}</span>
+                {% endif %}
+            </h5>
+            <div class="card-body">
+                {% if violations %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>{{ ui.violations_col_timestamp|default:"Timestamp" }}</th>
+                                <th>{{ ui.violations_col_username|default:"User" }}</th>
+                                <th>{{ ui.violations_col_model|default:"Model" }}</th>
+                                <th>{{ ui.violations_col_object|default:"Object" }}</th>
+                                <th>{{ ui.violations_col_action|default:"Action" }}</th>
+                                <th>{{ ui.violations_col_reason|default:"Reason" }}</th>
+                                <th>{{ ui.violations_col_message|default:"Message" }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in violations %}
+                            <tr>
+                                <td class="text-nowrap small">{{ v.timestamp|date:"Y-m-d H:i" }}</td>
+                                <td><code>{{ v.username }}</code></td>
+                                <td><code class="small">{{ v.model_label }}</code></td>
+                                <td class="small">{{ v.object_repr|truncatechars:40 }}</td>
+                                <td>
+                                    {% if v.action == 'create' %}
+                                        <span class="badge bg-success">{{ v.get_action_display }}</span>
+                                    {% elif v.action == 'delete' %}
+                                        <span class="badge bg-danger">{{ v.get_action_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">{{ v.get_action_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">{{ v.get_reason_display }}</span>
+                                </td>
+                                <td class="small">{{ v.message|truncatechars:80 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {# Pagination #}
+                {% if violations.has_other_pages %}
+                <nav class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        {% if violations.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ violations.previous_page_number }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                                &laquo;
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in violations.paginator.page_range %}
+                            {% if violations.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > violations.number|add:'-5' and num < violations.number|add:'5' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if violations.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ violations.next_page_number }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                                &raquo;
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="mdi mdi-check-circle-outline mdi-24px"></i>
+                    <p class="mt-2">{{ ui.violations_empty|default:"No violations recorded." }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

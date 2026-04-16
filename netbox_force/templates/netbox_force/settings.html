@@ -1,15 +1,9 @@
 {% extends 'base/layout.html' %}
 
-{% block title %}NetBox Force - Settings{% endblock %}
+{% block title %}NetBox Force - {{ ui.tab_settings|default:"Settings" }}{% endblock %}
 
 {% block tabs %}
-<ul class="nav nav-tabs">
-    <li class="nav-item">
-        <a class="nav-link active" href="{% url 'plugins:netbox_force:settings' %}">
-            <i class="mdi mdi-cog"></i> Settings
-        </a>
-    </li>
-</ul>
+{% include 'netbox_force/_tabs.html' %}
 {% endblock tabs %}
 
 {% block content %}
@@ -21,13 +15,13 @@
             {# Language #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-translate"></i> Language
+                    <i class="mdi mdi-translate"></i> {{ ui.section_language|default:"Language" }}
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="id_language" class="form-label">{{ form.language.label }}</label>
+                        <label for="id_language" class="form-label">{{ ui.label_language|default:"Language" }}</label>
                         {{ form.language }}
-                        <div class="form-text">Language for error messages in the NetBox UI. API messages are always in English.</div>
+                        <div class="form-text">{{ ui.help_language|default:"Language for error messages in the NetBox UI." }}</div>
                     </div>
                 </div>
             </div>
@@ -35,23 +29,23 @@
             {# Enforcement Rules #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-shield-check"></i> Enforcement Rules
+                    <i class="mdi mdi-shield-check"></i> {{ ui.section_enforcement|default:"Enforcement Rules" }}
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="id_min_length" class="form-label">{{ form.min_length.label }}</label>
+                        <label for="id_min_length" class="form-label">{{ ui.label_min_length|default:"Minimum changelog length" }}</label>
                         {{ form.min_length }}
-                        <div class="form-text">Minimum number of characters required for a changelog entry.</div>
+                        <div class="form-text">{{ ui.help_min_length|default:"Minimum number of characters required for a changelog entry." }}</div>
                     </div>
                     <div class="mb-3 form-check">
                         {{ form.enforce_on_create }}
-                        <label class="form-check-label" for="id_enforce_on_create">{{ form.enforce_on_create.label }}</label>
-                        <div class="form-text">If enabled, a changelog entry is also required when creating new objects.</div>
+                        <label class="form-check-label" for="id_enforce_on_create">{{ ui.label_enforce_on_create|default:"Enforce on create" }}</label>
+                        <div class="form-text">{{ ui.help_enforce_on_create|default:"If enabled, a changelog entry is also required when creating new objects." }}</div>
                     </div>
                     <div class="mb-3 form-check">
                         {{ form.enforce_on_delete }}
-                        <label class="form-check-label" for="id_enforce_on_delete">{{ form.enforce_on_delete.label }}</label>
-                        <div class="form-text">If enabled, a changelog entry is also required when deleting objects.</div>
+                        <label class="form-check-label" for="id_enforce_on_delete">{{ ui.label_enforce_on_delete|default:"Enforce on delete" }}</label>
+                        <div class="form-text">{{ ui.help_enforce_on_delete|default:"If enabled, a changelog entry is also required when deleting objects." }}</div>
                     </div>
                 </div>
             </div>
@@ -59,13 +53,91 @@
             {# Blocked Phrases #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-block-helper"></i> Blocked Phrases
+                    <i class="mdi mdi-block-helper"></i> {{ ui.section_blocked_phrases|default:"Blocked Phrases" }}
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="id_blacklisted_phrases" class="form-label">{{ form.blacklisted_phrases.label }}</label>
+                        <label for="id_blacklisted_phrases" class="form-label">{{ ui.label_blacklisted_phrases|default:"Blocked phrases" }}</label>
                         {{ form.blacklisted_phrases }}
-                        <div class="form-text">{{ form.blacklisted_phrases.help_text }}</div>
+                        <div class="form-text">{{ ui.help_blacklisted_phrases|default:"One phrase per line." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Ticket Reference #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-ticket-confirmation"></i> {{ ui.section_ticket|default:"Ticket Reference" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_ticket_pattern" class="form-label">{{ ui.label_ticket_pattern|default:"Ticket pattern (Regex)" }}</label>
+                        {{ form.ticket_pattern }}
+                        {% if form.ticket_pattern.errors %}
+                            <div class="invalid-feedback d-block">{{ form.ticket_pattern.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Change Window #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-clock-outline"></i> {{ ui.section_change_window|default:"Change Window" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        {{ form.change_window_enabled }}
+                        <label class="form-check-label" for="id_change_window_enabled">{{ ui.label_change_window_enabled|default:"Enable change window" }}</label>
+                        <div class="form-text">{{ ui.help_change_window_enabled|default:"If enabled, changes are only allowed within the defined time window." }}</div>
+                    </div>
+                    <div id="change-window-fields">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_change_window_start" class="form-label">{{ ui.label_change_window_start|default:"Start time" }}</label>
+                                {{ form.change_window_start }}
+                                {% if form.change_window_start.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.change_window_start.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">{{ ui.help_change_window_start|default:"Start of the allowed change period." }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_change_window_end" class="form-label">{{ ui.label_change_window_end|default:"End time" }}</label>
+                                {{ form.change_window_end }}
+                                {% if form.change_window_end.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.change_window_end.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">{{ ui.help_change_window_end|default:"End of the allowed change period." }}</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_change_window_weekdays" class="form-label">{{ ui.label_change_window_weekdays|default:"Allowed weekdays" }}</label>
+                            {{ form.change_window_weekdays }}
+                            {% if form.change_window_weekdays.errors %}
+                                <div class="invalid-feedback d-block">{{ form.change_window_weekdays.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">{{ ui.help_change_window_weekdays|default:"Comma-separated ISO weekday numbers (1=Monday, 7=Sunday)." }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Audit Log #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-file-document-outline"></i> {{ ui.section_audit_log|default:"Audit Log" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        {{ form.audit_log_enabled }}
+                        <label class="form-check-label" for="id_audit_log_enabled">{{ ui.label_audit_log_enabled|default:"Enable audit log" }}</label>
+                        <div class="form-text">{{ ui.help_audit_log_enabled|default:"If enabled, all rejected changes are logged for compliance tracking." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_audit_log_retention_days" class="form-label">{{ ui.label_audit_log_retention_days|default:"Retention period (days)" }}</label>
+                        {{ form.audit_log_retention_days }}
+                        <div class="form-text">{{ ui.help_audit_log_retention_days|default:"Number of days to retain audit log entries." }}</div>
                     </div>
                 </div>
             </div>
@@ -73,25 +145,28 @@
             {# Exemptions #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-account-off"></i> Exemptions
+                    <i class="mdi mdi-account-off"></i> {{ ui.section_exemptions|default:"Exemptions" }}
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="id_exempt_users" class="form-label">{{ form.exempt_users.label }}</label>
+                        <label for="id_exempt_users" class="form-label">{{ ui.label_exempt_users|default:"Exempt users" }}</label>
                         {{ form.exempt_users }}
-                        <div class="form-text">{{ form.exempt_users.help_text }}</div>
+                        <div class="form-text">{{ ui.help_exempt_users|default:"One username per line." }}</div>
                     </div>
                     <div class="mb-3">
-                        <label for="id_extra_exempt_models" class="form-label">{{ form.extra_exempt_models.label }}</label>
+                        <label for="id_extra_exempt_models" class="form-label">{{ ui.label_extra_exempt_models|default:"Exempt models" }}</label>
                         {{ form.extra_exempt_models }}
-                        <div class="form-text">{{ form.extra_exempt_models.help_text }}</div>
+                        {% if form.extra_exempt_models.errors %}
+                            <div class="invalid-feedback d-block">{{ form.extra_exempt_models.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.help_extra_exempt_models|default:"One model per line (format: app.model)." }}</div>
                     </div>
                 </div>
             </div>
 
             <div class="text-end">
                 <button type="submit" class="btn btn-primary">
-                    <i class="mdi mdi-content-save"></i> Save
+                    <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
                 </button>
             </div>
         </form>
@@ -101,30 +176,44 @@
     <div class="col-md-4">
         <div class="card">
             <h5 class="card-header">
-                <i class="mdi mdi-information"></i> Info
+                <i class="mdi mdi-information"></i> {{ ui.info_title|default:"Info" }}
             </h5>
             <div class="card-body">
                 <table class="table table-sm">
                     <tr>
-                        <td><strong>Plugin</strong></td>
+                        <td><strong>{{ ui.info_plugin|default:"Plugin" }}</strong></td>
                         <td>NetBox Force</td>
                     </tr>
                     <tr>
-                        <td><strong>Version</strong></td>
-                        <td>{{ settings.version|default:"3.0.0" }}</td>
+                        <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
+                        <td>4.0.0</td>
                     </tr>
                     <tr>
-                        <td><strong>Author</strong></td>
+                        <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>
                         <td>Gasi-Code</td>
                     </tr>
                 </table>
                 <hr>
                 <p class="text-muted small mb-0">
-                    Changes take effect immediately. These settings
-                    override values from <code>configuration.py</code>.
+                    {{ ui.info_note|default:"Changes take effect immediately." }}
                 </p>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Show/hide change window fields based on checkbox
+    (function() {
+        const checkbox = document.getElementById('id_change_window_enabled');
+        const fields = document.getElementById('change-window-fields');
+        if (checkbox && fields) {
+            function toggle() {
+                fields.style.display = checkbox.checked ? '' : 'none';
+            }
+            toggle();
+            checkbox.addEventListener('change', toggle);
+        }
+    })();
+</script>
 {% endblock content %}
