@@ -6,18 +6,22 @@ _menu_items = (
     PluginMenuItem(
         link='plugins:netbox_force:settings',
         link_text='Settings',
+        permissions=['netbox_force.view_forcesettings'],
     ),
     PluginMenuItem(
         link='plugins:netbox_force:rule_list',
         link_text='Validation Rules',
+        permissions=['netbox_force.view_validationrule'],
     ),
     PluginMenuItem(
         link='plugins:netbox_force:violation_list',
         link_text='Violations',
+        permissions=['netbox_force.view_violation'],
     ),
     PluginMenuItem(
         link='plugins:netbox_force:dashboard',
         link_text='Dashboard',
+        permissions=['netbox_force.view_forcesettings'],
     ),
 )
 

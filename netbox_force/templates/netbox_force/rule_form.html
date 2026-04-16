@@ -36,9 +36,9 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         {% endif %}
                         <div class="form-text">
                             <strong>{{ ui.rule_type_naming|default:"Naming Convention" }}:</strong>
-                            Field value must match a regex pattern.<br>
+                            {{ ui.rule_help_type_naming_desc|default:"Field value must match a regex pattern." }}<br>
                             <strong>{{ ui.rule_type_required|default:"Required Field" }}:</strong>
-                            Field must have a non-empty value.
+                            {{ ui.rule_help_type_required_desc|default:"Field must have a non-empty value." }}
                         </div>
                     </div>
 
@@ -48,7 +48,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         {% if form.model_label.errors %}
                             <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">Format: app.model (e.g. dcim.device, ipam.ipaddress)</div>
+                        <div class="form-text">{{ ui.rule_help_model_format|default:"Format: app.model (e.g. dcim.device, ipam.ipaddress)" }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -57,7 +57,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         {% if form.field_name.errors %}
                             <div class="invalid-feedback d-block">{{ form.field_name.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">The model field to validate (e.g. name, description, tenant)</div>
+                        <div class="form-text">{{ ui.rule_help_field_desc|default:"The model field to validate (e.g. name, description, tenant)" }}</div>
                     </div>
 
                     <div class="mb-3" id="regex-pattern-group">
@@ -66,7 +66,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         {% if form.regex_pattern.errors %}
                             <div class="invalid-feedback d-block">{{ form.regex_pattern.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">Only for naming rules. The field value must fully match this regex pattern.</div>
+                        <div class="form-text">{{ ui.rule_help_pattern_desc|default:"Only for naming rules. The field value must fully match this regex pattern." }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -75,7 +75,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         {% if form.error_message.errors %}
                             <div class="invalid-feedback d-block">{{ form.error_message.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">Shown to the user when validation fails. Leave empty for default message.</div>
+                        <div class="form-text">{{ ui.rule_help_error_msg_desc|default:"Shown to the user when validation fails. Leave empty for default message." }}</div>
                     </div>
 
                     <div class="mb-3 form-check">
@@ -100,21 +100,21 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
     <div class="col-md-4">
         <div class="card">
             <h5 class="card-header">
-                <i class="mdi mdi-help-circle"></i> Help
+                <i class="mdi mdi-help-circle"></i> {{ ui.rule_help_title|default:"Help" }}
             </h5>
             <div class="card-body small">
                 <p><strong>{{ ui.rule_type_naming|default:"Naming Convention" }}</strong></p>
-                <p>Ensures that a field value matches a regex pattern. Uses Python's <code>re.fullmatch()</code>, so the entire value must match.</p>
-                <p>Examples:</p>
+                <p>{{ ui.rule_help_naming_desc|default:"Ensures that a field value matches a regex pattern." }}</p>
+                <p>{{ ui.rule_help_naming_examples|default:"Examples" }}:</p>
                 <ul>
-                    <li><code>^[A-Z]{3}-\d{3}$</code> — matches ABC-123</li>
-                    <li><code>^(prod|dev|staging)-.*</code> — must start with prefix</li>
+                    <li><code>^[A-Z]{3}-\d{3}$</code> — {{ ui.rule_help_naming_ex1|default:"matches ABC-123" }}</li>
+                    <li><code>^(prod|dev|staging)-.*</code> — {{ ui.rule_help_naming_ex2|default:"must start with prefix" }}</li>
                 </ul>
                 <hr>
                 <p><strong>{{ ui.rule_type_required|default:"Required Field" }}</strong></p>
-                <p>Ensures that a field is not empty, null, or blank. Useful for fields that are optional in NetBox by default but required by your organization.</p>
+                <p>{{ ui.rule_help_required_desc|default:"Ensures that a field is not empty, null, or blank." }}</p>
                 <hr>
-                <p><strong>Common models:</strong></p>
+                <p><strong>{{ ui.rule_help_common_models|default:"Common models" }}:</strong></p>
                 <ul class="small">
                     <li><code>dcim.device</code></li>
                     <li><code>dcim.site</code></li>
