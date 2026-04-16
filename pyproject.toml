@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-force"
-version = "2.2.0"
+version = "3.0.0"
 description = "NetBox plugin for enforcing changelog messages, validation policies, and compliance rules"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [
-    {name = "hannIT AöR"},
+    {name = "Gasi-Code"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

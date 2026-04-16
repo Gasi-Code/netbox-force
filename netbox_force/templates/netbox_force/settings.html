@@ -1,0 +1,130 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - Einstellungen{% endblock %}
+
+{% block tabs %}
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url 'plugins:netbox_force:settings' %}">
+            <i class="mdi mdi-cog"></i> Einstellungen
+        </a>
+    </li>
+</ul>
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <form method="post">
+            {% csrf_token %}
+
+            {# Sprache #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-translate"></i> Sprache / Language
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_language" class="form-label">{{ form.language.label }}</label>
+                        {{ form.language }}
+                        <div class="form-text">Sprache der Fehlermeldungen in der NetBox-Oberfläche. API-Meldungen sind immer auf Englisch.</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Enforcement-Regeln #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-shield-check"></i> Enforcement-Regeln
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_min_length" class="form-label">{{ form.min_length.label }}</label>
+                        {{ form.min_length }}
+                        <div class="form-text">Minimale Zeichenanzahl die ein Changelog-Eintrag haben muss.</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.enforce_on_create }}
+                        <label class="form-check-label" for="id_enforce_on_create">{{ form.enforce_on_create.label }}</label>
+                        <div class="form-text">Wenn aktiv, wird auch beim Erstellen neuer Objekte ein Changelog-Eintrag verlangt.</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.enforce_on_delete }}
+                        <label class="form-check-label" for="id_enforce_on_delete">{{ form.enforce_on_delete.label }}</label>
+                        <div class="form-text">Wenn aktiv, wird auch beim Löschen von Objekten ein Changelog-Eintrag verlangt.</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Gesperrte Begriffe #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-block-helper"></i> Gesperrte Begriffe
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_blacklisted_phrases" class="form-label">{{ form.blacklisted_phrases.label }}</label>
+                        {{ form.blacklisted_phrases }}
+                        <div class="form-text">{{ form.blacklisted_phrases.help_text }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Ausnahmen #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-account-off"></i> Ausnahmen
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_exempt_users" class="form-label">{{ form.exempt_users.label }}</label>
+                        {{ form.exempt_users }}
+                        <div class="form-text">{{ form.exempt_users.help_text }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_extra_exempt_models" class="form-label">{{ form.extra_exempt_models.label }}</label>
+                        {{ form.extra_exempt_models }}
+                        <div class="form-text">{{ form.extra_exempt_models.help_text }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="mdi mdi-content-save"></i> Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# Info-Sidebar #}
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-information"></i> Info
+            </h5>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Plugin</strong></td>
+                        <td>NetBox Force</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Version</strong></td>
+                        <td>{{ settings.version|default:"3.0.0" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Autor</strong></td>
+                        <td>Gasi-Code</td>
+                    </tr>
+                </table>
+                <hr>
+                <p class="text-muted small mb-0">
+                    Änderungen werden sofort wirksam. Die Einstellungen
+                    überschreiben Werte aus der <code>configuration.py</code>.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

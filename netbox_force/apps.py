@@ -5,8 +5,8 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Erzwingt Changelog-Messages und weitere Policies bei Objekt-Änderungen'
-    version = '2.2.0'
-    author = 'hannIT AöR'
+    version = '3.0.0'
+    author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
 
@@ -23,7 +23,7 @@ class NetboxForceConfig(PluginConfig):
     }
 
     def ready(self):
-        from . import signals  # noqa: F401 – registriert alle Signal Handler
+        from . import signals  # noqa: F401
 
 
 config = NetboxForceConfig
