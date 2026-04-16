@@ -13,10 +13,10 @@ logger = logging.getLogger('netbox.plugins.netbox_force')
 
 
 # =============================================================================
-# KONFIGURATION
+# CONFIGURATION
 # =============================================================================
 
-# Modelle die niemals geprüft werden (NetBox-interne System-Objekte)
+# Models that are never checked (NetBox internal system objects)
 EXEMPT_MODELS = {
     # Auth & Sessions
     'auth.user', 'auth.group', 'auth.permission',
@@ -25,7 +25,7 @@ EXEMPT_MODELS = {
     'contenttypes.contenttype',
     'admin.logentry',
 
-    # NetBox System-Objekte (werden intern/automatisch geschrieben)
+    # NetBox system objects (written internally/automatically)
     'extras.objectchange',
     'extras.journalentry',
     'extras.cachedvalue',
@@ -39,7 +39,7 @@ EXEMPT_MODELS = {
     'extras.customlink',
     'extras.exporttemplate',
 
-    # Core System-Objekte (NetBox 4.x)
+    # Core system objects (NetBox 4.x)
     'core.configrevision',
     'core.objecttype',
     'core.job',
@@ -48,35 +48,35 @@ EXEMPT_MODELS = {
     'core.datasourcefile',
     'core.autosyncrecord',
 
-    # Eigenes Settings-Model (Singleton)
+    # Own settings model (singleton)
     'netbox_force.forcesettings',
 }
 
-# HTTP-Methoden bei denen Changelog-Pflicht gilt (Save)
+# HTTP methods that require a changelog (save)
 ENFORCE_ON_METHODS = {'POST', 'PUT', 'PATCH'}
 
-# HTTP-Methoden bei denen Changelog-Pflicht gilt (Delete)
+# HTTP methods that require a changelog (delete)
 ENFORCE_ON_DELETE_METHODS = {'POST', 'DELETE'}
 
-# Felder die bei Änderungsvergleich ignoriert werden (Timestamps etc.)
+# Fields ignored during change comparison (timestamps etc.)
 IGNORED_FIELDS = {
     'last_updated', 'created', 'modified',
     'last_login', 'date_joined', 'last_activity',
 }
 
-# Sentinel-Wert: unterscheidet "noch nicht geprüft" von "geprüft, nichts gefunden"
+# Sentinel value: distinguishes "not yet checked" from "checked, nothing found"
 _NOT_CHECKED = object()
 
 
 # =============================================================================
-# SETTINGS-ZUGRIFF
+# SETTINGS ACCESS
 # =============================================================================
 
 def _get_settings():
     """
-    Liest Einstellungen aus der DB (ForceSettings-Model).
-    Fällt auf PLUGINS_CONFIG zurück wenn DB nicht verfügbar.
-    Gibt ein dict-artiges Objekt zurück.
+    Reads settings from the DB (ForceSettings model).
+    Falls back to PLUGINS_CONFIG if the DB is unavailable.
+    Returns a dict-like object or None.
     """
     try:
         from .models import ForceSettings
@@ -89,17 +89,17 @@ def _get_settings():
 
 
 def _get_setting(name, default=None):
-    """Liest eine einzelne Einstellung — DB-first, Config-Fallback."""
+    """Reads a single setting — DB-first, config fallback."""
     settings = _get_settings()
     if settings is not None:
         return getattr(settings, name, default)
-    # Fallback auf PLUGINS_CONFIG
+    # Fallback to PLUGINS_CONFIG
     val = get_plugin_config('netbox_force', name)
     return val if val is not None else default
 
 
 # =============================================================================
-# HILFSFUNKTIONEN
+# HELPER FUNCTIONS
 # =============================================================================
 
 def get_model_label(instance):
@@ -118,22 +118,27 @@ def is_exempt_model(instance):
 
 
 def is_exempt_user(request):
-    """Gibt True zurück wenn der User von der Prüfung ausgenommen ist."""
+    """Returns True if the user is exempt from changelog enforcement."""
     if not request or not hasattr(request, 'user'):
         return True
     if not request.user or not request.user.is_authenticated:
         return True
+
+    username = request.user.username.lower()
+
     settings = _get_settings()
     if settings is not None:
-        return request.user.username in settings.get_exempt_users_list()
+        exempt_list = [u.lower() for u in settings.get_exempt_users_list()]
+        return username in exempt_list
+
     exempt_users = get_plugin_config('netbox_force', 'exempt_users') or []
-    return request.user.username in exempt_users
+    return username in [u.lower() for u in exempt_users]
 
 
 def get_changelog_comment(request):
     """
-    Liest den Changelog-Kommentar aus dem Request.
-    Prüft zuerst request.data (DRF), dann request.POST (Django-Forms).
+    Reads the changelog comment from the request.
+    Checks request.data (DRF) first, then request.POST (Django forms).
     """
     if not request:
         return None
@@ -166,7 +171,7 @@ def get_changelog_comment(request):
 
 
 def has_real_changes(instance):
-    """Prüft ob sich wirklich etwas geändert hat."""
+    """Checks whether the instance actually has changes compared to the DB."""
     if not instance.pk:
         return True
 
@@ -186,8 +191,10 @@ def has_real_changes(instance):
 
 def check_blacklist(comment):
     """
-    Prüft ob der Kommentar auf der Blacklist steht.
-    Gibt eine Liste der gematchten Begriffe zurück (leer = OK).
+    Checks whether the comment contains blacklisted phrases.
+    Matches whole words — e.g. blacklist "test" matches "test update"
+    but not "testing".
+    Returns a list of matched phrases (empty = OK).
     """
     if not comment:
         return []
@@ -197,13 +204,16 @@ def check_blacklist(comment):
     blacklist = settings.get_blacklisted_phrases_list()
     if not blacklist:
         return []
+
     comment_lower = comment.strip().lower()
-    matched = [phrase for phrase in blacklist if comment_lower == phrase]
+    comment_words = set(comment_lower.split())
+
+    matched = [phrase for phrase in blacklist if phrase in comment_words]
     return matched
 
 
 def build_error_message(instance, request=None, reason='changelog_required'):
-    """Baut die Fehlermeldung auf — mehrsprachig und API-aware."""
+    """Builds the error message — multilingual and API-aware."""
     model_verbose = instance._meta.verbose_name.capitalize()
     min_len = _get_setting('min_length', 2)
     language = _get_setting('language', 'de')
@@ -224,7 +234,7 @@ def build_error_message(instance, request=None, reason='changelog_required'):
 
 
 def build_blacklist_message(instance, request, matched_words):
-    """Baut die Blacklist-Fehlermeldung auf."""
+    """Builds the blacklist error message."""
     language = _get_setting('language', 'de')
     words_str = ', '.join(f"'{w}'" for w in matched_words)
 
@@ -237,14 +247,14 @@ def build_blacklist_message(instance, request, matched_words):
 
 
 # =============================================================================
-# SIGNAL HANDLER
+# SIGNAL HANDLERS
 # =============================================================================
 
 @receiver(pre_save)
 def enforce_changelog_on_save(sender, instance, **kwargs):
     """
-    Wird vor jedem Model-Save aufgerufen.
-    Bricht mit AbortRequest ab wenn kein Changelog vorhanden oder Blacklist-Match.
+    Called before every model save.
+    Aborts with AbortRequest if no changelog is present or blacklist match.
     """
     request = get_current_request()
     model_label = get_model_label(instance)
@@ -259,7 +269,7 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         logger.debug("pre_save: %s no request or method not enforced, skipping", model_label)
         return
 
-    # Neues Objekt? enforce_on_create prüfen
+    # New object? Check enforce_on_create setting
     if not instance.pk and not _get_setting('enforce_on_create', False):
         logger.debug("pre_save: %s new object, enforce_on_create=False, skipping", model_label)
         return
@@ -272,13 +282,13 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     comment = get_changelog_comment(request)
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
 
-    # Changelog vorhanden und lang genug?
+    # Changelog present and long enough?
     if not comment or len(comment) < min_len:
         logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
                      model_label, len(comment) if comment else 0, min_len, username)
         raise AbortRequest(build_error_message(instance, request))
 
-    # Blacklist prüfen
+    # Check blacklist
     matched = check_blacklist(comment)
     if matched:
         logger.info("pre_save: %s changelog matches blacklist %s, blocking user '%s'",
@@ -289,8 +299,8 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
 @receiver(pre_delete)
 def enforce_changelog_on_delete(sender, instance, **kwargs):
     """
-    Wird vor jedem Model-Delete aufgerufen.
-    Nur aktiv wenn enforce_on_delete True ist.
+    Called before every model delete.
+    Only active if enforce_on_delete is True.
     """
     if not _get_setting('enforce_on_delete', True):
         return

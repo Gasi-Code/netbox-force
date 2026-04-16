@@ -1,6 +1,8 @@
+import threading
 import time
 
 from django.db import models
+from django.db.utils import OperationalError, ProgrammingError
 
 
 LANGUAGE_CHOICES = [
@@ -12,95 +14,100 @@ LANGUAGE_CHOICES = [
 
 class ForceSettings(models.Model):
     """
-    Singleton-Model für Plugin-Einstellungen.
-    Nur eine Zeile (pk=1) existiert in der Datenbank.
+    Singleton model for plugin settings.
+    Only one row (pk=1) exists in the database.
     """
     language = models.CharField(
         max_length=5,
         choices=LANGUAGE_CHOICES,
         default='de',
-        verbose_name='Sprache / Language',
+        verbose_name='Language',
     )
     min_length = models.PositiveIntegerField(
         default=2,
-        verbose_name='Mindestlänge Changelog',
+        verbose_name='Minimum changelog length',
     )
     enforce_on_create = models.BooleanField(
         default=False,
-        verbose_name='Beim Erstellen erzwingen',
+        verbose_name='Enforce on create',
     )
     enforce_on_delete = models.BooleanField(
         default=True,
-        verbose_name='Beim Löschen erzwingen',
+        verbose_name='Enforce on delete',
     )
     exempt_users = models.TextField(
         blank=True,
         default='',
-        verbose_name='Ausgenommene Benutzer',
-        help_text='Ein Benutzername pro Zeile',
+        verbose_name='Exempt users',
+        help_text='One username per line',
     )
     blacklisted_phrases = models.TextField(
         blank=True,
         default='',
-        verbose_name='Gesperrte Begriffe',
-        help_text='Ein Begriff pro Zeile. Changelog-Einträge die nur aus diesen Begriffen bestehen werden abgelehnt.',
+        verbose_name='Blocked phrases',
+        help_text=(
+            'One phrase per line. Changelog entries containing any of '
+            'these phrases (as whole words) will be rejected.'
+        ),
     )
     extra_exempt_models = models.TextField(
         blank=True,
         default='',
-        verbose_name='Ausgenommene Modelle',
-        help_text='Ein Model pro Zeile (Format: app.model, z.B. myplugin.mymodel)',
+        verbose_name='Exempt models',
+        help_text='One model per line (format: app.model, e.g. myplugin.mymodel)',
     )
 
-    # In-Memory-Cache
+    # In-memory cache with thread safety
     _cached_instance = None
     _cache_timestamp = 0
-    _CACHE_TTL = 30  # Sekunden
+    _CACHE_TTL = 30  # seconds
+    _cache_lock = threading.Lock()
 
     class Meta:
-        verbose_name = 'NetBox Force Einstellungen'
-        verbose_name_plural = 'NetBox Force Einstellungen'
+        verbose_name = 'NetBox Force Settings'
+        verbose_name_plural = 'NetBox Force Settings'
 
     def __str__(self):
-        return 'NetBox Force Einstellungen'
+        return 'NetBox Force Settings'
 
     def save(self, *args, **kwargs):
-        self.pk = 1  # Singleton erzwingen
+        self.pk = 1  # Enforce singleton
         super().save(*args, **kwargs)
-        # Cache invalidieren
-        ForceSettings._cached_instance = None
-        ForceSettings._cache_timestamp = 0
+        # Invalidate cache
+        with ForceSettings._cache_lock:
+            ForceSettings._cached_instance = None
+            ForceSettings._cache_timestamp = 0
 
     def delete(self, *args, **kwargs):
-        pass  # Singleton darf nicht gelöscht werden
+        pass  # Singleton must not be deleted
 
     @classmethod
     def get_settings(cls):
         """
-        Gibt die Plugin-Einstellungen zurück (gecacht).
-        Fällt auf PLUGINS_CONFIG-Defaults zurück wenn DB nicht verfügbar.
+        Returns plugin settings (cached).
+        Falls back to PLUGINS_CONFIG defaults if the DB is unavailable.
         """
         now = time.time()
-        if (cls._cached_instance is not None
-                and (now - cls._cache_timestamp) < cls._CACHE_TTL):
-            return cls._cached_instance
+        with cls._cache_lock:
+            if (cls._cached_instance is not None
+                    and (now - cls._cache_timestamp) < cls._CACHE_TTL):
+                return cls._cached_instance
 
-        try:
-            obj, created = cls.objects.get_or_create(pk=1)
-            if created:
-                # Initialisierung aus PLUGINS_CONFIG
-                cls._init_from_config(obj)
-        except Exception:
-            # DB nicht verfügbar (Migration nicht gelaufen o.ä.)
-            return None
+            try:
+                obj, created = cls.objects.get_or_create(pk=1)
+                if created:
+                    cls._init_from_config(obj)
+            except (OperationalError, ProgrammingError):
+                # DB unavailable (migration not run, etc.)
+                return None
 
-        cls._cached_instance = obj
-        cls._cache_timestamp = now
-        return obj
+            cls._cached_instance = obj
+            cls._cache_timestamp = now
+            return obj
 
     @classmethod
     def _init_from_config(cls, obj):
-        """Initialisiert die DB-Einstellungen aus PLUGINS_CONFIG."""
+        """Initializes DB settings from PLUGINS_CONFIG defaults."""
         from netbox.plugins import get_plugin_config
 
         obj.min_length = get_plugin_config('netbox_force', 'min_length') or 2
@@ -118,19 +125,19 @@ class ForceSettings(models.Model):
         obj.save()
 
     def get_exempt_users_list(self):
-        """Gibt die ausgenommenen User als Liste zurück."""
+        """Returns exempt users as a list."""
         if not self.exempt_users:
             return []
         return [u.strip() for u in self.exempt_users.splitlines() if u.strip()]
 
     def get_blacklisted_phrases_list(self):
-        """Gibt die gesperrten Begriffe als Liste zurück."""
+        """Returns blocked phrases as a lowercase list."""
         if not self.blacklisted_phrases:
             return []
         return [p.strip().lower() for p in self.blacklisted_phrases.splitlines() if p.strip()]
 
     def get_extra_exempt_models_list(self):
-        """Gibt die ausgenommenen Modelle als Liste zurück."""
+        """Returns exempt models as a list."""
         if not self.extra_exempt_models:
             return []
         return [m.strip() for m in self.extra_exempt_models.splitlines() if m.strip()]

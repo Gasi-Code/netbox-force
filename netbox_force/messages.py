@@ -1,5 +1,5 @@
 """
-Mehrsprachige Fehlermeldungen für das NetBox Force Plugin.
+Multilingual error messages for the NetBox Force plugin.
 """
 
 MESSAGES = {
@@ -47,7 +47,7 @@ MESSAGES = {
     },
 }
 
-# API-Nachrichten sind immer auf Englisch
+# API messages are always in English
 API_MESSAGES = {
     'changelog_required': (
         "Changelog entry required. When {action} '{model}', include a "
@@ -61,13 +61,13 @@ API_MESSAGES = {
 
 
 def get_message(key, language='de', **kwargs):
-    """Gibt eine übersetzte Nachricht zurück."""
+    """Returns a translated message for the given key and language."""
     lang_messages = MESSAGES.get(language, MESSAGES['en'])
     template = lang_messages.get(key, MESSAGES['en'].get(key, key))
     return template.format(**kwargs) if kwargs else template
 
 
 def get_api_message(key, **kwargs):
-    """Gibt eine API-Nachricht zurück (immer Englisch)."""
+    """Returns an API error message (always English)."""
     template = API_MESSAGES.get(key, key)
     return template.format(**kwargs) if kwargs else template

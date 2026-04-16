@@ -4,19 +4,19 @@ _thread_locals = threading.local()
 
 
 def get_current_request():
-    """Gibt den aktuellen HTTP-Request aus dem Thread-Local-Storage zurück."""
+    """Returns the current HTTP request from thread-local storage."""
     return getattr(_thread_locals, 'request', None)
 
 
 def set_current_request(request):
-    """Speichert den aktuellen HTTP-Request im Thread-Local-Storage."""
+    """Stores the current HTTP request in thread-local storage."""
     _thread_locals.request = request
 
 
 class RequestContextMiddleware:
     """
-    Middleware die den aktuellen Request im Thread-Local-Storage hält,
-    damit die Signal Handler darauf zugreifen können.
+    Middleware that keeps the current request in thread-local storage
+    so that signal handlers can access it.
     """
 
     def __init__(self, get_response):
@@ -27,5 +27,5 @@ class RequestContextMiddleware:
         try:
             response = self.get_response(request)
         finally:
-            set_current_request(None)  # Immer aufräumen, auch bei Exceptions
+            set_current_request(None)  # Always clean up, even on exceptions
         return response

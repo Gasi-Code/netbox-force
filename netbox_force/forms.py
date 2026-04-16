@@ -1,10 +1,16 @@
+import re
+
 from django import forms
+from django.core.exceptions import ValidationError
 
 from .models import ForceSettings, LANGUAGE_CHOICES
 
+# Valid model label pattern: app_label.model_name
+_MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
+
 
 class ForceSettingsForm(forms.ModelForm):
-    """Formular für die Plugin-Einstellungen."""
+    """Form for the plugin settings page."""
 
     class Meta:
         model = ForceSettings
@@ -46,3 +52,26 @@ class ForceSettingsForm(forms.ModelForm):
                 'placeholder': 'myplugin.mymodel',
             }),
         }
+
+    def clean_extra_exempt_models(self):
+        """Validate that each line matches the app.model format."""
+        value = self.cleaned_data.get('extra_exempt_models', '')
+        if not value or not value.strip():
+            return value
+
+        invalid_lines = []
+        for line in value.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if not _MODEL_LABEL_RE.match(line.lower()):
+                invalid_lines.append(line)
+
+        if invalid_lines:
+            raise ValidationError(
+                "Invalid model format: %(values)s. "
+                "Use the format 'app.model' (e.g. 'myplugin.mymodel').",
+                params={'values': ', '.join(f"'{l}'" for l in invalid_lines)},
+                code='invalid_model_format',
+            )
+        return value
