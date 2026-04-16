@@ -1,4 +1,4 @@
-from netbox.plugins import PluginConfig
+from netbox.plugins import PluginConfig, PluginMenuItem
 
 
 class NetboxForceConfig(PluginConfig):
@@ -14,6 +14,13 @@ class NetboxForceConfig(PluginConfig):
         'netbox_force.middleware.RequestContextMiddleware',
     ]
 
+    menu_items = (
+        PluginMenuItem(
+            link='plugins:netbox_force:settings',
+            link_text='Settings',
+        ),
+    )
+
     default_settings = {
         'min_length': 2,
         'exempt_users': ['automation', 'monitoring', 'netbox'],
@@ -23,6 +30,7 @@ class NetboxForceConfig(PluginConfig):
     }
 
     def ready(self):
+        super().ready()
         from . import signals  # noqa: F401
 
 
