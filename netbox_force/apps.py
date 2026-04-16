@@ -1,6 +1,15 @@
 from netbox.plugins import PluginConfig, PluginMenuItem
 
 
+# Module-level variable — NetBox's _load_resource imports this by dotted path
+_menu_items = (
+    PluginMenuItem(
+        link='plugins:netbox_force:settings',
+        link_text='Settings',
+    ),
+)
+
+
 class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
@@ -14,12 +23,8 @@ class NetboxForceConfig(PluginConfig):
         'netbox_force.middleware.RequestContextMiddleware',
     ]
 
-    menu_items = (
-        PluginMenuItem(
-            link='plugins:netbox_force:settings',
-            link_text='Settings',
-        ),
-    )
+    # String path: _load_resource constructs import_string("netbox_force.apps._menu_items")
+    menu_items = '_menu_items'
 
     default_settings = {
         'min_length': 2,
