@@ -27,6 +27,11 @@ Repository = "https://github.com/gasi-code/netbox-force"
 [tool.setuptools.packages.find]
 include = ["netbox_force*"]
 
+[tool.setuptools.package-data]
+netbox_force = [
+    "templates/**/*.html",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["netbox_force/tests"]
 python_files = ["test_*.py"]

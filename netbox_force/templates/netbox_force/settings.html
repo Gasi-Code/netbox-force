@@ -1,12 +1,12 @@
 {% extends 'base/layout.html' %}
 
-{% block title %}NetBox Force - Einstellungen{% endblock %}
+{% block title %}NetBox Force - Settings{% endblock %}
 
 {% block tabs %}
 <ul class="nav nav-tabs">
     <li class="nav-item">
         <a class="nav-link active" href="{% url 'plugins:netbox_force:settings' %}">
-            <i class="mdi mdi-cog"></i> Einstellungen
+            <i class="mdi mdi-cog"></i> Settings
         </a>
     </li>
 </ul>
@@ -18,48 +18,48 @@
         <form method="post">
             {% csrf_token %}
 
-            {# Sprache #}
+            {# Language #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-translate"></i> Sprache / Language
+                    <i class="mdi mdi-translate"></i> Language
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="id_language" class="form-label">{{ form.language.label }}</label>
                         {{ form.language }}
-                        <div class="form-text">Sprache der Fehlermeldungen in der NetBox-Oberfläche. API-Meldungen sind immer auf Englisch.</div>
+                        <div class="form-text">Language for error messages in the NetBox UI. API messages are always in English.</div>
                     </div>
                 </div>
             </div>
 
-            {# Enforcement-Regeln #}
+            {# Enforcement Rules #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-shield-check"></i> Enforcement-Regeln
+                    <i class="mdi mdi-shield-check"></i> Enforcement Rules
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="id_min_length" class="form-label">{{ form.min_length.label }}</label>
                         {{ form.min_length }}
-                        <div class="form-text">Minimale Zeichenanzahl die ein Changelog-Eintrag haben muss.</div>
+                        <div class="form-text">Minimum number of characters required for a changelog entry.</div>
                     </div>
                     <div class="mb-3 form-check">
                         {{ form.enforce_on_create }}
                         <label class="form-check-label" for="id_enforce_on_create">{{ form.enforce_on_create.label }}</label>
-                        <div class="form-text">Wenn aktiv, wird auch beim Erstellen neuer Objekte ein Changelog-Eintrag verlangt.</div>
+                        <div class="form-text">If enabled, a changelog entry is also required when creating new objects.</div>
                     </div>
                     <div class="mb-3 form-check">
                         {{ form.enforce_on_delete }}
                         <label class="form-check-label" for="id_enforce_on_delete">{{ form.enforce_on_delete.label }}</label>
-                        <div class="form-text">Wenn aktiv, wird auch beim Löschen von Objekten ein Changelog-Eintrag verlangt.</div>
+                        <div class="form-text">If enabled, a changelog entry is also required when deleting objects.</div>
                     </div>
                 </div>
             </div>
 
-            {# Gesperrte Begriffe #}
+            {# Blocked Phrases #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-block-helper"></i> Gesperrte Begriffe
+                    <i class="mdi mdi-block-helper"></i> Blocked Phrases
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
@@ -70,10 +70,10 @@
                 </div>
             </div>
 
-            {# Ausnahmen #}
+            {# Exemptions #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-account-off"></i> Ausnahmen
+                    <i class="mdi mdi-account-off"></i> Exemptions
                 </h5>
                 <div class="card-body">
                     <div class="mb-3">
@@ -91,13 +91,13 @@
 
             <div class="text-end">
                 <button type="submit" class="btn btn-primary">
-                    <i class="mdi mdi-content-save"></i> Speichern
+                    <i class="mdi mdi-content-save"></i> Save
                 </button>
             </div>
         </form>
     </div>
 
-    {# Info-Sidebar #}
+    {# Info Sidebar #}
     <div class="col-md-4">
         <div class="card">
             <h5 class="card-header">
@@ -114,14 +114,14 @@
                         <td>{{ settings.version|default:"3.0.0" }}</td>
                     </tr>
                     <tr>
-                        <td><strong>Autor</strong></td>
+                        <td><strong>Author</strong></td>
                         <td>Gasi-Code</td>
                     </tr>
                 </table>
                 <hr>
                 <p class="text-muted small mb-0">
-                    Änderungen werden sofort wirksam. Die Einstellungen
-                    überschreiben Werte aus der <code>configuration.py</code>.
+                    Changes take effect immediately. These settings
+                    override values from <code>configuration.py</code>.
                 </p>
             </div>
         </div>

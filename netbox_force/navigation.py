@@ -1,14 +1,9 @@
-from netbox.plugins import PluginMenu, PluginMenuItem
+from netbox.plugins import PluginMenuItem
 
-menu = PluginMenu(
-    label='NetBox Force',
-    groups=(
-        ('', (
-            PluginMenuItem(
-                link='plugins:netbox_force:settings',
-                link_text='Einstellungen',
-            ),
-        )),
+menu_items = (
+    PluginMenuItem(
+        link='plugins:netbox_force:settings',
+        link_text='Settings',
+        buttons=(),
     ),
-    icon_class='mdi mdi-shield-lock',
 )
