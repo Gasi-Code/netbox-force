@@ -28,6 +28,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                     </div>
                     {% endif %}
 
+                    {# Rule Type #}
                     <div class="mb-3">
                         <label for="id_rule_type" class="form-label">{{ ui.rules_col_type|default:"Type" }}</label>
                         {{ form.rule_type }}
@@ -42,33 +43,58 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         </div>
                     </div>
 
+                    {# Model — searchable dropdown #}
                     <div class="mb-3">
                         <label for="id_model_label" class="form-label">{{ ui.rules_col_model|default:"Model" }}</label>
-                        {{ form.model_label }}
+                        <input type="text" name="model_label" id="id_model_label"
+                               class="form-control" list="model-suggestions"
+                               value="{{ form.model_label.value|default_if_none:'' }}"
+                               placeholder="dcim.device"
+                               autocomplete="off">
+                        <datalist id="model-suggestions"></datalist>
                         {% if form.model_label.errors %}
                             <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">{{ ui.rule_help_model_format|default:"Format: app.model (e.g. dcim.device, ipam.ipaddress)" }}</div>
+                        <div class="form-text" id="model-hint">
+                            {{ ui.rule_help_model_format|default:"Format: app.model (e.g. dcim.device, ipam.ipaddress)" }}
+                        </div>
                     </div>
 
+                    {# Field — dynamic dropdown based on selected model #}
                     <div class="mb-3">
                         <label for="id_field_name" class="form-label">{{ ui.rules_col_field|default:"Field" }}</label>
-                        {{ form.field_name }}
+                        <input type="text" name="field_name" id="id_field_name"
+                               class="form-control" list="field-suggestions"
+                               value="{{ form.field_name.value|default_if_none:'' }}"
+                               placeholder="name"
+                               autocomplete="off">
+                        <datalist id="field-suggestions"></datalist>
                         {% if form.field_name.errors %}
                             <div class="invalid-feedback d-block">{{ form.field_name.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">{{ ui.rule_help_field_desc|default:"The model field to validate (e.g. name, description, tenant)" }}</div>
+                        <div class="form-text" id="field-hint">
+                            {{ ui.rule_help_field_desc|default:"The model field to validate (e.g. name, description, tenant)" }}
+                        </div>
                     </div>
 
+                    {# Regex Pattern — with suggestion dropdown #}
                     <div class="mb-3" id="regex-pattern-group">
                         <label for="id_regex_pattern" class="form-label">{{ ui.rules_col_pattern|default:"Pattern" }}</label>
-                        {{ form.regex_pattern }}
+                        <div class="input-group">
+                            {{ form.regex_pattern }}
+                            <select id="pattern-suggestion-select" class="form-select" style="max-width: 280px;">
+                                <option value="">-- {{ ui.rule_help_naming_examples|default:"Examples" }} --</option>
+                            </select>
+                        </div>
                         {% if form.regex_pattern.errors %}
                             <div class="invalid-feedback d-block">{{ form.regex_pattern.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">{{ ui.rule_help_pattern_desc|default:"Only for naming rules. The field value must fully match this regex pattern." }}</div>
+                        <div class="form-text" id="pattern-hint">
+                            {{ ui.rule_help_pattern_desc|default:"Only for naming rules. The field value must fully match this regex pattern." }}
+                        </div>
                     </div>
 
+                    {# Error Message #}
                     <div class="mb-3">
                         <label for="id_error_message" class="form-label">{{ ui.rules_col_message|default:"Error Message" }}</label>
                         {{ form.error_message }}
@@ -78,6 +104,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         <div class="form-text">{{ ui.rule_help_error_msg_desc|default:"Shown to the user when validation fails. Leave empty for default message." }}</div>
                     </div>
 
+                    {# Enabled #}
                     <div class="mb-3 form-check">
                         {{ form.enabled }}
                         <label class="form-check-label" for="id_enabled">{{ ui.rules_col_enabled|default:"Enabled" }}</label>
@@ -130,17 +157,99 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
 </div>
 
 <script>
-    // Show/hide regex pattern field based on rule type
-    (function() {
-        const ruleType = document.getElementById('id_rule_type');
-        const regexGroup = document.getElementById('regex-pattern-group');
-        if (ruleType && regexGroup) {
-            function toggle() {
-                regexGroup.style.display = ruleType.value === 'required' ? 'none' : '';
+(function() {
+    const BASE_URL = '{% url "plugins:netbox_force:settings" %}'.replace('/settings/', '');
+    const modelInput = document.getElementById('id_model_label');
+    const modelDatalist = document.getElementById('model-suggestions');
+    const fieldInput = document.getElementById('id_field_name');
+    const fieldDatalist = document.getElementById('field-suggestions');
+    const modelHint = document.getElementById('model-hint');
+    const fieldHint = document.getElementById('field-hint');
+    const ruleType = document.getElementById('id_rule_type');
+    const regexGroup = document.getElementById('regex-pattern-group');
+    const patternSelect = document.getElementById('pattern-suggestion-select');
+    const patternInput = document.getElementById('id_regex_pattern');
+
+    // --- Load models into datalist ---
+    fetch(BASE_URL + '/helpers/models/', {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        data.models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.label;
+            opt.textContent = m.label + ' — ' + m.verbose;
+            modelDatalist.appendChild(opt);
+        });
+    })
+    .catch(() => {});
+
+    // --- Load fields when model changes ---
+    let fieldLoadTimeout;
+    modelInput.addEventListener('input', function() {
+        clearTimeout(fieldLoadTimeout);
+        fieldLoadTimeout = setTimeout(loadFields, 300);
+    });
+    modelInput.addEventListener('change', loadFields);
+
+    function loadFields() {
+        const val = modelInput.value.trim();
+        fieldDatalist.innerHTML = '';
+        fieldHint.textContent = '';
+
+        if (!val || !val.includes('.')) return;
+        const parts = val.split('.');
+        if (parts.length !== 2) return;
+
+        fetch(BASE_URL + '/helpers/fields/' + parts[0] + '/' + parts[1] + '/', {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            data.fields.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.name;
+                opt.textContent = f.name + ' (' + f.type + ') — ' + f.verbose;
+                fieldDatalist.appendChild(opt);
+            });
+            if (data.fields.length > 0) {
+                fieldHint.textContent = data.fields.length + ' fields available — type to search';
             }
-            toggle();
-            ruleType.addEventListener('change', toggle);
+        })
+        .catch(() => {});
+    }
+
+    // Load fields on page load if model is already set
+    if (modelInput.value) loadFields();
+
+    // --- Show/hide regex pattern field based on rule type ---
+    function toggleRegex() {
+        regexGroup.style.display = ruleType.value === 'required' ? 'none' : '';
+    }
+    toggleRegex();
+    ruleType.addEventListener('change', toggleRegex);
+
+    // --- Pattern suggestion dropdown ---
+    const suggestions = JSON.parse('{{ naming_suggestions|escapejs }}');
+    suggestions.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.pattern;
+        opt.textContent = s.label;
+        patternSelect.appendChild(opt);
+    });
+
+    patternSelect.addEventListener('change', function() {
+        if (this.value) {
+            patternInput.value = this.value;
+            // Show example in hint
+            const match = suggestions.find(s => s.pattern === this.value);
+            if (match) {
+                document.getElementById('pattern-hint').innerHTML =
+                    'Example match: <code>' + match.example + '</code>';
+            }
         }
-    })();
+    });
+})();
 </script>
 {% endblock content %}

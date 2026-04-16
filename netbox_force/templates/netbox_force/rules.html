@@ -38,9 +38,9 @@
                             <tr>
                                 <td>
                                     {% if rule.rule_type == 'naming' %}
-                                        <span class="badge bg-info">{{ ui.rule_type_naming|default:"Naming" }}</span>
+                                        <span class="badge border border-info text-info">{{ ui.rule_type_naming|default:"Naming" }}</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">{{ ui.rule_type_required|default:"Required" }}</span>
+                                        <span class="badge border border-warning text-warning">{{ ui.rule_type_required|default:"Required" }}</span>
                                     {% endif %}
                                 </td>
                                 <td><code>{{ rule.model_label }}</code></td>
@@ -61,9 +61,9 @@
                                 </td>
                                 <td>
                                     {% if rule.enabled %}
-                                        <span class="badge bg-success">ON</span>
+                                        <span class="badge border border-success text-success">ON</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">OFF</span>
+                                        <span class="badge border border-secondary text-secondary">OFF</span>
                                     {% endif %}
                                 </td>
                                 <td>

@@ -1,10 +1,13 @@
+import json
 from datetime import timedelta
 
+from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.db.models.functions import TruncDate
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
@@ -36,6 +39,132 @@ def _get_ui_context(settings_obj=None):
 
 
 # =============================================================================
+# COMMON PATTERN SUGGESTIONS
+# =============================================================================
+
+NAMING_PATTERN_SUGGESTIONS = [
+    {
+        'pattern': '^[A-Z]{2,3}-[A-Z0-9-]+$',
+        'label': 'Uppercase code — DE-BERLIN, US-NYC-01',
+        'example': 'DE-BERLIN',
+    },
+    {
+        'pattern': '^[a-z][a-z0-9-]*$',
+        'label': 'Lowercase with hyphens — my-device-01',
+        'example': 'my-device-01',
+    },
+    {
+        'pattern': '^[A-Z][A-Za-z0-9_ -]+$',
+        'label': 'Starts with uppercase — Main Office',
+        'example': 'Main Office',
+    },
+    {
+        'pattern': '^(prod|staging|dev|test)-.*$',
+        'label': 'Environment prefix — prod-web-01',
+        'example': 'prod-web-01',
+    },
+    {
+        'pattern': '^[A-Z0-9]{2,}-[A-Z0-9]{2,}-[A-Z0-9]+$',
+        'label': 'Multi-segment code — DC01-RK01-U01',
+        'example': 'DC01-RK01-U01',
+    },
+    {
+        'pattern': '^[A-Za-z0-9._-]+$',
+        'label': 'FQDN-safe characters — server01.example.com',
+        'example': 'server01.example.com',
+    },
+    {
+        'pattern': '^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$',
+        'label': 'CIDR notation — 10.0.0.0/24',
+        'example': '10.0.0.0/24',
+    },
+]
+
+TICKET_PATTERN_SUGGESTIONS = [
+    {
+        'pattern': 'JIRA-\\d+',
+        'label': 'Jira — JIRA-1234',
+        'example': 'JIRA-1234',
+    },
+    {
+        'pattern': '[A-Z]+-\\d+',
+        'label': 'Generic Jira-style — PROJ-123',
+        'example': 'PROJ-123',
+    },
+    {
+        'pattern': '#\\d+',
+        'label': 'GitHub / GitLab — #123',
+        'example': '#123',
+    },
+    {
+        'pattern': 'INC\\d{7}',
+        'label': 'ServiceNow Incident — INC0012345',
+        'example': 'INC0012345',
+    },
+    {
+        'pattern': 'CHG\\d{7}',
+        'label': 'ServiceNow Change — CHG0012345',
+        'example': 'CHG0012345',
+    },
+    {
+        'pattern': 'RITM\\d{7}',
+        'label': 'ServiceNow Request — RITM0012345',
+        'example': 'RITM0012345',
+    },
+    {
+        'pattern': 'REQ\\d+',
+        'label': 'Generic Request — REQ12345',
+        'example': 'REQ12345',
+    },
+    {
+        'pattern': '(INC|CHG|REQ)\\d+',
+        'label': 'ServiceNow (any) — INC/CHG/REQ + number',
+        'example': 'INC0012345',
+    },
+]
+
+
+# =============================================================================
+# HELPER API VIEWS (JSON endpoints for dynamic dropdowns)
+# =============================================================================
+
+class ModelListAPIView(SuperuserRequiredMixin, View):
+    """Returns a JSON list of all available Django/NetBox models."""
+
+    def get(self, request):
+        models = []
+        for model in apps.get_models():
+            label = f"{model._meta.app_label}.{model._meta.model_name}"
+            verbose = str(model._meta.verbose_name).title()
+            models.append({'label': label, 'verbose': verbose})
+        models.sort(key=lambda m: m['label'])
+        return JsonResponse({'models': models})
+
+
+class FieldListAPIView(SuperuserRequiredMixin, View):
+    """Returns a JSON list of fields for a given model."""
+
+    def get(self, request, app_label, model_name):
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            return JsonResponse({'fields': []})
+
+        fields = []
+        for field in model._meta.get_fields():
+            if hasattr(field, 'column'):
+                field_type = field.get_internal_type()
+                verbose = str(getattr(field, 'verbose_name', field.name)).title()
+                fields.append({
+                    'name': field.name,
+                    'type': field_type,
+                    'verbose': verbose,
+                })
+        fields.sort(key=lambda f: f['name'])
+        return JsonResponse({'fields': fields})
+
+
+# =============================================================================
 # SETTINGS VIEW
 # =============================================================================
 
@@ -52,6 +181,7 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             'settings': settings,
             'ui': _get_ui_context(settings),
             'active_tab': 'settings',
+            'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
         })
 
     def post(self, request):
@@ -68,6 +198,7 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             'settings': settings,
             'ui': _get_ui_context(settings),
             'active_tab': 'settings',
+            'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
         })
 
 
@@ -97,6 +228,7 @@ class ValidationRuleCreateView(SuperuserRequiredMixin, View):
             'editing': False,
             'ui': _get_ui_context(),
             'active_tab': 'rules',
+            'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
 
     def post(self, request):
@@ -110,6 +242,7 @@ class ValidationRuleCreateView(SuperuserRequiredMixin, View):
             'editing': False,
             'ui': _get_ui_context(),
             'active_tab': 'rules',
+            'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
 
 
@@ -125,6 +258,7 @@ class ValidationRuleEditView(SuperuserRequiredMixin, View):
             'editing': True,
             'ui': _get_ui_context(),
             'active_tab': 'rules',
+            'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
 
     def post(self, request, pk):
@@ -140,6 +274,7 @@ class ValidationRuleEditView(SuperuserRequiredMixin, View):
             'editing': True,
             'ui': _get_ui_context(),
             'active_tab': 'rules',
+            'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
 
 

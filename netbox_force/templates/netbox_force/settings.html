@@ -72,11 +72,16 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="id_ticket_pattern" class="form-label">{{ ui.label_ticket_pattern|default:"Ticket pattern (Regex)" }}</label>
-                        {{ form.ticket_pattern }}
+                        <div class="input-group">
+                            {{ form.ticket_pattern }}
+                            <select id="ticket-suggestion-select" class="form-select" style="max-width: 280px;">
+                                <option value="">-- {{ ui.rule_help_naming_examples|default:"Examples" }} --</option>
+                            </select>
+                        </div>
                         {% if form.ticket_pattern.errors %}
                             <div class="invalid-feedback d-block">{{ form.ticket_pattern.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
+                        <div class="form-text" id="ticket-hint">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
                     </div>
                 </div>
             </div>
@@ -203,17 +208,41 @@
 </div>
 
 <script>
+(function() {
     // Show/hide change window fields based on checkbox
-    (function() {
-        const checkbox = document.getElementById('id_change_window_enabled');
-        const fields = document.getElementById('change-window-fields');
-        if (checkbox && fields) {
-            function toggle() {
-                fields.style.display = checkbox.checked ? '' : 'none';
-            }
-            toggle();
-            checkbox.addEventListener('change', toggle);
+    const checkbox = document.getElementById('id_change_window_enabled');
+    const fields = document.getElementById('change-window-fields');
+    if (checkbox && fields) {
+        function toggleWindow() {
+            fields.style.display = checkbox.checked ? '' : 'none';
         }
-    })();
+        toggleWindow();
+        checkbox.addEventListener('change', toggleWindow);
+    }
+
+    // Ticket pattern suggestion dropdown
+    const ticketSelect = document.getElementById('ticket-suggestion-select');
+    const ticketInput = document.getElementById('id_ticket_pattern');
+    const ticketHint = document.getElementById('ticket-hint');
+    const ticketSuggestions = JSON.parse('{{ ticket_suggestions|escapejs }}');
+
+    if (ticketSelect && ticketInput) {
+        ticketSuggestions.forEach(function(s) {
+            const opt = document.createElement('option');
+            opt.value = s.pattern;
+            opt.textContent = s.label;
+            ticketSelect.appendChild(opt);
+        });
+        ticketSelect.addEventListener('change', function() {
+            if (this.value) {
+                ticketInput.value = this.value;
+                const match = ticketSuggestions.find(function(s) { return s.pattern === ticketSelect.value; });
+                if (match && ticketHint) {
+                    ticketHint.innerHTML = 'Example match: <code>' + match.example + '</code>';
+                }
+            }
+        });
+    }
+})();
 </script>
 {% endblock content %}
