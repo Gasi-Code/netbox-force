@@ -154,19 +154,22 @@ def has_real_changes(instance):
 def build_error_message(instance, request=None):
     """Baut die angezeigte Fehlermeldung auf — API-aware."""
     model_verbose = instance._meta.verbose_name.capitalize()
-    min_len = get_plugin_config('netbox_force', 'min_length') or 10
+    min_len = get_plugin_config('netbox_force', 'min_length') or 2
+    action_de = "Erstellen" if not instance.pk else "Ändern"
+    action_en = "creating" if not instance.pk else "modifying"
 
     is_api = (request and hasattr(request, 'path_info')
               and request.path_info.startswith('/api/'))
 
     if is_api:
         return (
-            f"Changelog entry required. Include a 'changelog_message' field "
-            f"in the request body (min {min_len} characters)."
+            f"Changelog entry required. When {action_en} '{model_verbose}', "
+            f"include a 'changelog_message' field in the request body "
+            f"(min {min_len} characters)."
         )
 
     return (
-        f"Changelog-Eintrag erforderlich! Beim Ändern von '{model_verbose}' "
+        f"Changelog-Eintrag erforderlich! Beim {action_de} von '{model_verbose}' "
         f"muss im Feld 'Änderungsgrund / Changelog' eine Begründung "
         f"eingetragen werden (mind. {min_len} Zeichen)."
     )
@@ -194,11 +197,14 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     if not request or request.method not in ENFORCE_ON_METHODS:
         logger.debug("pre_save: %s no request or method not enforced, skipping", model_label)
         return
+    if not instance.pk and not get_plugin_config('netbox_force', 'enforce_on_create'):
+        logger.debug("pre_save: %s is new object, enforce_on_create=False, skipping", model_label)
+        return
     if not has_real_changes(instance):
         logger.debug("pre_save: %s no real changes, skipping", model_label)
         return
 
-    min_len = get_plugin_config('netbox_force', 'min_length') or 10
+    min_len = get_plugin_config('netbox_force', 'min_length') or 2
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
@@ -233,7 +239,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         logger.debug("pre_delete: %s no request or method not enforced, skipping", model_label)
         return
 
-    min_len = get_plugin_config('netbox_force', 'min_length') or 10
+    min_len = get_plugin_config('netbox_force', 'min_length') or 2
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:

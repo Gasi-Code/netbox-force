@@ -34,12 +34,13 @@ PLUGINS = [
 
 PLUGINS_CONFIG = {
     'netbox_force': {
-        'min_length': 10,                # Mindestlänge der Changelog-Nachricht
+        'min_length': 2,                 # Mindestlänge der Changelog-Nachricht
         'exempt_users': [                # User die keine Changelog-Pflicht haben
             'automation',
             'monitoring',
             'netbox',
         ],
+        'enforce_on_create': False,      # Auch beim Erstellen neuer Objekte erzwingen
         'enforce_on_delete': True,       # Auch beim Löschen Changelog erzwingen
         'extra_exempt_models': [],       # Zusätzliche Modelle ausschließen (z.B. 'myplugin.mymodel')
     },

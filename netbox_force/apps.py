@@ -5,7 +5,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Erzwingt Changelog-Messages und weitere Policies bei Objekt-Änderungen'
-    version = '2.1.0'
+    version = '2.2.0'
     author = 'hannIT AöR'
     base_url = 'netbox-force'
     min_version = '4.0.0'
@@ -15,8 +15,9 @@ class NetboxForceConfig(PluginConfig):
     ]
 
     default_settings = {
-        'min_length': 10,
+        'min_length': 2,
         'exempt_users': ['automation', 'monitoring', 'netbox'],
+        'enforce_on_create': False,
         'enforce_on_delete': True,
         'extra_exempt_models': [],
     }
