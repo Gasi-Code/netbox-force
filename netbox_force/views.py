@@ -216,15 +216,12 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
     Returns CSV header names for a given model (JSON).
     Used by the import template form to auto-generate CSV content.
 
-    Primary strategy: look up the model's NetBox ImportForm (in
-    ``<app>.forms.bulk_import``) and use its ``Meta.fields`` — these are
-    exactly the fields NetBox's bulk-import accepts.
-
-    Fallback: derive importable fields from model metadata with improved
-    filtering (excludes auto-fields, relations, non-editable fields, etc.).
+    Strategy 1 — look up the model's NetBox ImportForm (in
+    ``<app>.forms.bulk_import``) and use its ``Meta.fields``.
+    Strategy 2 — derive importable fields from ``model._meta.fields``
+    (concrete local fields only, filtered).
     """
 
-    # Field types to exclude in the generic fallback
     _EXCLUDED_TYPES = {'AutoField', 'BigAutoField', 'SmallAutoField'}
     _EXCLUDED_NAMES = {'id', 'custom_field_data', 'local_context_data'}
 
@@ -236,31 +233,35 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
         """Return the field list from the model's ImportForm, or *None*."""
         try:
             module = importlib.import_module(f'{app_label}.forms.bulk_import')
-        except ImportError:
-            return None
-
-        for attr_name in dir(module):
-            cls = getattr(module, attr_name)
-            if (isinstance(cls, type)
-                    and hasattr(cls, 'Meta')
-                    and getattr(cls.Meta, 'model', None) is model
-                    and hasattr(cls.Meta, 'fields')):
-                return list(cls.Meta.fields)
+            for attr_name in dir(module):
+                try:
+                    cls = getattr(module, attr_name)
+                except Exception:
+                    continue
+                if (isinstance(cls, type)
+                        and hasattr(cls, 'Meta')
+                        and getattr(cls.Meta, 'model', None) is model
+                        and hasattr(cls.Meta, 'fields')):
+                    fields = cls.Meta.fields
+                    if fields and fields != '__all__':
+                        return list(fields)
+        except Exception:
+            pass
         return None
 
     # ------------------------------------------------------------------
-    # Strategy 2: Generic field introspection (fallback)
+    # Strategy 2: model._meta.fields introspection (reliable fallback)
     # ------------------------------------------------------------------
-    def _get_generic_fields(self, model):
-        """Derive importable fields from Django model metadata."""
+    @classmethod
+    def _get_generic_fields(cls, model):
+        """Derive importable fields from concrete model fields."""
         headers = []
-        for field in model._meta.get_fields():
-            # Only concrete fields with a DB column
-            if not hasattr(field, 'column'):
-                continue
-
+        # model._meta.fields returns only local concrete fields (no M2M,
+        # no reverse relations) — much safer than get_fields().
+        for field in model._meta.fields:
             # Skip auto-generated primary keys
-            if field.get_internal_type() in self._EXCLUDED_TYPES:
+            type_name = field.get_internal_type()
+            if type_name in cls._EXCLUDED_TYPES:
                 continue
 
             # Skip auto_now / auto_now_add timestamp fields
@@ -268,7 +269,7 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
                 continue
 
             # Skip well-known internal fields
-            if field.name in self._EXCLUDED_NAMES:
+            if field.name in cls._EXCLUDED_NAMES:
                 continue
 
             # Skip non-editable fields
@@ -285,9 +286,11 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
         except LookupError:
             return JsonResponse({'headers': [], 'error': 'Model not found'}, status=404)
 
-        # Try model's ImportForm first, then generic fallback
+        # Strategy 1: ImportForm fields (exact match to NetBox bulk-import)
         headers = self._get_import_form_fields(app_label, model)
-        if headers is None:
+
+        # Strategy 2: generic field introspection
+        if not headers:
             headers = self._get_generic_fields(model)
 
         return JsonResponse({'headers': headers})

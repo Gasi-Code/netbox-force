@@ -40,6 +40,7 @@ EXEMPT_MODELS = {
     'extras.eventrule',
     'extras.customlink',
     'extras.exporttemplate',
+    'extras.dashboard',
 
     # Core system objects (NetBox 4.x)
     'core.configrevision',
