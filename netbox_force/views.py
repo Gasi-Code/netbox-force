@@ -462,3 +462,78 @@ class DashboardView(SuperuserRequiredMixin, View):
             'ui': ui,
             'active_tab': 'dashboard',
         })
+
+
+class DashboardResetView(SuperuserRequiredMixin, View):
+    """Deletes all violation records (superuser only)."""
+
+    def post(self, request):
+        count, _ = Violation.objects.all().delete()
+        messages.success(request, f'{count} violation(s) deleted.')
+        return redirect('plugins:netbox_force:dashboard')
+
+
+class DashboardExportView(SuperuserRequiredMixin, View):
+    """Exports dashboard statistics as CSV (summary, not raw violations)."""
+
+    def get(self, request):
+        settings = ForceSettings.get_settings()
+        top_count = getattr(settings, 'dashboard_top_users_count', 10) if settings else 10
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="netbox_force_dashboard.csv"'
+
+        writer = csv.writer(response)
+
+        # Section 1: Summary
+        writer.writerow(['=== Summary ==='])
+        writer.writerow(['Metric', 'Value'])
+        writer.writerow(['Total Violations', Violation.objects.count()])
+        writer.writerow([])
+
+        # Section 2: Violations by Reason
+        writer.writerow(['=== Violations by Reason ==='])
+        writer.writerow(['Reason', 'Count'])
+        reason_display = dict(Violation.REASON_CHOICES)
+        by_reason = (
+            Violation.objects
+            .values('reason')
+            .annotate(count=Count('reason'))
+            .order_by('-count')
+        )
+        for item in by_reason:
+            writer.writerow([
+                reason_display.get(item['reason'], item['reason']),
+                item['count'],
+            ])
+        writer.writerow([])
+
+        # Section 3: Top N Users
+        writer.writerow([f'=== Top {top_count} Users ==='])
+        writer.writerow(['Username', 'Count'])
+        by_user = (
+            Violation.objects
+            .values('username')
+            .annotate(count=Count('username'))
+            .order_by('-count')[:top_count]
+        )
+        for item in by_user:
+            writer.writerow([item['username'], item['count']])
+        writer.writerow([])
+
+        # Section 4: 30-Day Trend
+        writer.writerow(['=== 30-Day Trend ==='])
+        writer.writerow(['Date', 'Count'])
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        over_time = (
+            Violation.objects
+            .filter(timestamp__gte=thirty_days_ago)
+            .annotate(day=TruncDate('timestamp'))
+            .values('day')
+            .annotate(count=Count('id'))
+            .order_by('day')
+        )
+        for item in over_time:
+            writer.writerow([item['day'].strftime('%Y-%m-%d'), item['count']])
+
+        return response

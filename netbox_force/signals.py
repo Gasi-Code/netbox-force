@@ -78,6 +78,23 @@ _WEEKDAY_NAMES = {
     'es': {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'},
 }
 
+# Language-specific prefix for example hints in error messages
+_EXAMPLE_PREFIX = {'de': 'Beispiel', 'en': 'Example', 'es': 'Ejemplo'}
+
+
+def _format_hint(custom_msg, prefix=''):
+    """
+    Build a hint suffix from a rule's custom error_message.
+    Returns '' if no custom message is set.
+    When prefix is given: " Example: <msg>", otherwise: " <msg>".
+    """
+    if not custom_msg or not custom_msg.strip():
+        return ''
+    msg = custom_msg.strip()
+    if prefix:
+        return f" {prefix}: {msg}"
+    return f" {msg}"
+
 
 # =============================================================================
 # SETTINGS ACCESS
@@ -353,11 +370,9 @@ def check_naming_conventions(instance, model_label, request=None):
 
         try:
             if not re.fullmatch(rule.regex_pattern, value_str):
-                # Use custom error message if set, otherwise fall back to regex
-                if rule.error_message and rule.error_message.strip():
-                    hint = rule.error_message.strip()
-                else:
-                    hint = f"({rule.regex_pattern})"
+                # Build language-aware hint from custom error_message
+                prefix = 'Example' if is_api else _EXAMPLE_PREFIX.get(language, 'Example')
+                hint = _format_hint(rule.error_message, prefix)
                 if is_api:
                     return get_api_message('naming_violation',
                                            field=rule.field_name,
@@ -410,13 +425,16 @@ def check_required_fields(instance, model_label, request=None):
                     or value == '')
 
         if is_empty:
+            hint = _format_hint(rule.error_message)
             if is_api:
                 return get_api_message('required_field',
                                        field=rule.field_name,
-                                       model=model_verbose)
+                                       model=model_verbose,
+                                       hint=hint)
             return get_message('required_field', language,
                                field=rule.field_name,
-                               model=model_verbose)
+                               model=model_verbose,
+                               hint=hint)
 
     return None
 

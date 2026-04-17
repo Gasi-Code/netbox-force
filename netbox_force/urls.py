@@ -13,6 +13,8 @@ urlpatterns = [
     path('violations/', views.ViolationListView.as_view(), name='violation_list'),
     path('violations/export/', views.ViolationExportCSVView.as_view(), name='violation_export_csv'),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    path('dashboard/reset/', views.DashboardResetView.as_view(), name='dashboard_reset'),
+    path('dashboard/export/', views.DashboardExportView.as_view(), name='dashboard_export'),
 
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),

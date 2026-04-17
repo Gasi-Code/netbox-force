@@ -137,6 +137,11 @@ UI_STRINGS = {
         # Violations page extras
         'btn_export_csv': 'CSV-Export',
 
+        # Dashboard buttons
+        'btn_reset_violations': 'Verstöße zurücksetzen',
+        'btn_export_dashboard': 'Statistiken exportieren',
+        'dashboard_reset_confirm': 'Sollen wirklich ALLE Verstöße gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.',
+
         # Info sidebar
         'info_title': 'Info',
         'info_plugin': 'Plugin',
@@ -278,6 +283,11 @@ UI_STRINGS = {
         # Violations page extras
         'btn_export_csv': 'CSV Export',
 
+        # Dashboard buttons
+        'btn_reset_violations': 'Reset Violations',
+        'btn_export_dashboard': 'Export Statistics',
+        'dashboard_reset_confirm': 'Are you sure you want to delete ALL violation records? This action cannot be undone.',
+
         # Info sidebar
         'info_title': 'Info',
         'info_plugin': 'Plugin',
@@ -418,6 +428,11 @@ UI_STRINGS = {
 
         # Violations page extras
         'btn_export_csv': 'Exportar CSV',
+
+        # Dashboard buttons
+        'btn_reset_violations': 'Restablecer Infracciones',
+        'btn_export_dashboard': 'Exportar Estadísticas',
+        'dashboard_reset_confirm': '¿Está seguro de que desea eliminar TODOS los registros de infracciones? Esta acción no se puede deshacer.',
 
         # Info sidebar
         'info_title': 'Info',

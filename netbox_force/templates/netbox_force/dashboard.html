@@ -7,6 +7,19 @@
 {% endblock tabs %}
 
 {% block content %}
+<div class="d-flex justify-content-end gap-2 mb-3">
+    <a href="{% url 'plugins:netbox_force:dashboard_export' %}" class="btn btn-outline-primary btn-sm">
+        <i class="mdi mdi-download"></i> {{ ui.btn_export_dashboard|default:"Export Statistics" }}
+    </a>
+    <form method="post" action="{% url 'plugins:netbox_force:dashboard_reset' %}" class="d-inline"
+          onsubmit="return confirm('{{ ui.dashboard_reset_confirm|default:"Are you sure you want to delete ALL violation records? This action cannot be undone." }}');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+            <i class="mdi mdi-delete-sweep"></i> {{ ui.btn_reset_violations|default:"Reset Violations" }}
+        </button>
+    </form>
+</div>
+
 <div class="row">
 
     {# Feature Status #}

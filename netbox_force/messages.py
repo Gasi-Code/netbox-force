@@ -19,11 +19,11 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Namenskonvention verletzt! Das Feld '{field}' bei '{model}' "
-            "entspricht nicht dem erforderlichen Muster. {hint}"
+            "entspricht nicht dem erforderlichen Muster.{hint}"
         ),
         'required_field': (
             "Pflichtfeld fehlt! Das Feld '{field}' bei '{model}' "
-            "darf nicht leer sein."
+            "darf nicht leer sein.{hint}"
         ),
         'change_window': (
             "Änderungen sind außerhalb des Änderungsfensters nicht erlaubt "
@@ -50,11 +50,11 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Naming convention violated! The field '{field}' on '{model}' "
-            "does not match the required pattern. {hint}"
+            "does not match the required pattern.{hint}"
         ),
         'required_field': (
             "Required field missing! The field '{field}' on '{model}' "
-            "must not be empty."
+            "must not be empty.{hint}"
         ),
         'change_window': (
             "Changes are not allowed outside the change window "
@@ -81,11 +81,11 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Convención de nombres violada. El campo '{field}' en '{model}' "
-            "no coincide con el patrón requerido. {hint}"
+            "no coincide con el patrón requerido.{hint}"
         ),
         'required_field': (
             "Campo obligatorio faltante. El campo '{field}' en '{model}' "
-            "no debe estar vacío."
+            "no debe estar vacío.{hint}"
         ),
         'change_window': (
             "No se permiten cambios fuera de la ventana de cambios "
@@ -114,11 +114,11 @@ API_MESSAGES = {
     ),
     'naming_violation': (
         "Naming convention violated. The field '{field}' on '{model}' "
-        "does not match the required pattern. {hint}"
+        "does not match the required pattern.{hint}"
     ),
     'required_field': (
         "Required field missing. The field '{field}' on '{model}' "
-        "must not be empty."
+        "must not be empty.{hint}"
     ),
     'change_window': (
         "Changes are not allowed outside the change window "

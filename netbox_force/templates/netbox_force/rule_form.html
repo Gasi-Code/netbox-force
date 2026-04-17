@@ -43,15 +43,10 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         </div>
                     </div>
 
-                    {# Model — searchable dropdown #}
+                    {# Model — dropdown #}
                     <div class="mb-3">
                         <label for="id_model_label" class="form-label">{{ ui.rules_col_model|default:"Model" }}</label>
-                        <input type="text" name="model_label" id="id_model_label"
-                               class="form-control" list="model-suggestions"
-                               value="{{ form.model_label.value|default_if_none:'' }}"
-                               placeholder="dcim.device"
-                               autocomplete="off">
-                        <datalist id="model-suggestions"></datalist>
+                        {{ form.model_label }}
                         {% if form.model_label.errors %}
                             <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
                         {% endif %}
@@ -165,42 +160,20 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
 <script>
 (function() {
     const BASE_URL = '{% url "plugins:netbox_force:settings" %}'.replace('/settings/', '');
-    const modelInput = document.getElementById('id_model_label');
-    const modelDatalist = document.getElementById('model-suggestions');
+    const modelSelect = document.getElementById('id_model_label');
     const fieldInput = document.getElementById('id_field_name');
     const fieldDatalist = document.getElementById('field-suggestions');
-    const modelHint = document.getElementById('model-hint');
     const fieldHint = document.getElementById('field-hint');
     const ruleType = document.getElementById('id_rule_type');
     const regexGroup = document.getElementById('regex-pattern-group');
     const patternSelect = document.getElementById('pattern-suggestion-select');
     const patternInput = document.getElementById('id_regex_pattern');
 
-    // --- Load models into datalist ---
-    fetch(BASE_URL + '/helpers/models/', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        data.models.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.label;
-            opt.textContent = m.label + ' — ' + m.verbose;
-            modelDatalist.appendChild(opt);
-        });
-    })
-    .catch(() => {});
-
-    // --- Load fields when model changes ---
-    let fieldLoadTimeout;
-    modelInput.addEventListener('input', function() {
-        clearTimeout(fieldLoadTimeout);
-        fieldLoadTimeout = setTimeout(loadFields, 300);
-    });
-    modelInput.addEventListener('change', loadFields);
+    // --- Load fields when model selection changes ---
+    modelSelect.addEventListener('change', loadFields);
 
     function loadFields() {
-        const val = modelInput.value.trim();
+        const val = modelSelect.value.trim();
         fieldDatalist.innerHTML = '';
         fieldHint.textContent = '';
 
@@ -227,7 +200,7 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
     }
 
     // Load fields on page load if model is already set
-    if (modelInput.value) loadFields();
+    if (modelSelect.value) loadFields();
 
     // --- Show/hide regex pattern field based on rule type ---
     function toggleRegex() {

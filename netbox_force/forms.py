@@ -1,6 +1,7 @@
 import re
 
 from django import forms
+from django.apps import apps
 from django.core.exceptions import ValidationError
 
 from .models import ForceSettings, ValidationRule, LANGUAGE_CHOICES
@@ -195,9 +196,8 @@ class ValidationRuleForm(forms.ModelForm):
         ]
         widgets = {
             'rule_type': forms.Select(attrs={'class': 'form-select'}),
-            'model_label': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'dcim.device',
+            'model_label': forms.Select(attrs={
+                'class': 'form-select',
             }),
             'field_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -215,6 +215,17 @@ class ValidationRuleForm(forms.ModelForm):
                 'class': 'form-check-input',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Populate model_label choices from Django's app registry
+        model_choices = [('', '---------')]
+        for model in apps.get_models():
+            label = f"{model._meta.app_label}.{model._meta.model_name}"
+            verbose = str(model._meta.verbose_name).title()
+            model_choices.append((label, f"{label} — {verbose}"))
+        model_choices.sort(key=lambda c: c[0])
+        self.fields['model_label'].widget.choices = model_choices
 
     def clean_model_label(self):
         """Validate that the model label matches the app.model format."""
