@@ -18,7 +18,8 @@
 
 {% if guide and guide.content %}
     {% if guide_is_full_html %}
-    {# Full HTML page — render in isolated iframe #}
+    {# Full HTML page — render in isolated iframe using json_script to safely embed content #}
+    {{ guide.content|json_script:"guide-html-data" }}
     <div class="card">
         <div class="card-body p-0">
             <iframe id="guide-iframe" style="width: 100%; border: none; min-height: 600px;"
@@ -37,9 +38,8 @@
     <script>
     (function() {
         var iframe = document.getElementById('guide-iframe');
-        var content = {{ guide_content_json|safe }};
+        var content = JSON.parse(document.getElementById('guide-html-data').textContent);
         iframe.srcdoc = content;
-        // Auto-resize iframe to content height
         iframe.addEventListener('load', function() {
             try {
                 var h = iframe.contentDocument.documentElement.scrollHeight;

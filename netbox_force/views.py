@@ -75,18 +75,33 @@ def _feature_disabled_response(request, settings_obj=None):
 
 NAMING_PATTERN_SUGGESTIONS = [
     {
+        'pattern': '^[A-ZÄÖÜ]{2,3}-[A-ZÄÖÜ0-9-]+$',
+        'label': 'Uppercase code (mit Umlauten) — DE-BERLIN, DE-MÜNCHEN',
+        'example': 'DE-MÜNCHEN',
+    },
+    {
         'pattern': '^[A-Z]{2,3}-[A-Z0-9-]+$',
-        'label': 'Uppercase code — DE-BERLIN, US-NYC-01',
+        'label': 'Uppercase code (ASCII only) — DE-BERLIN, US-NYC-01',
         'example': 'DE-BERLIN',
     },
     {
+        'pattern': '^[a-zäöüß][a-zäöüß0-9-]*$',
+        'label': 'Lowercase mit Umlauten — münchen-sw-01',
+        'example': 'münchen-sw-01',
+    },
+    {
         'pattern': '^[a-z][a-z0-9-]*$',
-        'label': 'Lowercase with hyphens — my-device-01',
+        'label': 'Lowercase (ASCII only) — my-device-01',
         'example': 'my-device-01',
     },
     {
+        'pattern': '^[A-ZÄÖÜa-zäöüß][A-Za-zÄÖÜäöüß0-9_ -]+$',
+        'label': 'Freitext mit Umlauten — Büro Südstadt',
+        'example': 'Büro Südstadt',
+    },
+    {
         'pattern': '^[A-Z][A-Za-z0-9_ -]+$',
-        'label': 'Starts with uppercase — Main Office',
+        'label': 'Starts with uppercase (ASCII) — Main Office',
         'example': 'Main Office',
     },
     {
@@ -95,13 +110,13 @@ NAMING_PATTERN_SUGGESTIONS = [
         'example': 'prod-web-01',
     },
     {
-        'pattern': '^[A-Z0-9]{2,}-[A-Z0-9]{2,}-[A-Z0-9]+$',
+        'pattern': '^[A-Z0-9]{2,}-[A-Z0-9]{2,}-[A-ZÄÖÜ0-9]+$',
         'label': 'Multi-segment code — DC01-RK01-U01',
         'example': 'DC01-RK01-U01',
     },
     {
-        'pattern': '^[A-Za-z0-9._-]+$',
-        'label': 'FQDN-safe characters — server01.example.com',
+        'pattern': '^[A-Za-zÄÖÜäöüß0-9._-]+$',
+        'label': 'FQDN-safe + Umlaute — server01.example.com',
         'example': 'server01.example.com',
     },
     {
@@ -844,11 +859,6 @@ class GuideView(AuthenticatedRequiredMixin, View):
             'guide_is_full_html': is_full_html,
             'active_tab': 'guide',
         })
-
-        # For full HTML pages, provide JSON-escaped content for iframe srcdoc
-        if is_full_html and content:
-            ctx['guide_content_json'] = json.dumps(content)
-
         return render(request, 'netbox_force/guide.html', ctx)
 
 
