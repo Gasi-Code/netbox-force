@@ -16,6 +16,19 @@
     {% endif %}
 </div>
 
+<div class="alert alert-info small mt-2" id="widget-hint">
+    <a class="d-flex justify-content-between align-items-center text-decoration-none"
+       data-bs-toggle="collapse" href="#widget-hint-body" role="button"
+       aria-expanded="false" aria-controls="widget-hint-body">
+        <span><i class="mdi mdi-information-outline"></i> {{ ui.widget_hint_title|default:"Set up dashboard widget" }}</span>
+        <i class="mdi mdi-chevron-down"></i>
+    </a>
+    <div class="collapse mt-2" id="widget-hint-body">
+        <p>{{ ui.widget_hint_import_text|default:"To add a quick link on the NetBox dashboard: Home → Add Widget → Note → paste the Markdown below:" }}</p>
+        <pre class="bg-dark text-light p-2 rounded small mb-0">{{ ui.widget_hint_import_markdown }}</pre>
+    </div>
+</div>
+
 {% if templates %}
 <div class="row">
     {% for tpl in templates %}

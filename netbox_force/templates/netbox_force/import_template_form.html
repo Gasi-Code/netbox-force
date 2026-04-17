@@ -118,7 +118,7 @@
             .then(function(resp) { return resp.json(); })
             .then(function(data) {
                 if (data.headers && data.headers.length > 0) {
-                    csvArea.value = data.headers.join(',');
+                    csvArea.value = data.headers.join(',') + '\n';
                 } else {
                     csvArea.value = '# No fields found';
                 }

@@ -194,6 +194,13 @@ UI_STRINGS = {
         # Dashboard (new)
         'dashboard_import_templates': 'Import-Vorlagen',
         'dashboard_guide': 'Benutzer-Anleitung',
+
+        # Widget setup hints
+        'widget_hint_title': 'Dashboard-Widget einrichten',
+        'widget_hint_guide_text': 'Um einen Schnellzugriff auf die Anleitung im NetBox-Dashboard zu erstellen: Home \u2192 Widget hinzuf\u00fcgen \u2192 "Note" w\u00e4hlen \u2192 folgenden Markdown-Inhalt einf\u00fcgen:',
+        'widget_hint_guide_markdown': '### \U0001f4d6 Anleitung\n\nHier findest du die interne Anleitung:\n\n[\u2192 Zur Anleitung](/plugins/netbox-force/guide/)',
+        'widget_hint_import_text': 'Um einen Schnellzugriff auf die Import-Vorlagen im NetBox-Dashboard zu erstellen: Home \u2192 Widget hinzuf\u00fcgen \u2192 "Note" w\u00e4hlen \u2192 folgenden Markdown-Inhalt einf\u00fcgen:',
+        'widget_hint_import_markdown': '### \U0001f4e5 Import-Vorlagen\n\nCSV-Vorlagen f\u00fcr den Bulk-Import:\n\n[\u2192 Zu den Import-Vorlagen](/plugins/netbox-force/import-templates/)',
     },
 
     'en': {
@@ -386,6 +393,13 @@ UI_STRINGS = {
         # Dashboard (new)
         'dashboard_import_templates': 'Import Templates',
         'dashboard_guide': 'User Guide',
+
+        # Widget setup hints
+        'widget_hint_title': 'Set up dashboard widget',
+        'widget_hint_guide_text': 'To add a quick link to the guide on the NetBox dashboard: Home \u2192 Add Widget \u2192 select "Note" \u2192 paste the following Markdown content:',
+        'widget_hint_guide_markdown': '### \U0001f4d6 Guide\n\nAccess the internal guide:\n\n[\u2192 Open Guide](/plugins/netbox-force/guide/)',
+        'widget_hint_import_text': 'To add a quick link to import templates on the NetBox dashboard: Home \u2192 Add Widget \u2192 select "Note" \u2192 paste the following Markdown content:',
+        'widget_hint_import_markdown': '### \U0001f4e5 Import Templates\n\nCSV templates for bulk import:\n\n[\u2192 Open Import Templates](/plugins/netbox-force/import-templates/)',
     },
 
     'es': {
@@ -576,8 +590,15 @@ UI_STRINGS = {
         'feature_disabled_message': 'Esta función está actualmente desactivada. Un administrador puede activarla en la configuración del plugin.',
 
         # Dashboard (new)
-        'dashboard_import_templates': 'Plantillas de Importación',
-        'dashboard_guide': 'Guía de Usuario',
+        'dashboard_import_templates': 'Plantillas de Importaci\u00f3n',
+        'dashboard_guide': 'Gu\u00eda de Usuario',
+
+        # Widget setup hints
+        'widget_hint_title': 'Configurar widget del panel',
+        'widget_hint_guide_text': 'Para a\u00f1adir un acceso r\u00e1pido a la gu\u00eda en el panel de NetBox: Inicio \u2192 A\u00f1adir Widget \u2192 seleccionar "Note" \u2192 pegar el siguiente contenido Markdown:',
+        'widget_hint_guide_markdown': '### \U0001f4d6 Gu\u00eda\n\nAccede a la gu\u00eda interna:\n\n[\u2192 Abrir Gu\u00eda](/plugins/netbox-force/guide/)',
+        'widget_hint_import_text': 'Para a\u00f1adir un acceso r\u00e1pido a las plantillas en el panel de NetBox: Inicio \u2192 A\u00f1adir Widget \u2192 seleccionar "Note" \u2192 pegar el siguiente contenido Markdown:',
+        'widget_hint_import_markdown': '### \U0001f4e5 Plantillas de Importaci\u00f3n\n\nPlantillas CSV para importaci\u00f3n masiva:\n\n[\u2192 Abrir Plantillas](/plugins/netbox-force/import-templates/)',
     },
 }
 

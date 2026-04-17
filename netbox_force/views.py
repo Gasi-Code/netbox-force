@@ -1,4 +1,5 @@
 import csv
+import importlib
 import json
 import re
 from datetime import timedelta
@@ -214,38 +215,80 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
     """
     Returns CSV header names for a given model (JSON).
     Used by the import template form to auto-generate CSV content.
-    Filters out auto-generated fields (AutoField, auto_now, etc.).
+
+    Primary strategy: look up the model's NetBox ImportForm (in
+    ``<app>.forms.bulk_import``) and use its ``Meta.fields`` — these are
+    exactly the fields NetBox's bulk-import accepts.
+
+    Fallback: derive importable fields from model metadata with improved
+    filtering (excludes auto-fields, relations, non-editable fields, etc.).
     """
 
-    # Field types to exclude
+    # Field types to exclude in the generic fallback
     _EXCLUDED_TYPES = {'AutoField', 'BigAutoField', 'SmallAutoField'}
+    _EXCLUDED_NAMES = {'id', 'custom_field_data', 'local_context_data'}
 
-    def get(self, request, app_label, model_name):
+    # ------------------------------------------------------------------
+    # Strategy 1: ImportForm lookup
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _get_import_form_fields(app_label, model):
+        """Return the field list from the model's ImportForm, or *None*."""
         try:
-            model = apps.get_model(app_label, model_name)
-        except LookupError:
-            return JsonResponse({'headers': [], 'error': 'Model not found'}, status=404)
+            module = importlib.import_module(f'{app_label}.forms.bulk_import')
+        except ImportError:
+            return None
 
+        for attr_name in dir(module):
+            cls = getattr(module, attr_name)
+            if (isinstance(cls, type)
+                    and hasattr(cls, 'Meta')
+                    and getattr(cls.Meta, 'model', None) is model
+                    and hasattr(cls.Meta, 'fields')):
+                return list(cls.Meta.fields)
+        return None
+
+    # ------------------------------------------------------------------
+    # Strategy 2: Generic field introspection (fallback)
+    # ------------------------------------------------------------------
+    def _get_generic_fields(self, model):
+        """Derive importable fields from Django model metadata."""
         headers = []
         for field in model._meta.get_fields():
-            # Only include concrete fields with a DB column
+            # Only concrete fields with a DB column
             if not hasattr(field, 'column'):
                 continue
 
             # Skip auto-generated primary keys
-            internal_type = field.get_internal_type()
-            if internal_type in self._EXCLUDED_TYPES:
+            if field.get_internal_type() in self._EXCLUDED_TYPES:
                 continue
 
             # Skip auto_now / auto_now_add timestamp fields
             if getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False):
                 continue
 
-            # Skip the default 'id' primary key
-            if field.name == 'id' and field.primary_key:
+            # Skip well-known internal fields
+            if field.name in self._EXCLUDED_NAMES:
+                continue
+
+            # Skip non-editable fields
+            if not getattr(field, 'editable', True):
                 continue
 
             headers.append(field.name)
+        return headers
+
+    # ------------------------------------------------------------------
+    def get(self, request, app_label, model_name):
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            return JsonResponse({'headers': [], 'error': 'Model not found'}, status=404)
+
+        # Try model's ImportForm first, then generic fallback
+        headers = self._get_import_form_fields(app_label, model)
+        if headers is None:
+            headers = self._get_generic_fields(model)
 
         return JsonResponse({'headers': headers})
 
@@ -827,10 +870,11 @@ class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
 
         template = get_object_or_404(ImportTemplate, pk=pk, enabled=True)
 
-        response = HttpResponse(content_type='text/csv')
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
         safe_name = template.display_name.replace(' ', '_').replace('/', '-')
         response['Content-Disposition'] = f'attachment; filename="{safe_name}.csv"'
-        response.write(template.csv_content)
+        # UTF-8 BOM so Excel recognises columns correctly
+        response.write('\ufeff' + template.csv_content)
         return response
 
 
