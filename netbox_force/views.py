@@ -474,27 +474,44 @@ class DashboardResetView(SuperuserRequiredMixin, View):
 
 
 class DashboardExportView(SuperuserRequiredMixin, View):
-    """Exports dashboard statistics as CSV (summary, not raw violations)."""
+    """Exports dashboard statistics and all violations as CSV."""
 
     def get(self, request):
         settings = ForceSettings.get_settings()
         top_count = getattr(settings, 'dashboard_top_users_count', 10) if settings else 10
+        now = timezone.localtime(timezone.now())
 
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="netbox_force_dashboard.csv"'
+        response['Content-Disposition'] = (
+            f'attachment; filename="netbox_force_report_{now:%Y%m%d_%H%M}.csv"'
+        )
 
         writer = csv.writer(response)
+        reason_display = dict(Violation.REASON_CHOICES)
+        total = Violation.objects.count()
 
-        # Section 1: Summary
-        writer.writerow(['=== Summary ==='])
-        writer.writerow(['Metric', 'Value'])
-        writer.writerow(['Total Violations', Violation.objects.count()])
+        # ── Header ──
+        writer.writerow(['NetBox Force — Compliance Report'])
+        writer.writerow(['Generated', now.strftime('%Y-%m-%d %H:%M:%S')])
         writer.writerow([])
 
-        # Section 2: Violations by Reason
-        writer.writerow(['=== Violations by Reason ==='])
-        writer.writerow(['Reason', 'Count'])
-        reason_display = dict(Violation.REASON_CHOICES)
+        # ── Section 1: Summary ──
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['Metric', 'Value'])
+        writer.writerow(['Total Violations', total])
+
+        # Date range of recorded violations
+        if total > 0:
+            first = Violation.objects.order_by('timestamp').first()
+            last = Violation.objects.order_by('-timestamp').first()
+            writer.writerow(['First Violation', first.timestamp.strftime('%Y-%m-%d %H:%M:%S')])
+            writer.writerow(['Last Violation', last.timestamp.strftime('%Y-%m-%d %H:%M:%S')])
+
+        writer.writerow([])
+
+        # ── Section 2: Violations by Reason ──
+        writer.writerow(['VIOLATIONS BY REASON'])
+        writer.writerow(['Reason', 'Count', '% of Total'])
         by_reason = (
             Violation.objects
             .values('reason')
@@ -502,27 +519,61 @@ class DashboardExportView(SuperuserRequiredMixin, View):
             .order_by('-count')
         )
         for item in by_reason:
+            pct = f"{item['count'] / total * 100:.1f}%" if total else '0%'
             writer.writerow([
                 reason_display.get(item['reason'], item['reason']),
+                item['count'],
+                pct,
+            ])
+        writer.writerow([])
+
+        # ── Section 3: Violations by Model ──
+        writer.writerow(['VIOLATIONS BY MODEL'])
+        writer.writerow(['Model', 'Count', '% of Total'])
+        by_model = (
+            Violation.objects
+            .values('model_label')
+            .annotate(count=Count('model_label'))
+            .order_by('-count')
+        )
+        for item in by_model:
+            pct = f"{item['count'] / total * 100:.1f}%" if total else '0%'
+            writer.writerow([item['model_label'], item['count'], pct])
+        writer.writerow([])
+
+        # ── Section 4: Violations by Action ──
+        writer.writerow(['VIOLATIONS BY ACTION'])
+        writer.writerow(['Action', 'Count'])
+        action_display = dict(Violation.ACTION_CHOICES)
+        by_action = (
+            Violation.objects
+            .values('action')
+            .annotate(count=Count('action'))
+            .order_by('-count')
+        )
+        for item in by_action:
+            writer.writerow([
+                action_display.get(item['action'], item['action']),
                 item['count'],
             ])
         writer.writerow([])
 
-        # Section 3: Top N Users
-        writer.writerow([f'=== Top {top_count} Users ==='])
-        writer.writerow(['Username', 'Count'])
+        # ── Section 5: Top N Users ──
+        writer.writerow([f'TOP {top_count} USERS'])
+        writer.writerow(['#', 'Username', 'Count', '% of Total'])
         by_user = (
             Violation.objects
             .values('username')
             .annotate(count=Count('username'))
             .order_by('-count')[:top_count]
         )
-        for item in by_user:
-            writer.writerow([item['username'], item['count']])
+        for rank, item in enumerate(by_user, 1):
+            pct = f"{item['count'] / total * 100:.1f}%" if total else '0%'
+            writer.writerow([rank, item['username'], item['count'], pct])
         writer.writerow([])
 
-        # Section 4: 30-Day Trend
-        writer.writerow(['=== 30-Day Trend ==='])
+        # ── Section 6: 30-Day Trend ──
+        writer.writerow(['30-DAY TREND'])
         writer.writerow(['Date', 'Count'])
         thirty_days_ago = timezone.now() - timedelta(days=30)
         over_time = (
@@ -535,5 +586,24 @@ class DashboardExportView(SuperuserRequiredMixin, View):
         )
         for item in over_time:
             writer.writerow([item['day'].strftime('%Y-%m-%d'), item['count']])
+        writer.writerow([])
+
+        # ── Section 7: All Violation Records ──
+        writer.writerow(['ALL VIOLATION RECORDS'])
+        writer.writerow([
+            'Timestamp', 'Username', 'Model', 'Object', 'Action',
+            'Reason', 'Message', 'Attempted Comment',
+        ])
+        for v in Violation.objects.all().iterator():
+            writer.writerow([
+                v.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                v.username,
+                v.model_label,
+                v.object_repr,
+                action_display.get(v.action, v.action),
+                reason_display.get(v.reason, v.reason),
+                v.message,
+                v.attempted_comment,
+            ])
 
         return response

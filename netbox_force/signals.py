@@ -425,16 +425,18 @@ def check_required_fields(instance, model_label, request=None):
                     or value == '')
 
         if is_empty:
-            hint = _format_hint(rule.error_message)
+            # Custom error_message replaces the default message entirely
+            if rule.error_message and rule.error_message.strip():
+                return rule.error_message.strip()
             if is_api:
                 return get_api_message('required_field',
                                        field=rule.field_name,
                                        model=model_verbose,
-                                       hint=hint)
+                                       hint='')
             return get_message('required_field', language,
                                field=rule.field_name,
                                model=model_verbose,
-                               hint=hint)
+                               hint='')
 
     return None
 
