@@ -27,6 +27,9 @@ EXEMPT_MODELS = {
     'contenttypes.contenttype',
     'admin.logentry',
 
+    # Django migration recorder (must never trigger DB queries during migrate)
+    'migrations.migration',
+
     # NetBox system objects (written internally/automatically)
     'extras.objectchange',
     'extras.journalentry',
@@ -522,16 +525,24 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     """
     Called before every model save.
     Runs the full enforcement chain:
-    1. Exemption checks (model, user, method)
-    2. Real changes check (existing objects only)
-    3. Change window check (ALWAYS — regardless of enforce_on_create)
-    4. Naming convention check (ALWAYS — regardless of enforce_on_create)
-    5. Required field check (ALWAYS — regardless of enforce_on_create)
-    6. Changelog presence + length (gated by enforce_on_create for new objects)
-    7. Blacklist check (gated by enforce_on_create for new objects)
-    8. Ticket reference check (gated by enforce_on_create for new objects)
+    1. Request context check (bail out during migrations/management commands)
+    2. Exemption checks (model, user)
+    3. Real changes check (existing objects only)
+    4. Change window check (ALWAYS — regardless of enforce_on_create)
+    5. Naming convention check (ALWAYS — regardless of enforce_on_create)
+    6. Required field check (ALWAYS — regardless of enforce_on_create)
+    7. Changelog presence + length (gated by enforce_on_create for new objects)
+    8. Blacklist check (gated by enforce_on_create for new objects)
+    9. Ticket reference check (gated by enforce_on_create for new objects)
     """
+    # --- Request context check FIRST (no DB access!) ---
+    # During migrations, management commands, and background tasks there is
+    # no HTTP request.  Bail out immediately to avoid querying plugin tables
+    # whose schema may not yet be complete.
     request = get_current_request()
+    if not request or request.method not in ENFORCE_ON_METHODS:
+        return
+
     model_label = get_model_label(instance)
 
     # --- Exemption checks ---
@@ -540,9 +551,6 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         return
     if is_exempt_user(request):
         logger.debug("pre_save: %s exempt user, skipping", model_label)
-        return
-    if not request or request.method not in ENFORCE_ON_METHODS:
-        logger.debug("pre_save: %s no request or method not enforced, skipping", model_label)
         return
 
     # Determine if this is a new object
@@ -634,10 +642,14 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     Runs: exemption checks, change window, changelog, blacklist, ticket reference.
     (Naming and required field checks are skipped on deletion.)
     """
+    # --- Request context check FIRST (no DB access!) ---
+    request = get_current_request()
+    if not request or request.method not in ENFORCE_ON_DELETE_METHODS:
+        return
+
     if not _get_setting('enforce_on_delete', True):
         return
 
-    request = get_current_request()
     model_label = get_model_label(instance)
 
     if is_exempt_model(instance):
@@ -645,9 +657,6 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         return
     if is_exempt_user(request):
         logger.debug("pre_delete: %s exempt user, skipping", model_label)
-        return
-    if not request or request.method not in ENFORCE_ON_DELETE_METHODS:
-        logger.debug("pre_delete: %s no request or method not enforced, skipping", model_label)
         return
 
     settings = _get_settings()

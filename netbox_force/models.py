@@ -163,7 +163,12 @@ class ForceSettings(models.Model):
     def get_settings(cls):
         """
         Returns plugin settings (cached, thread-safe).
-        Falls back to None if the DB is unavailable.
+        Falls back to None if the DB is unavailable or schema is incomplete
+        (e.g. during migrations when columns have not been created yet).
+
+        Uses a SAVEPOINT so that a failed query does not corrupt the
+        outer transaction — this is critical for PostgreSQL which aborts
+        the entire transaction on any error.
         """
         now = time.time()
         with cls._cache_lock:
@@ -172,10 +177,17 @@ class ForceSettings(models.Model):
                 return cls._cached_instance
 
             try:
-                obj, created = cls.objects.get_or_create(pk=1)
-                if created:
-                    cls._init_from_config(obj)
-            except (OperationalError, ProgrammingError):
+                from django.db import transaction
+                sid = transaction.savepoint()
+                try:
+                    obj, created = cls.objects.get_or_create(pk=1)
+                    if created:
+                        cls._init_from_config(obj)
+                    transaction.savepoint_commit(sid)
+                except Exception:
+                    transaction.savepoint_rollback(sid)
+                    return None
+            except Exception:
                 return None
 
             cls._cached_instance = obj
