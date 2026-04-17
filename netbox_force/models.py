@@ -137,10 +137,12 @@ class ForceSettings(models.Model):
     )
 
     # In-memory cache with thread safety
+    # RLock (reentrant) because get_settings() holds the lock and may call
+    # save() via _init_from_config(), which also acquires the lock.
     _cached_instance = None
     _cache_timestamp = 0
     _CACHE_TTL = 30  # seconds
-    _cache_lock = threading.Lock()
+    _cache_lock = threading.RLock()
 
     class Meta:
         verbose_name = 'NetBox Force Settings'
