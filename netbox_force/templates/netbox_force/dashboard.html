@@ -78,6 +78,26 @@
                             </td>
                         </tr>
                         <tr>
+                            <td>{{ ui.dashboard_import_templates|default:"Import Templates" }}</td>
+                            <td class="text-end">
+                                {% if settings.import_templates_enabled %}
+                                    <span class="badge border border-success text-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge border border-secondary text-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>{{ ui.dashboard_guide|default:"User Guide" }}</td>
+                            <td class="text-end">
+                                {% if settings.guide_enabled %}
+                                    <span class="badge border border-success text-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge border border-secondary text-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
                             <td>{{ ui.dashboard_active_rules|default:"Active Rules" }}</td>
                             <td class="text-end">
                                 <span class="badge border border-info text-info">{{ active_rules_count }}</span>

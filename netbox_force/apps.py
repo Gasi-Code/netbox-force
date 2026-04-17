@@ -23,6 +23,16 @@ _menu_items = (
         link_text='Dashboard',
         permissions=['netbox_force.view_forcesettings'],
     ),
+    PluginMenuItem(
+        link='plugins:netbox_force:import_template_list',
+        link_text='Import Templates',
+        permissions=[],
+    ),
+    PluginMenuItem(
+        link='plugins:netbox_force:guide',
+        link_text='Guide',
+        permissions=[],
+    ),
 )
 
 
@@ -30,7 +40,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '4.1.1'
+    version = '4.2.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'

@@ -1,0 +1,53 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.import_templates_title|default:"Import Templates" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>{{ ui.import_templates_title|default:"Import Templates" }}</h3>
+    {% if user.is_superuser %}
+    <a href="{% url 'plugins:netbox_force:import_template_admin' %}" class="btn btn-outline-primary btn-sm">
+        <i class="mdi mdi-cog"></i> {{ ui.btn_manage_templates|default:"Manage Templates" }}
+    </a>
+    {% endif %}
+</div>
+
+{% if templates %}
+<div class="row">
+    {% for tpl in templates %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="mdi mdi-file-delimited"></i> {{ tpl.display_name }}
+                </h5>
+                <p class="text-muted small mb-1">
+                    <code>{{ tpl.model_label }}</code>
+                </p>
+                {% if tpl.description %}
+                <p class="card-text small">{{ tpl.description }}</p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'plugins:netbox_force:import_template_download' tpl.pk %}"
+                   class="btn btn-sm btn-primary">
+                    <i class="mdi mdi-download"></i> {{ ui.btn_download|default:"Download" }}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="mdi mdi-file-document-outline text-muted" style="font-size: 3rem;"></i>
+        <p class="text-muted mt-3">{{ ui.import_templates_empty|default:"No import templates available." }}</p>
+    </div>
+</div>
+{% endif %}
+{% endblock content %}

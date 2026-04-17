@@ -1,0 +1,72 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.import_templates_admin_title|default:"Manage Import Templates" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>{{ ui.import_templates_admin_title|default:"Manage Import Templates" }}</h3>
+    <a href="{% url 'plugins:netbox_force:import_template_add' %}" class="btn btn-primary btn-sm">
+        <i class="mdi mdi-plus-thick"></i> {{ ui.btn_add_template|default:"Add Template" }}
+    </a>
+</div>
+
+{% if templates %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>{{ ui.import_templates_col_name|default:"Name" }}</th>
+                    <th>{{ ui.import_templates_col_model|default:"Model" }}</th>
+                    <th>{{ ui.import_templates_col_description|default:"Description" }}</th>
+                    <th>{{ ui.import_templates_col_enabled|default:"Enabled" }}</th>
+                    <th class="text-end">{{ ui.import_templates_col_actions|default:"Actions" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tpl in templates %}
+                <tr>
+                    <td>
+                        <strong>{{ tpl.display_name }}</strong>
+                    </td>
+                    <td><code>{{ tpl.model_label }}</code></td>
+                    <td class="text-muted small">{{ tpl.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if tpl.enabled %}
+                            <span class="badge border border-success text-success">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                        {% else %}
+                            <span class="badge border border-secondary text-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'plugins:netbox_force:import_template_edit' tpl.pk %}"
+                           class="btn btn-sm btn-outline-warning" title="{{ ui.btn_edit|default:'Edit' }}">
+                            <i class="mdi mdi-pencil"></i>
+                        </a>
+                        <a href="{% url 'plugins:netbox_force:import_template_delete' tpl.pk %}"
+                           class="btn btn-sm btn-outline-danger" title="{{ ui.btn_delete|default:'Delete' }}">
+                            <i class="mdi mdi-trash-can-outline"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="mdi mdi-file-document-outline text-muted" style="font-size: 3rem;"></i>
+        <p class="text-muted mt-3">{{ ui.import_templates_empty|default:"No import templates available." }}</p>
+        <a href="{% url 'plugins:netbox_force:import_template_add' %}" class="btn btn-primary">
+            <i class="mdi mdi-plus-thick"></i> {{ ui.btn_add_template|default:"Add Template" }}
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock content %}

@@ -16,8 +16,22 @@ urlpatterns = [
     path('dashboard/reset/', views.DashboardResetView.as_view(), name='dashboard_reset'),
     path('dashboard/export/', views.DashboardExportView.as_view(), name='dashboard_export'),
 
+    # Import Templates
+    path('import-templates/', views.ImportTemplateListView.as_view(), name='import_template_list'),
+    path('import-templates/admin/', views.ImportTemplateAdminListView.as_view(), name='import_template_admin'),
+    path('import-templates/add/', views.ImportTemplateCreateView.as_view(), name='import_template_add'),
+    path('import-templates/<int:pk>/edit/', views.ImportTemplateEditView.as_view(), name='import_template_edit'),
+    path('import-templates/<int:pk>/delete/', views.ImportTemplateDeleteView.as_view(), name='import_template_delete'),
+    path('import-templates/<int:pk>/download/', views.ImportTemplateDownloadView.as_view(), name='import_template_download'),
+
+    # Guide
+    path('guide/', views.GuideView.as_view(), name='guide'),
+    path('guide/edit/', views.GuideEditView.as_view(), name='guide_edit'),
+
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',
          views.FieldListAPIView.as_view(), name='api_fields'),
+    path('helpers/csv-headers/<str:app_label>/<str:model_name>/',
+         views.CsvHeadersAPIView.as_view(), name='api_csv_headers'),
 ]

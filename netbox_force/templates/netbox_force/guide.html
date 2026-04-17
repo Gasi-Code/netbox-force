@@ -1,0 +1,49 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.guide_title|default:"Guide" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>{{ ui.guide_title|default:"Guide" }}</h3>
+    {% if user.is_superuser %}
+    <a href="{% url 'plugins:netbox_force:guide_edit' %}" class="btn btn-outline-warning btn-sm">
+        <i class="mdi mdi-pencil"></i> {{ ui.btn_edit_guide|default:"Edit Guide" }}
+    </a>
+    {% endif %}
+</div>
+
+{% if guide and guide.content %}
+<div class="card">
+    <div class="card-body">
+        <div class="guide-content">
+            {{ guide.content|safe }}
+        </div>
+    </div>
+    {% if guide.updated %}
+    <div class="card-footer text-muted small">
+        {{ ui.guide_last_updated|default:"Last updated" }}:
+        {{ guide.updated|date:"Y-m-d H:i" }}
+        {% if guide.updated_by %}
+            {{ ui.guide_updated_by|default:"by" }} <strong>{{ guide.updated_by }}</strong>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="mdi mdi-book-open-variant text-muted" style="font-size: 3rem;"></i>
+        <p class="text-muted mt-3">{{ ui.guide_empty|default:"No guide has been created yet." }}</p>
+        {% if user.is_superuser %}
+        <a href="{% url 'plugins:netbox_force:guide_edit' %}" class="btn btn-primary">
+            <i class="mdi mdi-pencil"></i> {{ ui.btn_edit_guide|default:"Edit Guide" }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock content %}

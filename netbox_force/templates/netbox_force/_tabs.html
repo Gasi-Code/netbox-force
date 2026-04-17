@@ -1,4 +1,5 @@
 <ul class="nav nav-tabs">
+    {% if user.is_superuser %}
     <li class="nav-item">
         <a class="nav-link {% if active_tab == 'settings' %}active{% endif %}"
            href="{% url 'plugins:netbox_force:settings' %}">
@@ -23,4 +24,21 @@
             <i class="mdi mdi-view-dashboard"></i> {{ ui.tab_dashboard|default:"Dashboard" }}
         </a>
     </li>
+    {% endif %}
+    {% if force_settings.import_templates_enabled %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'import_templates' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:import_template_list' %}">
+            <i class="mdi mdi-file-import"></i> {{ ui.tab_import_templates|default:"Import Templates" }}
+        </a>
+    </li>
+    {% endif %}
+    {% if force_settings.guide_enabled %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'guide' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:guide' %}">
+            <i class="mdi mdi-book-open-variant"></i> {{ ui.tab_guide|default:"Guide" }}
+        </a>
+    </li>
+    {% endif %}
 </ul>

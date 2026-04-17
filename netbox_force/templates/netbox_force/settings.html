@@ -184,6 +184,25 @@
                 </div>
             </div>
 
+            {# Modules #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-puzzle"></i> {{ ui.section_modules|default:"Modules" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        {{ form.import_templates_enabled }}
+                        <label class="form-check-label" for="id_import_templates_enabled">{{ ui.label_import_templates_enabled|default:"Enable import templates" }}</label>
+                        <div class="form-text">{{ ui.help_import_templates_enabled|default:"If enabled, CSV import templates can be provided for all users." }}</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.guide_enabled }}
+                        <label class="form-check-label" for="id_guide_enabled">{{ ui.label_guide_enabled|default:"Enable user guide" }}</label>
+                        <div class="form-text">{{ ui.help_guide_enabled|default:"If enabled, an editable user guide is shown in the plugin." }}</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="text-end">
                 <button type="submit" class="btn btn-primary">
                     <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
@@ -206,7 +225,7 @@
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
-                        <td>4.1.1</td>
+                        <td>4.2.0</td>
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>

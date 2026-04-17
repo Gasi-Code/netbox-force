@@ -54,6 +54,8 @@ EXEMPT_MODELS = {
     'netbox_force.forcesettings',
     'netbox_force.validationrule',
     'netbox_force.violation',
+    'netbox_force.importtemplate',
+    'netbox_force.guidepage',
 }
 
 # HTTP methods that require a changelog (save)

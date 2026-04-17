@@ -148,6 +148,51 @@ UI_STRINGS = {
         'info_version': 'Version',
         'info_author': 'Autor',
         'info_note': 'Änderungen werden sofort wirksam. Diese Einstellungen überschreiben Werte aus configuration.py.',
+
+        # Modules section (settings)
+        'section_modules': 'Module',
+        'label_import_templates_enabled': 'Import-Vorlagen aktivieren',
+        'label_guide_enabled': 'Benutzer-Anleitung aktivieren',
+        'help_import_templates_enabled': 'Wenn aktiviert, koennen CSV-Import-Vorlagen fuer alle Benutzer bereitgestellt werden.',
+        'help_guide_enabled': 'Wenn aktiviert, wird eine bearbeitbare Benutzer-Anleitung im Plugin angezeigt.',
+
+        # Tabs (new)
+        'tab_import_templates': 'Import-Vorlagen',
+        'tab_guide': 'Anleitung',
+
+        # Import Templates
+        'import_templates_title': 'Import-Vorlagen',
+        'import_templates_empty': 'Keine Import-Vorlagen vorhanden.',
+        'import_templates_admin_title': 'Import-Vorlagen verwalten',
+        'import_template_add_title': 'Vorlage hinzufuegen',
+        'import_template_edit_title': 'Vorlage bearbeiten',
+        'import_template_delete_title': 'Vorlage loeschen',
+        'import_template_delete_confirm': 'Soll diese Vorlage wirklich geloescht werden?',
+        'import_templates_col_name': 'Name',
+        'import_templates_col_model': 'Model',
+        'import_templates_col_enabled': 'Aktiv',
+        'import_templates_col_actions': 'Aktionen',
+        'import_templates_col_description': 'Beschreibung',
+        'btn_add_template': 'Vorlage hinzufuegen',
+        'btn_download': 'Herunterladen',
+        'btn_auto_generate': 'CSV-Header generieren',
+        'btn_manage_templates': 'Vorlagen verwalten',
+
+        # Guide
+        'guide_title': 'Anleitung',
+        'guide_empty': 'Noch keine Anleitung erstellt.',
+        'guide_edit_title': 'Anleitung bearbeiten',
+        'guide_last_updated': 'Zuletzt aktualisiert',
+        'guide_updated_by': 'von',
+        'btn_edit_guide': 'Anleitung bearbeiten',
+
+        # Feature disabled
+        'feature_disabled_title': 'Funktion deaktiviert',
+        'feature_disabled_message': 'Diese Funktion ist derzeit deaktiviert. Ein Administrator kann sie in den Plugin-Einstellungen aktivieren.',
+
+        # Dashboard (new)
+        'dashboard_import_templates': 'Import-Vorlagen',
+        'dashboard_guide': 'Benutzer-Anleitung',
     },
 
     'en': {
@@ -294,6 +339,51 @@ UI_STRINGS = {
         'info_version': 'Version',
         'info_author': 'Author',
         'info_note': 'Changes take effect immediately. These settings override values from configuration.py.',
+
+        # Modules section (settings)
+        'section_modules': 'Modules',
+        'label_import_templates_enabled': 'Enable import templates',
+        'label_guide_enabled': 'Enable user guide',
+        'help_import_templates_enabled': 'If enabled, CSV import templates can be provided for all users.',
+        'help_guide_enabled': 'If enabled, an editable user guide is shown in the plugin.',
+
+        # Tabs (new)
+        'tab_import_templates': 'Import Templates',
+        'tab_guide': 'Guide',
+
+        # Import Templates
+        'import_templates_title': 'Import Templates',
+        'import_templates_empty': 'No import templates available.',
+        'import_templates_admin_title': 'Manage Import Templates',
+        'import_template_add_title': 'Add Template',
+        'import_template_edit_title': 'Edit Template',
+        'import_template_delete_title': 'Delete Template',
+        'import_template_delete_confirm': 'Are you sure you want to delete this template?',
+        'import_templates_col_name': 'Name',
+        'import_templates_col_model': 'Model',
+        'import_templates_col_enabled': 'Enabled',
+        'import_templates_col_actions': 'Actions',
+        'import_templates_col_description': 'Description',
+        'btn_add_template': 'Add Template',
+        'btn_download': 'Download',
+        'btn_auto_generate': 'Generate CSV Headers',
+        'btn_manage_templates': 'Manage Templates',
+
+        # Guide
+        'guide_title': 'Guide',
+        'guide_empty': 'No guide has been created yet.',
+        'guide_edit_title': 'Edit Guide',
+        'guide_last_updated': 'Last updated',
+        'guide_updated_by': 'by',
+        'btn_edit_guide': 'Edit Guide',
+
+        # Feature disabled
+        'feature_disabled_title': 'Feature Disabled',
+        'feature_disabled_message': 'This feature is currently disabled. An administrator can enable it in the plugin settings.',
+
+        # Dashboard (new)
+        'dashboard_import_templates': 'Import Templates',
+        'dashboard_guide': 'User Guide',
     },
 
     'es': {
@@ -440,6 +530,51 @@ UI_STRINGS = {
         'info_version': 'Versión',
         'info_author': 'Autor',
         'info_note': 'Los cambios surten efecto inmediatamente. Estas configuraciones anulan los valores de configuration.py.',
+
+        # Modules section (settings)
+        'section_modules': 'Módulos',
+        'label_import_templates_enabled': 'Activar plantillas de importación',
+        'label_guide_enabled': 'Activar guía de usuario',
+        'help_import_templates_enabled': 'Si está activado, se pueden proporcionar plantillas de importación CSV para todos los usuarios.',
+        'help_guide_enabled': 'Si está activado, se muestra una guía de usuario editable en el plugin.',
+
+        # Tabs (new)
+        'tab_import_templates': 'Plantillas de Importación',
+        'tab_guide': 'Guía',
+
+        # Import Templates
+        'import_templates_title': 'Plantillas de Importación',
+        'import_templates_empty': 'No hay plantillas de importación disponibles.',
+        'import_templates_admin_title': 'Gestionar Plantillas de Importación',
+        'import_template_add_title': 'Agregar Plantilla',
+        'import_template_edit_title': 'Editar Plantilla',
+        'import_template_delete_title': 'Eliminar Plantilla',
+        'import_template_delete_confirm': '¿Está seguro de que desea eliminar esta plantilla?',
+        'import_templates_col_name': 'Nombre',
+        'import_templates_col_model': 'Modelo',
+        'import_templates_col_enabled': 'Activo',
+        'import_templates_col_actions': 'Acciones',
+        'import_templates_col_description': 'Descripción',
+        'btn_add_template': 'Agregar Plantilla',
+        'btn_download': 'Descargar',
+        'btn_auto_generate': 'Generar Encabezados CSV',
+        'btn_manage_templates': 'Gestionar Plantillas',
+
+        # Guide
+        'guide_title': 'Guía',
+        'guide_empty': 'Aún no se ha creado una guía.',
+        'guide_edit_title': 'Editar Guía',
+        'guide_last_updated': 'Última actualización',
+        'guide_updated_by': 'por',
+        'btn_edit_guide': 'Editar Guía',
+
+        # Feature disabled
+        'feature_disabled_title': 'Función Desactivada',
+        'feature_disabled_message': 'Esta función está actualmente desactivada. Un administrador puede activarla en la configuración del plugin.',
+
+        # Dashboard (new)
+        'dashboard_import_templates': 'Plantillas de Importación',
+        'dashboard_guide': 'Guía de Usuario',
     },
 }
 

@@ -13,13 +13,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from .forms import ForceSettingsForm, ValidationRuleForm
-from .models import ForceSettings, ValidationRule, Violation
+from .forms import ForceSettingsForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm
+from .models import ForceSettings, ValidationRule, Violation, ImportTemplate, GuidePage
 from .ui_strings import get_all_ui_strings
 
 
 # =============================================================================
-# BASE MIXIN
+# BASE MIXINS
 # =============================================================================
 
 class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -29,6 +29,15 @@ class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return self.request.user.is_superuser
 
 
+class AuthenticatedRequiredMixin(LoginRequiredMixin):
+    """Requires the user to be logged in (any authenticated user)."""
+    pass
+
+
+# =============================================================================
+# CONTEXT HELPERS
+# =============================================================================
+
 def _get_ui_context(settings_obj=None):
     """Returns the UI strings dict based on the current language setting."""
     if settings_obj:
@@ -37,6 +46,26 @@ def _get_ui_context(settings_obj=None):
         s = ForceSettings.get_settings()
         language = getattr(s, 'language', 'de') if s else 'de'
     return get_all_ui_strings(language)
+
+
+def _base_context(settings_obj=None):
+    """
+    Returns a base context dict used by ALL views.
+    Ensures `force_settings` and `ui` are always available for tab rendering.
+    """
+    if settings_obj is None:
+        settings_obj = ForceSettings.get_settings()
+    return {
+        'ui': _get_ui_context(settings_obj),
+        'force_settings': settings_obj,
+    }
+
+
+def _feature_disabled_response(request, settings_obj=None):
+    """Renders the 'feature disabled' page."""
+    ctx = _base_context(settings_obj)
+    ctx['active_tab'] = ''
+    return render(request, 'netbox_force/feature_disabled.html', ctx)
 
 
 # =============================================================================
@@ -165,6 +194,46 @@ class FieldListAPIView(SuperuserRequiredMixin, View):
         return JsonResponse({'fields': fields})
 
 
+class CsvHeadersAPIView(SuperuserRequiredMixin, View):
+    """
+    Returns CSV header names for a given model (JSON).
+    Used by the import template form to auto-generate CSV content.
+    Filters out auto-generated fields (AutoField, auto_now, etc.).
+    """
+
+    # Field types to exclude
+    _EXCLUDED_TYPES = {'AutoField', 'BigAutoField', 'SmallAutoField'}
+
+    def get(self, request, app_label, model_name):
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            return JsonResponse({'headers': [], 'error': 'Model not found'}, status=404)
+
+        headers = []
+        for field in model._meta.get_fields():
+            # Only include concrete fields with a DB column
+            if not hasattr(field, 'column'):
+                continue
+
+            # Skip auto-generated primary keys
+            internal_type = field.get_internal_type()
+            if internal_type in self._EXCLUDED_TYPES:
+                continue
+
+            # Skip auto_now / auto_now_add timestamp fields
+            if getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False):
+                continue
+
+            # Skip the default 'id' primary key
+            if field.name == 'id' and field.primary_key:
+                continue
+
+            headers.append(field.name)
+
+        return JsonResponse({'headers': headers})
+
+
 # =============================================================================
 # SETTINGS VIEW
 # =============================================================================
@@ -177,13 +246,14 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
         if settings is None:
             settings = ForceSettings(pk=1)
         form = ForceSettingsForm(instance=settings)
-        return render(request, 'netbox_force/settings.html', {
+        ctx = _base_context(settings)
+        ctx.update({
             'form': form,
             'settings': settings,
-            'ui': _get_ui_context(settings),
             'active_tab': 'settings',
             'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/settings.html', ctx)
 
     def post(self, request):
         settings = ForceSettings.get_settings()
@@ -191,16 +261,17 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             settings = ForceSettings(pk=1)
         form = ForceSettingsForm(request.POST, instance=settings)
         if form.is_valid():
-            saved = form.save()
+            form.save()
             messages.success(request, 'Settings saved successfully.')
             return redirect('plugins:netbox_force:settings')
-        return render(request, 'netbox_force/settings.html', {
+        ctx = _base_context(settings)
+        ctx.update({
             'form': form,
             'settings': settings,
-            'ui': _get_ui_context(settings),
             'active_tab': 'settings',
             'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/settings.html', ctx)
 
 
 # =============================================================================
@@ -212,11 +283,12 @@ class ValidationRuleListView(SuperuserRequiredMixin, View):
 
     def get(self, request):
         rules = ValidationRule.objects.all().order_by('model_label', 'field_name')
-        return render(request, 'netbox_force/rules.html', {
+        ctx = _base_context()
+        ctx.update({
             'rules': rules,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
         })
+        return render(request, 'netbox_force/rules.html', ctx)
 
 
 class ValidationRuleCreateView(SuperuserRequiredMixin, View):
@@ -224,13 +296,14 @@ class ValidationRuleCreateView(SuperuserRequiredMixin, View):
 
     def get(self, request):
         form = ValidationRuleForm()
-        return render(request, 'netbox_force/rule_form.html', {
+        ctx = _base_context()
+        ctx.update({
             'form': form,
             'editing': False,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
             'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/rule_form.html', ctx)
 
     def post(self, request):
         form = ValidationRuleForm(request.POST)
@@ -238,13 +311,14 @@ class ValidationRuleCreateView(SuperuserRequiredMixin, View):
             form.save()
             messages.success(request, 'Validation rule created successfully.')
             return redirect('plugins:netbox_force:rule_list')
-        return render(request, 'netbox_force/rule_form.html', {
+        ctx = _base_context()
+        ctx.update({
             'form': form,
             'editing': False,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
             'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/rule_form.html', ctx)
 
 
 class ValidationRuleEditView(SuperuserRequiredMixin, View):
@@ -253,14 +327,15 @@ class ValidationRuleEditView(SuperuserRequiredMixin, View):
     def get(self, request, pk):
         rule = get_object_or_404(ValidationRule, pk=pk)
         form = ValidationRuleForm(instance=rule)
-        return render(request, 'netbox_force/rule_form.html', {
+        ctx = _base_context()
+        ctx.update({
             'form': form,
             'rule': rule,
             'editing': True,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
             'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/rule_form.html', ctx)
 
     def post(self, request, pk):
         rule = get_object_or_404(ValidationRule, pk=pk)
@@ -269,14 +344,15 @@ class ValidationRuleEditView(SuperuserRequiredMixin, View):
             form.save()
             messages.success(request, 'Validation rule updated successfully.')
             return redirect('plugins:netbox_force:rule_list')
-        return render(request, 'netbox_force/rule_form.html', {
+        ctx = _base_context()
+        ctx.update({
             'form': form,
             'rule': rule,
             'editing': True,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
             'naming_suggestions': json.dumps(NAMING_PATTERN_SUGGESTIONS),
         })
+        return render(request, 'netbox_force/rule_form.html', ctx)
 
 
 class ValidationRuleDeleteView(SuperuserRequiredMixin, View):
@@ -284,11 +360,12 @@ class ValidationRuleDeleteView(SuperuserRequiredMixin, View):
 
     def get(self, request, pk):
         rule = get_object_or_404(ValidationRule, pk=pk)
-        return render(request, 'netbox_force/rule_delete.html', {
+        ctx = _base_context()
+        ctx.update({
             'rule': rule,
-            'ui': _get_ui_context(),
             'active_tab': 'rules',
         })
+        return render(request, 'netbox_force/rule_delete.html', ctx)
 
     def post(self, request, pk):
         rule = get_object_or_404(ValidationRule, pk=pk)
@@ -342,7 +419,8 @@ class ViolationListView(SuperuserRequiredMixin, View):
         # Reason choices for filter dropdown
         reason_choices = Violation.REASON_CHOICES
 
-        return render(request, 'netbox_force/violations.html', {
+        ctx = _base_context(settings)
+        ctx.update({
             'violations': violations,
             'reason_choices': reason_choices,
             'filter_reason': reason,
@@ -350,9 +428,9 @@ class ViolationListView(SuperuserRequiredMixin, View):
             'filter_date_from': date_from,
             'filter_date_to': date_to,
             'audit_enabled': settings.audit_log_enabled if settings else False,
-            'ui': _get_ui_context(settings),
             'active_tab': 'violations',
         })
+        return render(request, 'netbox_force/violations.html', ctx)
 
 
 class ViolationExportCSVView(SuperuserRequiredMixin, View):
@@ -447,10 +525,10 @@ class DashboardView(SuperuserRequiredMixin, View):
         active_rules_count = ValidationRule.objects.filter(enabled=True).count()
 
         # Build top-users label with count
-        ui = _get_ui_context(settings)
-        top_users_label = ui.get('dashboard_top_users', 'Top {count} Users').format(count=top_count)
+        ctx = _base_context(settings)
+        top_users_label = ctx['ui'].get('dashboard_top_users', 'Top {count} Users').format(count=top_count)
 
-        return render(request, 'netbox_force/dashboard.html', {
+        ctx.update({
             'settings': settings,
             'total_violations': total_violations,
             'violations_by_reason': violations_by_reason,
@@ -459,9 +537,9 @@ class DashboardView(SuperuserRequiredMixin, View):
             'max_daily_count': max_daily_count,
             'active_rules_count': active_rules_count,
             'top_users_label': top_users_label,
-            'ui': ui,
             'active_tab': 'dashboard',
         })
+        return render(request, 'netbox_force/dashboard.html', ctx)
 
 
 class DashboardResetView(SuperuserRequiredMixin, View):
@@ -607,3 +685,191 @@ class DashboardExportView(SuperuserRequiredMixin, View):
             ])
 
         return response
+
+
+# =============================================================================
+# IMPORT TEMPLATE VIEWS
+# =============================================================================
+
+class ImportTemplateListView(AuthenticatedRequiredMixin, View):
+    """Lists enabled import templates for all authenticated users."""
+
+    def get(self, request):
+        settings = ForceSettings.get_settings()
+        if not settings or not settings.import_templates_enabled:
+            return _feature_disabled_response(request, settings)
+
+        templates = ImportTemplate.objects.filter(enabled=True)
+        ctx = _base_context(settings)
+        ctx.update({
+            'templates': templates,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_templates.html', ctx)
+
+
+class ImportTemplateAdminListView(SuperuserRequiredMixin, View):
+    """Admin list of all import templates (enabled and disabled)."""
+
+    def get(self, request):
+        settings = ForceSettings.get_settings()
+        templates = ImportTemplate.objects.all()
+        ctx = _base_context(settings)
+        ctx.update({
+            'templates': templates,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_admin_list.html', ctx)
+
+
+class ImportTemplateCreateView(SuperuserRequiredMixin, View):
+    """Create a new import template."""
+
+    def get(self, request):
+        form = ImportTemplateForm()
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'editing': False,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_form.html', ctx)
+
+    def post(self, request):
+        form = ImportTemplateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Import template created successfully.')
+            return redirect('plugins:netbox_force:import_template_admin')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'editing': False,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_form.html', ctx)
+
+
+class ImportTemplateEditView(SuperuserRequiredMixin, View):
+    """Edit an existing import template."""
+
+    def get(self, request, pk):
+        template = get_object_or_404(ImportTemplate, pk=pk)
+        form = ImportTemplateForm(instance=template)
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'template': template,
+            'editing': True,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_form.html', ctx)
+
+    def post(self, request, pk):
+        template = get_object_or_404(ImportTemplate, pk=pk)
+        form = ImportTemplateForm(request.POST, instance=template)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Import template updated successfully.')
+            return redirect('plugins:netbox_force:import_template_admin')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'template': template,
+            'editing': True,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_form.html', ctx)
+
+
+class ImportTemplateDeleteView(SuperuserRequiredMixin, View):
+    """Delete an import template."""
+
+    def get(self, request, pk):
+        template = get_object_or_404(ImportTemplate, pk=pk)
+        ctx = _base_context()
+        ctx.update({
+            'template': template,
+            'active_tab': 'import_templates',
+        })
+        return render(request, 'netbox_force/import_template_delete.html', ctx)
+
+    def post(self, request, pk):
+        template = get_object_or_404(ImportTemplate, pk=pk)
+        template.delete()
+        messages.success(request, 'Import template deleted.')
+        return redirect('plugins:netbox_force:import_template_admin')
+
+
+class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
+    """Downloads a single import template as CSV file."""
+
+    def get(self, request, pk):
+        settings = ForceSettings.get_settings()
+        if not settings or not settings.import_templates_enabled:
+            return _feature_disabled_response(request, settings)
+
+        template = get_object_or_404(ImportTemplate, pk=pk, enabled=True)
+
+        response = HttpResponse(content_type='text/csv')
+        safe_name = template.display_name.replace(' ', '_').replace('/', '-')
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}.csv"'
+        response.write(template.csv_content)
+        return response
+
+
+# =============================================================================
+# GUIDE VIEWS
+# =============================================================================
+
+class GuideView(AuthenticatedRequiredMixin, View):
+    """Displays the user guide page (read-only for all users)."""
+
+    def get(self, request):
+        settings = ForceSettings.get_settings()
+        if not settings or not settings.guide_enabled:
+            return _feature_disabled_response(request, settings)
+
+        guide = GuidePage.get_guide()
+        ctx = _base_context(settings)
+        ctx.update({
+            'guide': guide,
+            'active_tab': 'guide',
+        })
+        return render(request, 'netbox_force/guide.html', ctx)
+
+
+class GuideEditView(SuperuserRequiredMixin, View):
+    """WYSIWYG editor for the guide page (superuser only)."""
+
+    def get(self, request):
+        guide = GuidePage.get_guide()
+        if guide is None:
+            guide = GuidePage(pk=1)
+        form = GuidePageForm(instance=guide)
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'guide': guide,
+            'active_tab': 'guide',
+        })
+        return render(request, 'netbox_force/guide_edit.html', ctx)
+
+    def post(self, request):
+        guide = GuidePage.get_guide()
+        if guide is None:
+            guide = GuidePage(pk=1)
+        form = GuidePageForm(request.POST, instance=guide)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user.username
+            obj.save()
+            messages.success(request, 'Guide updated successfully.')
+            return redirect('plugins:netbox_force:guide')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'guide': guide,
+            'active_tab': 'guide',
+        })
+        return render(request, 'netbox_force/guide_edit.html', ctx)

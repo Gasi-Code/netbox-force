@@ -126,6 +126,16 @@ class ForceSettings(models.Model):
         help_text='Log violations but do not block changes.',
     )
 
+    # --- Modules ---
+    import_templates_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable import templates',
+    )
+    guide_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable user guide',
+    )
+
     # In-memory cache with thread safety
     _cached_instance = None
     _cache_timestamp = 0
@@ -381,3 +391,98 @@ class Violation(models.Model):
         cutoff = tz.now() - timedelta(days=retention_days)
         count, _ = cls.objects.filter(timestamp__lt=cutoff).delete()
         return count
+
+
+# =============================================================================
+# IMPORT TEMPLATES
+# =============================================================================
+
+class ImportTemplate(models.Model):
+    """
+    CSV import template that users can download for NetBox's built-in CSV import.
+    Admin creates templates; all authenticated users can download when enabled.
+    """
+    model_label = models.CharField(
+        max_length=100,
+        verbose_name='Model',
+        help_text='Format: app.model (e.g. dcim.device)',
+    )
+    display_name = models.CharField(
+        max_length=200,
+        verbose_name='Display name',
+        help_text='Human-readable name shown to users.',
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Description',
+    )
+    csv_content = models.TextField(
+        verbose_name='CSV content',
+        help_text='CSV header row (and optional example rows).',
+    )
+    enabled = models.BooleanField(
+        default=True,
+        verbose_name='Enabled',
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Sort order',
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Import Template'
+        verbose_name_plural = 'Import Templates'
+        ordering = ['sort_order', 'display_name']
+
+    def __str__(self):
+        return self.display_name
+
+
+# =============================================================================
+# USER GUIDE
+# =============================================================================
+
+class GuidePage(models.Model):
+    """
+    Singleton model for the user guide page (WYSIWYG HTML content).
+    Only one row (pk=1) exists.
+    """
+    content = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Guide content',
+        help_text='HTML content for the user guide.',
+    )
+    updated = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Last updated by',
+    )
+
+    class Meta:
+        verbose_name = 'Guide Page'
+        verbose_name_plural = 'Guide Pages'
+
+    def __str__(self):
+        return 'User Guide'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # Enforce singleton
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass  # Singleton must not be deleted
+
+    @classmethod
+    def get_guide(cls):
+        """Returns the guide page, creating it if needed."""
+        try:
+            obj, _ = cls.objects.get_or_create(pk=1)
+            return obj
+        except (OperationalError, ProgrammingError):
+            return None

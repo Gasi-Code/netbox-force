@@ -4,7 +4,7 @@ from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
 
-from .models import ForceSettings, ValidationRule, LANGUAGE_CHOICES
+from .models import ForceSettings, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
 
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
@@ -33,6 +33,8 @@ class ForceSettingsForm(forms.ModelForm):
             'audit_log_enabled',
             'audit_log_retention_days',
             'dashboard_top_users_count',
+            'import_templates_enabled',
+            'guide_enabled',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -100,6 +102,12 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': 1,
                 'max': 100,
+            }),
+            'import_templates_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'guide_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
             }),
         }
 
@@ -266,3 +274,79 @@ class ValidationRuleForm(forms.ModelForm):
             self.add_error('regex_pattern',
                            'A regex pattern is required for naming convention rules.')
         return cleaned
+
+
+class ImportTemplateForm(forms.ModelForm):
+    """Form for creating/editing import templates."""
+
+    class Meta:
+        model = ImportTemplate
+        fields = [
+            'model_label',
+            'display_name',
+            'description',
+            'csv_content',
+            'enabled',
+            'sort_order',
+        ]
+        widgets = {
+            'model_label': forms.Select(attrs={'class': 'form-select'}),
+            'display_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Device Import Template',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Template for importing devices via CSV...',
+            }),
+            'csv_content': forms.Textarea(attrs={
+                'class': 'form-control font-monospace',
+                'rows': 10,
+                'placeholder': 'name,site,device_type,role,status\nserver-01,main-dc,PowerEdge R640,server,active',
+            }),
+            'enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'sort_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'max': 9999,
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Populate model_label choices from Django's app registry
+        model_choices = [('', '---------')]
+        for model in apps.get_models():
+            label = f"{model._meta.app_label}.{model._meta.model_name}"
+            verbose = str(model._meta.verbose_name).title()
+            model_choices.append((label, f"{label} — {verbose}"))
+        model_choices.sort(key=lambda c: c[0])
+        self.fields['model_label'].widget.choices = model_choices
+
+    def clean_model_label(self):
+        """Validate that the model label matches the app.model format."""
+        value = self.cleaned_data.get('model_label', '')
+        if not value:
+            raise ValidationError("Model label is required.")
+        if not _MODEL_LABEL_RE.match(value.lower()):
+            raise ValidationError(
+                "Invalid model format: '%(value)s'. "
+                "Use the format 'app.model' (e.g. 'dcim.device').",
+                params={'value': value},
+                code='invalid_model_format',
+            )
+        return value.lower()
+
+
+class GuidePageForm(forms.ModelForm):
+    """Form for editing the user guide content."""
+
+    class Meta:
+        model = GuidePage
+        fields = ['content']
+        widgets = {
+            'content': forms.HiddenInput(),  # Quill populates this via JS
+        }

@@ -1,0 +1,133 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}
+    NetBox Force -
+    {% if editing %}
+        {{ ui.import_template_edit_title|default:"Edit Template" }}
+    {% else %}
+        {{ ui.import_template_add_title|default:"Add Template" }}
+    {% endif %}
+{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h3 class="mb-3">
+            {% if editing %}
+                {{ ui.import_template_edit_title|default:"Edit Template" }}
+            {% else %}
+                {{ ui.import_template_add_title|default:"Add Template" }}
+            {% endif %}
+        </h3>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    {# Model label #}
+                    <div class="mb-3">
+                        <label for="id_model_label" class="form-label">{{ ui.import_templates_col_model|default:"Model" }}</label>
+                        {{ form.model_label }}
+                        {% if form.model_label.errors %}
+                            <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    {# Display name #}
+                    <div class="mb-3">
+                        <label for="id_display_name" class="form-label">{{ ui.import_templates_col_name|default:"Name" }}</label>
+                        {{ form.display_name }}
+                        {% if form.display_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.display_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    {# Description #}
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">{{ ui.import_templates_col_description|default:"Description" }}</label>
+                        {{ form.description }}
+                    </div>
+
+                    {# CSV Content #}
+                    <div class="mb-3">
+                        <label for="id_csv_content" class="form-label">CSV</label>
+                        <div class="mb-2">
+                            <button type="button" id="btn-auto-generate" class="btn btn-sm btn-outline-secondary">
+                                <i class="mdi mdi-auto-fix"></i> {{ ui.btn_auto_generate|default:"Generate CSV Headers" }}
+                            </button>
+                        </div>
+                        {{ form.csv_content }}
+                        {% if form.csv_content.errors %}
+                            <div class="invalid-feedback d-block">{{ form.csv_content.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    {# Enabled #}
+                    <div class="mb-3 form-check">
+                        {{ form.enabled }}
+                        <label class="form-check-label" for="id_enabled">{{ ui.import_templates_col_enabled|default:"Enabled" }}</label>
+                    </div>
+
+                    {# Sort order #}
+                    <div class="mb-3">
+                        <label for="id_sort_order" class="form-label">Sort Order</label>
+                        {{ form.sort_order }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'plugins:netbox_force:import_template_admin' %}" class="btn btn-outline-secondary">
+                    {{ ui.btn_cancel|default:"Cancel" }}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    var modelSelect = document.getElementById('id_model_label');
+    var autoBtn = document.getElementById('btn-auto-generate');
+    var csvArea = document.getElementById('id_csv_content');
+
+    if (autoBtn && modelSelect && csvArea) {
+        autoBtn.addEventListener('click', function() {
+            var selected = modelSelect.value;
+            if (!selected) {
+                alert('Please select a model first.');
+                return;
+            }
+            var parts = selected.split('.');
+            if (parts.length !== 2) return;
+
+            var url = '{% url "plugins:netbox_force:api_csv_headers" app_label="__APP__" model_name="__MODEL__" %}';
+            url = url.replace('__APP__', parts[0]).replace('__MODEL__', parts[1]);
+
+            fetch(url, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(function(resp) { return resp.json(); })
+            .then(function(data) {
+                if (data.headers && data.headers.length > 0) {
+                    csvArea.value = data.headers.join(',');
+                } else {
+                    csvArea.value = '# No fields found';
+                }
+            })
+            .catch(function(err) {
+                console.error('Auto-generate failed:', err);
+            });
+        });
+    }
+})();
+</script>
+{% endblock content %}
