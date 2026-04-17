@@ -153,7 +153,7 @@ UI_STRINGS = {
         'section_modules': 'Module',
         'label_import_templates_enabled': 'Import-Vorlagen aktivieren',
         'label_guide_enabled': 'Benutzer-Anleitung aktivieren',
-        'help_import_templates_enabled': 'Wenn aktiviert, koennen CSV-Import-Vorlagen fuer alle Benutzer bereitgestellt werden.',
+        'help_import_templates_enabled': 'Wenn aktiviert, können CSV-Import-Vorlagen für alle Benutzer bereitgestellt werden.',
         'help_guide_enabled': 'Wenn aktiviert, wird eine bearbeitbare Benutzer-Anleitung im Plugin angezeigt.',
 
         # Tabs (new)
@@ -164,16 +164,16 @@ UI_STRINGS = {
         'import_templates_title': 'Import-Vorlagen',
         'import_templates_empty': 'Keine Import-Vorlagen vorhanden.',
         'import_templates_admin_title': 'Import-Vorlagen verwalten',
-        'import_template_add_title': 'Vorlage hinzufuegen',
+        'import_template_add_title': 'Vorlage hinzufügen',
         'import_template_edit_title': 'Vorlage bearbeiten',
-        'import_template_delete_title': 'Vorlage loeschen',
-        'import_template_delete_confirm': 'Soll diese Vorlage wirklich geloescht werden?',
+        'import_template_delete_title': 'Vorlage löschen',
+        'import_template_delete_confirm': 'Soll diese Vorlage wirklich gelöscht werden?',
         'import_templates_col_name': 'Name',
         'import_templates_col_model': 'Model',
         'import_templates_col_enabled': 'Aktiv',
         'import_templates_col_actions': 'Aktionen',
         'import_templates_col_description': 'Beschreibung',
-        'btn_add_template': 'Vorlage hinzufuegen',
+        'btn_add_template': 'Vorlage hinzufügen',
         'btn_download': 'Herunterladen',
         'btn_auto_generate': 'CSV-Header generieren',
         'btn_manage_templates': 'Vorlagen verwalten',
@@ -185,7 +185,7 @@ UI_STRINGS = {
         'guide_last_updated': 'Zuletzt aktualisiert',
         'guide_updated_by': 'von',
         'btn_edit_guide': 'Anleitung bearbeiten',
-        'guide_editor_hint': 'WYSIWYG-Modus fuer einfache Inhalte oder HTML-Code-Modus fuer vollstaendige HTML-Seiten (mit eigenem CSS/JS). Vollstaendige HTML-Seiten werden in einem isolierten Frame dargestellt.',
+        'guide_editor_hint': 'WYSIWYG-Modus für einfache Inhalte oder HTML-Code-Modus für vollständige HTML-Seiten (mit eigenem CSS/JS). Vollständige HTML-Seiten werden in einem isolierten Frame dargestellt.',
 
         # Feature disabled
         'feature_disabled_title': 'Funktion deaktiviert',
