@@ -1,0 +1,44 @@
+{% if enabled %}
+{% if templates %}
+<div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Vorlage</th>
+                <th>Model</th>
+                <th class="text-end"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tpl in templates %}
+            <tr>
+                <td>{{ tpl.display_name }}</td>
+                <td><code class="small">{{ tpl.model_label }}</code></td>
+                <td class="text-end">
+                    <a href="{% url 'plugins:netbox_force:import_template_download' tpl.pk %}"
+                       class="btn btn-sm btn-outline-primary" title="Download">
+                        <i class="mdi mdi-download"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="text-center mt-2">
+    <a href="{% url 'plugins:netbox_force:import_template_list' %}" class="small text-muted">
+        Alle Vorlagen anzeigen &rarr;
+    </a>
+</div>
+{% else %}
+<div class="text-center py-3 text-muted">
+    <i class="mdi mdi-file-document-outline" style="font-size: 2rem;"></i>
+    <p class="mt-2 mb-0 small">Keine Import-Vorlagen vorhanden.</p>
+</div>
+{% endif %}
+{% else %}
+<div class="text-center py-3 text-muted">
+    <i class="mdi mdi-lock-outline" style="font-size: 2rem;"></i>
+    <p class="mt-2 mb-0 small">Import-Vorlagen sind deaktiviert.</p>
+</div>
+{% endif %}

@@ -185,6 +185,7 @@ UI_STRINGS = {
         'guide_last_updated': 'Zuletzt aktualisiert',
         'guide_updated_by': 'von',
         'btn_edit_guide': 'Anleitung bearbeiten',
+        'guide_editor_hint': 'WYSIWYG-Modus fuer einfache Inhalte oder HTML-Code-Modus fuer vollstaendige HTML-Seiten (mit eigenem CSS/JS). Vollstaendige HTML-Seiten werden in einem isolierten Frame dargestellt.',
 
         # Feature disabled
         'feature_disabled_title': 'Funktion deaktiviert',
@@ -376,6 +377,7 @@ UI_STRINGS = {
         'guide_last_updated': 'Last updated',
         'guide_updated_by': 'by',
         'btn_edit_guide': 'Edit Guide',
+        'guide_editor_hint': 'Use WYSIWYG mode for simple content or HTML-Code mode for full HTML pages (with own CSS/JS). Full HTML pages are rendered in an isolated frame.',
 
         # Feature disabled
         'feature_disabled_title': 'Feature Disabled',
@@ -567,6 +569,7 @@ UI_STRINGS = {
         'guide_last_updated': 'Última actualización',
         'guide_updated_by': 'por',
         'btn_edit_guide': 'Editar Guía',
+        'guide_editor_hint': 'Use el modo WYSIWYG para contenido simple o el modo HTML-Code para páginas HTML completas (con CSS/JS propio). Las páginas HTML completas se muestran en un marco aislado.',
 
         # Feature disabled
         'feature_disabled_title': 'Función Desactivada',

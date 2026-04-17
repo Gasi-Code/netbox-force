@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 from datetime import timedelta
 
 from django.apps import apps
@@ -822,6 +823,9 @@ class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
 # GUIDE VIEWS
 # =============================================================================
 
+_FULL_HTML_RE = re.compile(r'^\s*<!DOCTYPE|^\s*<html', re.IGNORECASE)
+
+
 class GuideView(AuthenticatedRequiredMixin, View):
     """Displays the user guide page (read-only for all users)."""
 
@@ -831,11 +835,20 @@ class GuideView(AuthenticatedRequiredMixin, View):
             return _feature_disabled_response(request, settings)
 
         guide = GuidePage.get_guide()
+        content = guide.content if guide else ''
+        is_full_html = bool(_FULL_HTML_RE.search(content))
+
         ctx = _base_context(settings)
         ctx.update({
             'guide': guide,
+            'guide_is_full_html': is_full_html,
             'active_tab': 'guide',
         })
+
+        # For full HTML pages, provide JSON-escaped content for iframe srcdoc
+        if is_full_html and content:
+            ctx['guide_content_json'] = json.dumps(content)
+
         return render(request, 'netbox_force/guide.html', ctx)
 
 

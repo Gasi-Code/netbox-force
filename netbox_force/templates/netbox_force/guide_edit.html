@@ -10,17 +10,83 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'netbox_force/quill.snow.css' %}">
 
+{# Fix Quill dropdown conflicts with NetBox Bootstrap #}
+<style>
+    .ql-toolbar .ql-picker-label { border: 1px solid #ccc !important; border-radius: 4px; padding: 2px 8px; }
+    .ql-toolbar .ql-picker-options {
+        background: #fff !important;
+        border: 1px solid #ccc !important;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999 !important;
+        padding: 4px 0;
+    }
+    .ql-toolbar .ql-picker-options .ql-picker-item { padding: 4px 10px; color: #333; }
+    .ql-toolbar .ql-picker-options .ql-picker-item:hover { background: #e9ecef; }
+    .ql-toolbar .ql-picker.ql-expanded .ql-picker-label { border-color: #86b7fe !important; }
+    .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-header .ql-picker-item::before { color: #333; }
+    .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item::before { color: #333; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item::before { color: #333; }
+    .ql-toolbar { background: #f8f9fa; border-radius: 4px 4px 0 0; }
+    .ql-container.ql-snow { border-radius: 0 0 4px 4px; }
+
+    /* Editor mode tabs */
+    .editor-tabs { display: flex; gap: 0; margin-bottom: 0; }
+    .editor-tab {
+        padding: 8px 20px; cursor: pointer; font-size: 14px; font-weight: 500;
+        border: 1px solid #dee2e6; border-bottom: none; border-radius: 4px 4px 0 0;
+        background: #e9ecef; color: #6c757d; user-select: none;
+    }
+    .editor-tab:hover { background: #f8f9fa; }
+    .editor-tab.active { background: #fff; color: #212529; border-bottom: 1px solid #fff; margin-bottom: -1px; z-index: 1; position: relative; }
+    #html-editor-area {
+        width: 100%; min-height: 500px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 13px; line-height: 1.5; padding: 16px; border: 1px solid #dee2e6;
+        border-top: none; border-radius: 0 0 4px 4px; resize: vertical; tab-size: 2;
+        background: #1e1e2e; color: #cdd6f4;
+    }
+    #html-preview-panel { display: none; }
+</style>
+
 <div class="row">
-    <div class="col-md-10">
+    <div class="col-md-12">
         <h3 class="mb-3">{{ ui.guide_edit_title|default:"Edit Guide" }}</h3>
 
         <form method="post" id="guide-form">
             {% csrf_token %}
             {{ form.content }}
 
-            <div class="card mb-4">
-                <div class="card-body p-0">
-                    <div id="quill-editor" style="min-height: 400px;"></div>
+            {# Mode Tabs #}
+            <div class="editor-tabs">
+                <div class="editor-tab active" id="tab-wysiwyg" onclick="switchEditor('wysiwyg')">
+                    <i class="mdi mdi-format-text"></i> WYSIWYG
+                </div>
+                <div class="editor-tab" id="tab-html" onclick="switchEditor('html')">
+                    <i class="mdi mdi-code-tags"></i> HTML-Code
+                </div>
+            </div>
+
+            {# WYSIWYG Editor (Quill) #}
+            <div id="wysiwyg-editor-panel">
+                <div class="card mb-0" style="border-top-left-radius: 0;">
+                    <div class="card-body p-0">
+                        <div id="quill-editor" style="min-height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            {# HTML Code Editor #}
+            <div id="html-editor-panel" style="display: none;">
+                <textarea id="html-editor-area" spellcheck="false"></textarea>
+            </div>
+
+            <div class="mt-3 mb-3">
+                <div class="form-text">
+                    <i class="mdi mdi-information-outline"></i>
+                    {{ ui.guide_editor_hint|default:"Use WYSIWYG mode for simple content or HTML-Code mode for full HTML pages (with own CSS/JS). Full HTML pages are rendered in an isolated frame." }}
                 </div>
             </div>
 
@@ -54,20 +120,73 @@
         }
     });
 
-    // Load existing content
-    var existingContent = document.getElementById('id_content').value;
-    if (existingContent) {
+    var hiddenInput = document.getElementById('id_content');
+    var wysiwygPanel = document.getElementById('wysiwyg-editor-panel');
+    var htmlPanel = document.getElementById('html-editor-panel');
+    var htmlArea = document.getElementById('html-editor-area');
+    var tabWysiwyg = document.getElementById('tab-wysiwyg');
+    var tabHtml = document.getElementById('tab-html');
+    var currentMode = 'wysiwyg';
+
+    // Detect if content is a full HTML page
+    var existingContent = hiddenInput.value;
+    var isFullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(existingContent);
+
+    if (isFullHtml) {
+        // Full HTML page — open in HTML-Code mode directly
+        htmlArea.value = existingContent;
+        switchEditor('html');
+    } else if (existingContent) {
+        // Simple content — load into Quill
         quill.root.innerHTML = existingContent;
     }
 
-    // On submit, copy Quill HTML to hidden input
-    document.getElementById('guide-form').addEventListener('submit', function() {
-        var html = quill.root.innerHTML;
-        // Quill sets empty editor to "<p><br></p>" — treat that as empty
-        if (html === '<p><br></p>') {
-            html = '';
+    window.switchEditor = function(mode) {
+        if (mode === currentMode) return;
+
+        if (mode === 'html') {
+            // Switching to HTML mode
+            if (currentMode === 'wysiwyg') {
+                var quillHtml = quill.root.innerHTML;
+                if (quillHtml === '<p><br></p>') quillHtml = '';
+                // Only overwrite if HTML area is empty (don't destroy full-page HTML)
+                if (!htmlArea.value.trim()) {
+                    htmlArea.value = quillHtml;
+                }
+            }
+            wysiwygPanel.style.display = 'none';
+            htmlPanel.style.display = '';
+            tabWysiwyg.classList.remove('active');
+            tabHtml.classList.add('active');
+        } else {
+            // Switching to WYSIWYG mode
+            var htmlContent = htmlArea.value.trim();
+            var isPage = /^\s*<!DOCTYPE|^\s*<html/i.test(htmlContent);
+            if (isPage) {
+                if (!confirm('Der HTML-Inhalt ist eine vollstaendige Seite mit eigenem CSS/JS. Im WYSIWYG-Modus geht die Formatierung verloren. Trotzdem wechseln?')) {
+                    return;
+                }
+            }
+            if (htmlContent) {
+                quill.root.innerHTML = htmlContent;
+            }
+            htmlPanel.style.display = 'none';
+            wysiwygPanel.style.display = '';
+            tabHtml.classList.remove('active');
+            tabWysiwyg.classList.add('active');
         }
-        document.getElementById('id_content').value = html;
+        currentMode = mode;
+    };
+
+    // On submit, copy the active editor's content to hidden input
+    document.getElementById('guide-form').addEventListener('submit', function() {
+        if (currentMode === 'html') {
+            hiddenInput.value = htmlArea.value;
+        } else {
+            var html = quill.root.innerHTML;
+            if (html === '<p><br></p>') html = '';
+            hiddenInput.value = html;
+        }
     });
 })();
 </script>

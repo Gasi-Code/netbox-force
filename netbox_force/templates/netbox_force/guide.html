@@ -17,22 +17,56 @@
 </div>
 
 {% if guide and guide.content %}
-<div class="card">
-    <div class="card-body">
-        <div class="guide-content">
-            {{ guide.content|safe }}
+    {% if guide_is_full_html %}
+    {# Full HTML page — render in isolated iframe #}
+    <div class="card">
+        <div class="card-body p-0">
+            <iframe id="guide-iframe" style="width: 100%; border: none; min-height: 600px;"
+                    sandbox="allow-scripts allow-same-origin"></iframe>
         </div>
+        {% if guide.updated %}
+        <div class="card-footer text-muted small">
+            {{ ui.guide_last_updated|default:"Last updated" }}:
+            {{ guide.updated|date:"Y-m-d H:i" }}
+            {% if guide.updated_by %}
+                {{ ui.guide_updated_by|default:"by" }} <strong>{{ guide.updated_by }}</strong>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
-    {% if guide.updated %}
-    <div class="card-footer text-muted small">
-        {{ ui.guide_last_updated|default:"Last updated" }}:
-        {{ guide.updated|date:"Y-m-d H:i" }}
-        {% if guide.updated_by %}
-            {{ ui.guide_updated_by|default:"by" }} <strong>{{ guide.updated_by }}</strong>
+    <script>
+    (function() {
+        var iframe = document.getElementById('guide-iframe');
+        var content = {{ guide_content_json|safe }};
+        iframe.srcdoc = content;
+        // Auto-resize iframe to content height
+        iframe.addEventListener('load', function() {
+            try {
+                var h = iframe.contentDocument.documentElement.scrollHeight;
+                iframe.style.height = Math.max(h + 40, 600) + 'px';
+            } catch(e) {}
+        });
+    })();
+    </script>
+    {% else %}
+    {# Simple HTML content — render inline #}
+    <div class="card">
+        <div class="card-body">
+            <div class="guide-content">
+                {{ guide.content|safe }}
+            </div>
+        </div>
+        {% if guide.updated %}
+        <div class="card-footer text-muted small">
+            {{ ui.guide_last_updated|default:"Last updated" }}:
+            {{ guide.updated|date:"Y-m-d H:i" }}
+            {% if guide.updated_by %}
+                {{ ui.guide_updated_by|default:"by" }} <strong>{{ guide.updated_by }}</strong>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
     {% endif %}
-</div>
 {% else %}
 <div class="card">
     <div class="card-body text-center py-5">

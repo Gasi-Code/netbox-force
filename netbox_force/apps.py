@@ -63,6 +63,7 @@ class NetboxForceConfig(PluginConfig):
     def ready(self):
         super().ready()
         from . import signals  # noqa: F401
+        from . import dashboards  # noqa: F401 — registers @register_widget
 
 
 config = NetboxForceConfig
