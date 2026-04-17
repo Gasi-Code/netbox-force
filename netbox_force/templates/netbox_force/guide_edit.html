@@ -145,7 +145,7 @@
                         <textarea id="html-editor-area" spellcheck="false"></textarea>
                     </div>
                     <div class="preview-half">
-                        <div class="preview-header"><i class="mdi mdi-eye"></i> Vorschau / Preview</div>
+                        <div class="preview-header"><i class="mdi mdi-eye"></i> {{ ui.guide_preview_label|default:"Preview" }}</div>
                         <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
                     </div>
                 </div>
@@ -202,7 +202,7 @@
     function updatePreview() {
         var content = htmlArea.value;
         if (!content.trim()) {
-            previewFrame.srcdoc = '<html><body style="font-family:sans-serif;color:#888;text-align:center;padding:40px;"><p>Vorschau...</p></body></html>';
+            previewFrame.srcdoc = '<html><body style="font-family:sans-serif;color:#888;text-align:center;padding:40px;"><p>{{ ui.guide_preview_label|default:"Preview" }}...</p></body></html>';
             return;
         }
         // If it's a full HTML page, render directly
@@ -252,7 +252,7 @@
             var htmlContent = htmlArea.value.trim();
             var isPage = /^\s*<!DOCTYPE|^\s*<html/i.test(htmlContent);
             if (isPage) {
-                if (!confirm('Der HTML-Inhalt ist eine vollständige Seite mit eigenem CSS/JS. Im WYSIWYG-Modus geht die Formatierung verloren. Trotzdem wechseln?')) {
+                if (!confirm('{{ ui.guide_confirm_switch|default:"The HTML content is a full page with its own CSS/JS. Switching to WYSIWYG mode will lose formatting. Switch anyway?" }}')) {
                     return;
                 }
             }

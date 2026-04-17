@@ -186,6 +186,8 @@ UI_STRINGS = {
         'guide_updated_by': 'von',
         'btn_edit_guide': 'Anleitung bearbeiten',
         'guide_editor_hint': 'WYSIWYG-Modus für einfache Inhalte oder HTML-Code-Modus für vollständige HTML-Seiten (mit eigenem CSS/JS). Vollständige HTML-Seiten werden in einem isolierten Frame dargestellt.',
+        'guide_preview_label': 'Vorschau',
+        'guide_confirm_switch': 'Der HTML-Inhalt ist eine vollständige Seite mit eigenem CSS/JS. Im WYSIWYG-Modus geht die Formatierung verloren. Trotzdem wechseln?',
 
         # Feature disabled
         'feature_disabled_title': 'Funktion deaktiviert',
@@ -391,6 +393,8 @@ UI_STRINGS = {
         'guide_updated_by': 'by',
         'btn_edit_guide': 'Edit Guide',
         'guide_editor_hint': 'Use WYSIWYG mode for simple content or HTML-Code mode for full HTML pages (with own CSS/JS). Full HTML pages are rendered in an isolated frame.',
+        'guide_preview_label': 'Preview',
+        'guide_confirm_switch': 'The HTML content is a full page with its own CSS/JS. Switching to WYSIWYG mode will lose formatting. Switch anyway?',
 
         # Feature disabled
         'feature_disabled_title': 'Feature Disabled',
@@ -596,6 +600,8 @@ UI_STRINGS = {
         'guide_updated_by': 'por',
         'btn_edit_guide': 'Editar Guía',
         'guide_editor_hint': 'Use el modo WYSIWYG para contenido simple o el modo HTML-Code para páginas HTML completas (con CSS/JS propio). Las páginas HTML completas se muestran en un marco aislado.',
+        'guide_preview_label': 'Vista previa',
+        'guide_confirm_switch': 'El contenido HTML es una página completa con su propio CSS/JS. Cambiar al modo WYSIWYG perderá el formato. ¿Cambiar de todos modos?',
 
         # Feature disabled
         'feature_disabled_title': 'Función Desactivada',
