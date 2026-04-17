@@ -482,13 +482,14 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     """
     Called before every model save.
     Runs the full enforcement chain:
-    1. Exemption checks (model, user, method, create flag, real changes)
-    2. Change window check
-    3. Changelog presence + length
-    4. Blacklist check
-    5. Ticket reference check
-    6. Naming convention check
-    7. Required field check
+    1. Exemption checks (model, user, method)
+    2. Real changes check (existing objects only)
+    3. Change window check (ALWAYS — regardless of enforce_on_create)
+    4. Naming convention check (ALWAYS — regardless of enforce_on_create)
+    5. Required field check (ALWAYS — regardless of enforce_on_create)
+    6. Changelog presence + length (gated by enforce_on_create for new objects)
+    7. Blacklist check (gated by enforce_on_create for new objects)
+    8. Ticket reference check (gated by enforce_on_create for new objects)
     """
     request = get_current_request()
     model_label = get_model_label(instance)
@@ -504,13 +505,11 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         logger.debug("pre_save: %s no request or method not enforced, skipping", model_label)
         return
 
-    # New object? Check enforce_on_create setting
+    # Determine if this is a new object
     is_new = not instance.pk
-    if is_new and not _get_setting('enforce_on_create', False):
-        logger.debug("pre_save: %s new object, enforce_on_create=False, skipping", model_label)
-        return
 
-    if not has_real_changes(instance):
+    # For existing objects, check if there are real changes
+    if not is_new and not has_real_changes(instance):
         logger.debug("pre_save: %s no real changes, skipping", model_label)
         return
 
@@ -518,7 +517,7 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
     action = 'create' if is_new else 'edit'
 
-    # --- Change window check ---
+    # --- Change window check (ALWAYS runs, regardless of enforce_on_create) ---
     window_error = check_change_window(settings)
     if window_error:
         logger.info("pre_save: %s outside change window, blocking user '%s'",
@@ -526,6 +525,35 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         log_violation(username, model_label, instance, action,
                       'change_window', window_error)
         raise AbortRequest(window_error)
+
+    # --- Naming convention check (ALWAYS runs, regardless of enforce_on_create) ---
+    naming_error = check_naming_conventions(instance, model_label, request)
+    if naming_error:
+        logger.info("pre_save: %s naming convention violation, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'naming_violation', naming_error)
+        raise AbortRequest(naming_error)
+
+    # --- Required field check (ALWAYS runs, regardless of enforce_on_create) ---
+    required_error = check_required_fields(instance, model_label, request)
+    if required_error:
+        logger.info("pre_save: %s required field missing, blocking user '%s'",
+                     model_label, username)
+        log_violation(username, model_label, instance, action,
+                      'required_field', required_error)
+        raise AbortRequest(required_error)
+
+    # --- Changelog-related checks ---
+    # Only enforced for existing objects, or for new objects if enforce_on_create=True.
+    # enforce_on_create controls ONLY whether a changelog comment is required on create,
+    # NOT whether naming/required/change-window rules apply.
+    changelog_required = not is_new or _get_setting('enforce_on_create', False)
+
+    if not changelog_required:
+        logger.debug("pre_save: %s new object, enforce_on_create=False, skipping changelog checks",
+                      model_label)
+        return
 
     # --- Changelog presence + length ---
     min_len = _get_setting('min_length', 2)
@@ -558,24 +586,6 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         log_violation(username, model_label, instance, action,
                       'ticket_missing', ticket_error, comment)
         raise AbortRequest(ticket_error)
-
-    # --- Naming convention check ---
-    naming_error = check_naming_conventions(instance, model_label, request)
-    if naming_error:
-        logger.info("pre_save: %s naming convention violation, blocking user '%s'",
-                     model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'naming_violation', naming_error, comment)
-        raise AbortRequest(naming_error)
-
-    # --- Required field check ---
-    required_error = check_required_fields(instance, model_label, request)
-    if required_error:
-        logger.info("pre_save: %s required field missing, blocking user '%s'",
-                     model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'required_field', required_error, comment)
-        raise AbortRequest(required_error)
 
 
 @receiver(pre_delete)
