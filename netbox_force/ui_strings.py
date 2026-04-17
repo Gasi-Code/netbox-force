@@ -195,6 +195,12 @@ UI_STRINGS = {
         'dashboard_import_templates': 'Import-Vorlagen',
         'dashboard_guide': 'Benutzer-Anleitung',
 
+        # Widget text (dashboard widgets)
+        'widget_guide_btn': 'Anleitung',
+        'widget_guide_disabled': 'Guide ist deaktiviert.',
+        'widget_templates_disabled': 'Import-Vorlagen sind deaktiviert.',
+        'widget_templates_all': 'Alle Vorlagen',
+
         # Widget setup hints
         'widget_hint_title': 'Dashboard-Widget einrichten',
         'widget_hint_guide_text': 'Um einen Schnellzugriff auf die Anleitung im NetBox-Dashboard zu erstellen: Home \u2192 Widget hinzuf\u00fcgen \u2192 "Note" w\u00e4hlen \u2192 folgenden Markdown-Inhalt einf\u00fcgen:',
@@ -394,6 +400,12 @@ UI_STRINGS = {
         'dashboard_import_templates': 'Import Templates',
         'dashboard_guide': 'User Guide',
 
+        # Widget text (dashboard widgets)
+        'widget_guide_btn': 'Guide',
+        'widget_guide_disabled': 'Guide is disabled.',
+        'widget_templates_disabled': 'Import templates are disabled.',
+        'widget_templates_all': 'All templates',
+
         # Widget setup hints
         'widget_hint_title': 'Set up dashboard widget',
         'widget_hint_guide_text': 'To add a quick link to the guide on the NetBox dashboard: Home \u2192 Add Widget \u2192 select "Note" \u2192 paste the following Markdown content:',
@@ -592,6 +604,12 @@ UI_STRINGS = {
         # Dashboard (new)
         'dashboard_import_templates': 'Plantillas de Importaci\u00f3n',
         'dashboard_guide': 'Gu\u00eda de Usuario',
+
+        # Widget text (dashboard widgets)
+        'widget_guide_btn': 'Gu\u00eda',
+        'widget_guide_disabled': 'La gu\u00eda est\u00e1 desactivada.',
+        'widget_templates_disabled': 'Las plantillas de importaci\u00f3n est\u00e1n desactivadas.',
+        'widget_templates_all': 'Todas las plantillas',
 
         # Widget setup hints
         'widget_hint_title': 'Configurar widget del panel',

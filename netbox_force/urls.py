@@ -26,6 +26,7 @@ urlpatterns = [
 
     # Guide
     path('guide/', views.GuideView.as_view(), name='guide'),
+    path('guide/standalone/', views.GuideStandaloneView.as_view(), name='guide_standalone'),
     path('guide/edit/', views.GuideEditView.as_view(), name='guide_edit'),
 
     # JSON helper endpoints for dynamic dropdowns

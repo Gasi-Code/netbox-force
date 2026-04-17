@@ -230,17 +230,8 @@
         }
     });
 
-    // Detect if content is a full HTML page
-    var existingContent = hiddenInput.value;
-    var isFullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(existingContent);
-
-    if (isFullHtml) {
-        htmlArea.value = existingContent;
-        switchEditor('html');
-    } else if (existingContent) {
-        quill.root.innerHTML = existingContent;
-    }
-
+    // Define switchEditor BEFORE content detection (otherwise full-HTML
+    // pages would call switchEditor() before it exists and crash the IIFE).
     window.switchEditor = function(mode) {
         if (mode === currentMode) return;
 
@@ -275,6 +266,17 @@
         }
         currentMode = mode;
     };
+
+    // Detect if content is a full HTML page and load into correct editor
+    var existingContent = hiddenInput.value;
+    var isFullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(existingContent);
+
+    if (isFullHtml) {
+        htmlArea.value = existingContent;
+        switchEditor('html');
+    } else if (existingContent) {
+        quill.root.innerHTML = existingContent;
+    }
 
     // On submit, copy the active editor's content to hidden input
     document.getElementById('guide-form').addEventListener('submit', function() {

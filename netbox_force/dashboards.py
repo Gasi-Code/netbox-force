@@ -1,12 +1,25 @@
 """
 Dashboard widgets for the NetBox Force plugin.
 Users can add these widgets to their NetBox home dashboard.
+All visible text uses the plugin's language setting (DE/EN/ES).
 """
 from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 
 from extras.dashboard.utils import register_widget
 from extras.dashboard.widgets import DashboardWidget, WidgetConfigForm
+
+
+def _get_widget_strings():
+    """Load UI strings based on the plugin's current language setting."""
+    try:
+        from .models import ForceSettings
+        from .ui_strings import get_all_ui_strings
+        settings = ForceSettings.get_settings()
+        language = getattr(settings, 'language', 'de') if settings else 'de'
+        return get_all_ui_strings(language), settings
+    except Exception:
+        return {}, None
 
 
 @register_widget
@@ -20,17 +33,16 @@ class GuideWidget(DashboardWidget):
         pass
 
     def render(self, request):
-        try:
-            from .models import ForceSettings
-            settings = ForceSettings.get_settings()
-            enabled = settings.guide_enabled if settings else False
-        except Exception:
-            enabled = False
+        ui, settings = _get_widget_strings()
+        enabled = settings.guide_enabled if settings else False
 
         try:
-            url = reverse('plugins:netbox_force:guide')
+            url = reverse('plugins:netbox_force:guide_standalone')
         except Exception:
-            url = '/plugins/netbox-force/guide/'
+            url = '/plugins/netbox-force/guide/standalone/'
+
+        btn_label = ui.get('widget_guide_btn', 'Guide')
+        disabled_msg = ui.get('widget_guide_disabled', 'Guide ist deaktiviert.')
 
         if enabled:
             return format_html(
@@ -39,16 +51,17 @@ class GuideWidget(DashboardWidget):
                 'style="font-size: 2rem;"></i></p>'
                 '<a href="{}" target="_blank" rel="noopener" '
                 'class="btn btn-sm btn-primary">'
-                '<i class="mdi mdi-arrow-right"></i> Anleitung</a>'
+                '<i class="mdi mdi-arrow-right"></i> {}</a>'
                 '</div>',
-                url
+                url, btn_label
             )
-        return mark_safe(
+        return format_html(
             '<div class="text-center py-3 text-muted">'
             '<p class="mb-2"><i class="mdi mdi-lock-outline" '
             'style="font-size: 2rem;"></i></p>'
-            '<p class="small mb-0">Guide ist deaktiviert.</p>'
-            '</div>'
+            '<p class="small mb-0">{}</p>'
+            '</div>',
+            disabled_msg
         )
 
 
@@ -63,25 +76,31 @@ class ImportTemplatesWidget(DashboardWidget):
         pass
 
     def render(self, request):
-        try:
-            from .models import ForceSettings
-            settings = ForceSettings.get_settings()
-            enabled = settings.import_templates_enabled if settings else False
-        except Exception:
-            enabled = False
+        ui, settings = _get_widget_strings()
+        enabled = settings.import_templates_enabled if settings else False
 
         try:
             list_url = reverse('plugins:netbox_force:import_template_list')
         except Exception:
             list_url = '/plugins/netbox-force/import-templates/'
 
+        disabled_msg = ui.get('widget_templates_disabled',
+                              'Import-Vorlagen sind deaktiviert.')
+        col_name = ui.get('import_templates_col_name', 'Name')
+        col_model = ui.get('import_templates_col_model', 'Model')
+        col_desc = ui.get('import_templates_col_description', 'Description')
+        empty_msg = ui.get('import_templates_empty',
+                           'Keine Vorlagen vorhanden.')
+        all_link = ui.get('widget_templates_all', 'Alle Vorlagen')
+
         if not enabled:
-            return mark_safe(
+            return format_html(
                 '<div class="text-center py-3 text-muted">'
                 '<p class="mb-2"><i class="mdi mdi-lock-outline" '
                 'style="font-size: 2rem;"></i></p>'
-                '<p class="small mb-0">Import-Vorlagen sind deaktiviert.</p>'
-                '</div>'
+                '<p class="small mb-0">{}</p>'
+                '</div>',
+                disabled_msg
             )
 
         try:
@@ -95,10 +114,10 @@ class ImportTemplatesWidget(DashboardWidget):
                 '<div class="text-center py-3 text-muted">'
                 '<p class="mb-2"><i class="mdi mdi-file-document-outline" '
                 'style="font-size: 2rem;"></i></p>'
-                '<p class="small">Keine Vorlagen vorhanden.</p>'
-                '<a href="{}" class="small">Alle Vorlagen &rarr;</a>'
+                '<p class="small">{}</p>'
+                '<a href="{}" class="small">{} &rarr;</a>'
                 '</div>',
-                list_url
+                empty_msg, list_url, all_link
             )
 
         rows = []
@@ -108,25 +127,42 @@ class ImportTemplatesWidget(DashboardWidget):
                                  args=[tpl.pk])
             except Exception:
                 dl_url = '#'
+            desc_cell = format_html(
+                '<td class="small text-muted">{}</td>',
+                tpl.description[:60] + '...' if len(tpl.description) > 60
+                else tpl.description
+            ) if tpl.description else '<td></td>'
             rows.append(format_html(
                 '<tr>'
-                '<td>{}</td>'
-                '<td><code class="small">{}</code></td>'
+                '<td>{name}</td>'
+                '<td><code class="small">{model}</code></td>'
+                '{desc}'
                 '<td class="text-end">'
-                '<a href="{}" class="btn btn-sm btn-outline-primary" '
+                '<a href="{dl}" class="btn btn-sm btn-outline-primary" '
                 'title="Download"><i class="mdi mdi-download"></i></a>'
                 '</td></tr>',
-                tpl.display_name, tpl.model_label, dl_url
+                name=tpl.display_name,
+                model=tpl.model_label,
+                desc=mark_safe(desc_cell),
+                dl=dl_url,
             ))
 
         table_rows = mark_safe(''.join(rows))
         return format_html(
             '<div class="table-responsive">'
             '<table class="table table-sm table-hover mb-0">'
-            '<thead><tr><th>Vorlage</th><th>Model</th><th></th></tr></thead>'
-            '<tbody>{}</tbody></table></div>'
+            '<thead><tr>'
+            '<th>{col_name}</th><th>{col_model}</th>'
+            '<th>{col_desc}</th><th></th>'
+            '</tr></thead>'
+            '<tbody>{rows}</tbody></table></div>'
             '<div class="text-center mt-2">'
-            '<a href="{}" class="small text-muted">'
-            'Alle Vorlagen &rarr;</a></div>',
-            table_rows, list_url
+            '<a href="{url}" class="small text-muted">'
+            '{all_link} &rarr;</a></div>',
+            col_name=col_name,
+            col_model=col_model,
+            col_desc=col_desc,
+            rows=table_rows,
+            url=list_url,
+            all_link=all_link,
         )

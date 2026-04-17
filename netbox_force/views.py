@@ -876,8 +876,9 @@ class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         safe_name = template.display_name.replace(' ', '_').replace('/', '-')
         response['Content-Disposition'] = f'attachment; filename="{safe_name}.csv"'
-        # UTF-8 BOM so Excel recognises columns correctly
-        response.write('\ufeff' + template.csv_content)
+        # UTF-8 BOM + sep=, hint so Excel opens with correct column separation
+        # regardless of locale (German Excel defaults to semicolons otherwise)
+        response.write('\ufeff' + 'sep=,\r\n' + template.csv_content)
         return response
 
 
@@ -907,6 +908,44 @@ class GuideView(AuthenticatedRequiredMixin, View):
             'active_tab': 'guide',
         })
         return render(request, 'netbox_force/guide.html', ctx)
+
+
+class GuideStandaloneView(AuthenticatedRequiredMixin, View):
+    """
+    Serves the guide HTML content as a standalone page (no NetBox layout).
+    Used by the dashboard widget to open the guide in a new browser tab.
+    """
+
+    def get(self, request):
+        settings = ForceSettings.get_settings()
+        if not settings or not settings.guide_enabled:
+            return HttpResponse(
+                '<html><body><p>Guide is disabled.</p></body></html>',
+                content_type='text/html',
+            )
+
+        guide = GuidePage.get_guide()
+        content = guide.content if guide else ''
+
+        if not content.strip():
+            return HttpResponse(
+                '<html><body><p>No guide content.</p></body></html>',
+                content_type='text/html',
+            )
+
+        # If full HTML page, serve as-is; otherwise wrap in minimal page
+        if _FULL_HTML_RE.search(content):
+            return HttpResponse(content, content_type='text/html')
+
+        wrapped = (
+            '<!DOCTYPE html><html><head>'
+            '<meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<style>body{font-family:system-ui,sans-serif;max-width:960px;'
+            'margin:40px auto;padding:0 20px;line-height:1.6;}</style>'
+            '</head><body>' + content + '</body></html>'
+        )
+        return HttpResponse(wrapped, content_type='text/html')
 
 
 class GuideEditView(SuperuserRequiredMixin, View):
