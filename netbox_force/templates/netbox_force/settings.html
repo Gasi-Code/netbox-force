@@ -47,6 +47,11 @@
                         <label class="form-check-label" for="id_enforce_on_delete">{{ ui.label_enforce_on_delete|default:"Enforce on delete" }}</label>
                         <div class="form-text">{{ ui.help_enforce_on_delete|default:"If enabled, a changelog entry is also required when deleting objects." }}</div>
                     </div>
+                    <div class="mb-3 form-check">
+                        {{ form.dry_run }}
+                        <label class="form-check-label" for="id_dry_run">{{ ui.label_dry_run|default:"Dry-run mode" }}</label>
+                        <div class="form-text">{{ ui.help_dry_run|default:"If enabled, violations are logged but changes are not blocked." }}</div>
+                    </div>
                 </div>
             </div>
 
@@ -82,6 +87,11 @@
                             <div class="invalid-feedback d-block">{{ form.ticket_pattern.errors.0 }}</div>
                         {% endif %}
                         <div class="form-text" id="ticket-hint">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_ticket_pattern_hint" class="form-label">{{ ui.label_ticket_pattern_hint|default:"Ticket example (error message)" }}</label>
+                        {{ form.ticket_pattern_hint }}
+                        <div class="form-text">{{ ui.help_ticket_pattern_hint|default:"Human-readable example shown in error messages. If empty, the raw regex is shown." }}</div>
                     </div>
                 </div>
             </div>
@@ -144,6 +154,11 @@
                         {{ form.audit_log_retention_days }}
                         <div class="form-text">{{ ui.help_audit_log_retention_days|default:"Number of days to retain audit log entries." }}</div>
                     </div>
+                    <div class="mb-3">
+                        <label for="id_dashboard_top_users_count" class="form-label">{{ ui.label_dashboard_top_users_count|default:"Top users in dashboard" }}</label>
+                        {{ form.dashboard_top_users_count }}
+                        <div class="form-text">{{ ui.help_dashboard_top_users_count|default:"Number of users shown in the dashboard top list." }}</div>
+                    </div>
                 </div>
             </div>
 
@@ -191,7 +206,7 @@
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
-                        <td>4.0.2</td>
+                        <td>4.1.0</td>
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>

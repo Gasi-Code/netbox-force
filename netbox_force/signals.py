@@ -303,13 +303,20 @@ def check_ticket_reference(comment, settings, instance, request):
 
 
 def _build_ticket_message(settings, instance, request, pattern):
-    """Builds the ticket reference error message."""
+    """Builds the ticket reference error message with human-readable hint."""
     language = getattr(settings, 'language', 'de')
+    # Use custom hint if set, otherwise fall back to raw regex
+    custom_hint = getattr(settings, 'ticket_pattern_hint', '')
+    if custom_hint and custom_hint.strip():
+        hint = custom_hint.strip()
+    else:
+        hint = f"({pattern})"
+
     is_api = (request and hasattr(request, 'path_info')
               and request.path_info.startswith('/api/'))
     if is_api:
-        return get_api_message('ticket_missing', pattern=pattern)
-    return get_message('ticket_missing', language, pattern=pattern)
+        return get_api_message('ticket_missing', hint=hint)
+    return get_message('ticket_missing', language, hint=hint)
 
 
 def check_naming_conventions(instance, model_label, request=None):
@@ -346,18 +353,20 @@ def check_naming_conventions(instance, model_label, request=None):
 
         try:
             if not re.fullmatch(rule.regex_pattern, value_str):
-                custom_msg = rule.error_message or ''
+                # Use custom error message if set, otherwise fall back to regex
+                if rule.error_message and rule.error_message.strip():
+                    hint = rule.error_message.strip()
+                else:
+                    hint = f"({rule.regex_pattern})"
                 if is_api:
                     return get_api_message('naming_violation',
                                            field=rule.field_name,
                                            model=model_verbose,
-                                           pattern=rule.regex_pattern,
-                                           custom_msg=custom_msg)
+                                           hint=hint)
                 return get_message('naming_violation', language,
                                    field=rule.field_name,
                                    model=model_verbose,
-                                   pattern=rule.regex_pattern,
-                                   custom_msg=custom_msg)
+                                   hint=hint)
         except re.error:
             logger.warning("Invalid naming rule regex: %s — skipping rule",
                            rule.regex_pattern)
@@ -524,33 +533,37 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     settings = _get_settings()
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
     action = 'create' if is_new else 'edit'
+    dry_run = getattr(settings, 'dry_run', False) if settings else False
+
+    def _enforce(reason, error_msg, comment=None):
+        """Log violation and raise AbortRequest (or just log in dry-run mode)."""
+        log_violation(username, model_label, instance, action, reason, error_msg, comment)
+        if dry_run:
+            logger.warning("DRY-RUN: %s would block user '%s' (%s): %s",
+                           model_label, username, reason, error_msg)
+        else:
+            raise AbortRequest(error_msg)
 
     # --- Change window check (ALWAYS runs, regardless of enforce_on_create) ---
     window_error = check_change_window(settings)
     if window_error:
         logger.info("pre_save: %s outside change window, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'change_window', window_error)
-        raise AbortRequest(window_error)
+        _enforce('change_window', window_error)
 
     # --- Naming convention check (ALWAYS runs, regardless of enforce_on_create) ---
     naming_error = check_naming_conventions(instance, model_label, request)
     if naming_error:
         logger.info("pre_save: %s naming convention violation, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'naming_violation', naming_error)
-        raise AbortRequest(naming_error)
+        _enforce('naming_violation', naming_error)
 
     # --- Required field check (ALWAYS runs, regardless of enforce_on_create) ---
     required_error = check_required_fields(instance, model_label, request)
     if required_error:
         logger.info("pre_save: %s required field missing, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'required_field', required_error)
-        raise AbortRequest(required_error)
+        _enforce('required_field', required_error)
 
     # --- Changelog-related checks ---
     # Only enforced for existing objects, or for new objects if enforce_on_create=True.
@@ -572,9 +585,7 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         error_msg = build_error_message(instance, request)
         logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
                      model_label, len(comment) if comment else 0, min_len, username)
-        log_violation(username, model_label, instance, action,
-                      reason, error_msg, comment)
-        raise AbortRequest(error_msg)
+        _enforce(reason, error_msg, comment)
 
     # --- Blacklist check ---
     matched = check_blacklist(comment)
@@ -582,18 +593,14 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         error_msg = build_blacklist_message(instance, request, matched)
         logger.info("pre_save: %s changelog matches blacklist %s, blocking user '%s'",
                      model_label, matched, username)
-        log_violation(username, model_label, instance, action,
-                      'blacklisted', error_msg, comment)
-        raise AbortRequest(error_msg)
+        _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check ---
     ticket_error = check_ticket_reference(comment, settings, instance, request)
     if ticket_error:
         logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, action,
-                      'ticket_missing', ticket_error, comment)
-        raise AbortRequest(ticket_error)
+        _enforce('ticket_missing', ticket_error, comment)
 
 
 @receiver(pre_delete)
@@ -622,15 +629,22 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
 
     settings = _get_settings()
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
+    dry_run = getattr(settings, 'dry_run', False) if settings else False
+
+    def _enforce(reason, error_msg, comment=None):
+        log_violation(username, model_label, instance, 'delete', reason, error_msg, comment)
+        if dry_run:
+            logger.warning("DRY-RUN: %s would block user '%s' (%s): %s",
+                           model_label, username, reason, error_msg)
+        else:
+            raise AbortRequest(error_msg)
 
     # --- Change window check ---
     window_error = check_change_window(settings)
     if window_error:
         logger.info("pre_delete: %s outside change window, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, 'delete',
-                      'change_window', window_error)
-        raise AbortRequest(window_error)
+        _enforce('change_window', window_error)
 
     # --- Changelog presence + length ---
     min_len = _get_setting('min_length', 2)
@@ -641,9 +655,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         error_msg = build_error_message(instance, request)
         logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, 'delete',
-                      reason, error_msg, comment)
-        raise AbortRequest(error_msg)
+        _enforce(reason, error_msg, comment)
 
     # --- Blacklist check ---
     matched = check_blacklist(comment)
@@ -651,15 +663,11 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         error_msg = build_blacklist_message(instance, request, matched)
         logger.info("pre_delete: %s changelog matches blacklist %s, blocking user '%s'",
                      model_label, matched, username)
-        log_violation(username, model_label, instance, 'delete',
-                      'blacklisted', error_msg, comment)
-        raise AbortRequest(error_msg)
+        _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check ---
     ticket_error = check_ticket_reference(comment, settings, instance, request)
     if ticket_error:
         logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
                      model_label, username)
-        log_violation(username, model_label, instance, 'delete',
-                      'ticket_missing', ticket_error, comment)
-        raise AbortRequest(ticket_error)
+        _enforce('ticket_missing', ticket_error, comment)

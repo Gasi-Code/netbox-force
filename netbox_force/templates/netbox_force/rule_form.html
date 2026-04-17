@@ -92,6 +92,12 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
                         <div class="form-text" id="pattern-hint">
                             {{ ui.rule_help_pattern_desc|default:"Only for naming rules. The field value must fully match this regex pattern." }}
                         </div>
+                        {# Rule Test/Preview #}
+                        <div class="input-group mt-2" id="pattern-test-group">
+                            <input type="text" id="pattern-test-input" class="form-control form-control-sm"
+                                   placeholder="{{ ui.rule_test_placeholder|default:'Test value...' }}">
+                            <span class="input-group-text" id="pattern-test-result">—</span>
+                        </div>
                     </div>
 
                     {# Error Message #}
@@ -250,6 +256,45 @@ NetBox Force - {% if editing %}{{ ui.rule_edit_title|default:"Edit Rule" }}{% el
             }
         }
     });
+
+    // --- Pattern test/preview ---
+    const testInput = document.getElementById('pattern-test-input');
+    const testResult = document.getElementById('pattern-test-result');
+    const testGroup = document.getElementById('pattern-test-group');
+
+    function toggleTestGroup() {
+        testGroup.style.display = ruleType.value === 'required' ? 'none' : '';
+    }
+    toggleTestGroup();
+    ruleType.addEventListener('change', toggleTestGroup);
+
+    function testPattern() {
+        const pattern = patternInput.value.trim();
+        const value = testInput.value;
+
+        if (!pattern || !value) {
+            testResult.textContent = '—';
+            testResult.className = 'input-group-text';
+            return;
+        }
+
+        try {
+            const regex = new RegExp('^(?:' + pattern + ')$');
+            if (regex.test(value)) {
+                testResult.textContent = '\u2705 Match';
+                testResult.className = 'input-group-text text-success';
+            } else {
+                testResult.textContent = '\u274c No match';
+                testResult.className = 'input-group-text text-danger';
+            }
+        } catch (e) {
+            testResult.textContent = '\u26a0 Invalid regex';
+            testResult.className = 'input-group-text text-warning';
+        }
+    }
+
+    testInput.addEventListener('input', testPattern);
+    patternInput.addEventListener('input', testPattern);
 })();
 </script>
 {% endblock content %}

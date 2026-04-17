@@ -29,12 +29,15 @@ UI_STRINGS = {
         'label_blacklisted_phrases': 'Gesperrte Begriffe',
         'label_extra_exempt_models': 'Ausgenommene Modelle',
         'label_ticket_pattern': 'Ticket-Muster (Regex)',
+        'label_ticket_pattern_hint': 'Ticket-Beispiel (Fehlermeldung)',
         'label_change_window_enabled': 'Änderungsfenster aktivieren',
         'label_change_window_start': 'Startzeit',
         'label_change_window_end': 'Endzeit',
         'label_change_window_weekdays': 'Erlaubte Wochentage',
         'label_audit_log_enabled': 'Audit-Log aktivieren',
         'label_audit_log_retention_days': 'Aufbewahrungsdauer (Tage)',
+        'label_dashboard_top_users_count': 'Top-Benutzer im Dashboard',
+        'label_dry_run': 'Dry-Run-Modus',
 
         # Help texts
         'help_language': 'Sprache für Fehlermeldungen in der NetBox-UI. API-Nachrichten sind immer auf Englisch.',
@@ -45,12 +48,15 @@ UI_STRINGS = {
         'help_blacklisted_phrases': 'Ein Begriff pro Zeile. Changelog-Einträge die diese Begriffe (als ganze Wörter) enthalten, werden abgelehnt.',
         'help_extra_exempt_models': 'Ein Model pro Zeile (Format: app.model, z.B. myplugin.mymodel).',
         'help_ticket_pattern': 'Regex-Muster für erforderliche Ticket-Referenzen (z.B. JIRA-\\d+ oder #\\d+). Leer lassen zum Deaktivieren.',
+        'help_ticket_pattern_hint': 'Verständliches Beispiel, das dem Benutzer in der Fehlermeldung angezeigt wird (z.B. "JIRA-1234 oder CHG0012345"). Wenn leer, wird das Regex-Muster angezeigt.',
         'help_change_window_enabled': 'Wenn aktiviert, sind Änderungen nur innerhalb des definierten Zeitfensters erlaubt.',
         'help_change_window_start': 'Beginn des erlaubten Änderungszeitraums.',
         'help_change_window_end': 'Ende des erlaubten Änderungszeitraums.',
         'help_change_window_weekdays': 'Kommagetrennte ISO-Wochentage (1=Montag, 7=Sonntag).',
         'help_audit_log_enabled': 'Wenn aktiviert, werden alle abgelehnten Änderungen protokolliert.',
-        'help_audit_log_retention_days': 'Anzahl der Tage, die Audit-Einträge aufbewahrt werden.',
+        'help_audit_log_retention_days': 'Anzahl der Tage, die Audit-Einträge aufbewahrt werden. Ältere Einträge werden automatisch gelöscht.',
+        'help_dashboard_top_users_count': 'Anzahl der Benutzer in der Top-Liste im Dashboard.',
+        'help_dry_run': 'Wenn aktiviert, werden Verstöße nur protokolliert, aber Änderungen nicht blockiert. Nützlich zum schrittweisen Einführen neuer Regeln.',
 
         # Buttons
         'btn_save': 'Speichern',
@@ -91,6 +97,7 @@ UI_STRINGS = {
         'rule_help_field_desc': 'Das zu validierende Modellfeld (z.B. name, description, tenant)',
         'rule_help_pattern_desc': 'Nur für Namenskonventionen. Der Feldwert muss vollständig diesem Regex-Muster entsprechen.',
         'rule_help_error_msg_desc': 'Wird dem Benutzer bei fehlgeschlagener Validierung angezeigt. Leer lassen für Standardmeldung.',
+        'rule_test_placeholder': 'Testwert eingeben...',
         'dashboard_col_count': 'Anzahl',
 
         # Violations page
@@ -115,7 +122,7 @@ UI_STRINGS = {
         'dashboard_feature_status': 'Feature-Status',
         'dashboard_total_violations': 'Verstöße gesamt',
         'dashboard_by_reason': 'Verstöße nach Grund',
-        'dashboard_top_users': 'Top 10 Benutzer',
+        'dashboard_top_users': 'Top {count} Benutzer',
         'dashboard_over_time': 'Verstöße (letzte 30 Tage)',
         'dashboard_active_rules': 'Aktive Regeln',
         'dashboard_enabled': 'Aktiviert',
@@ -125,6 +132,10 @@ UI_STRINGS = {
         'dashboard_change_window': 'Änderungsfenster',
         'dashboard_audit_log': 'Audit-Log',
         'dashboard_no_data': 'Keine Daten vorhanden.',
+        'dashboard_dry_run': 'Dry-Run-Modus',
+
+        # Violations page extras
+        'btn_export_csv': 'CSV-Export',
 
         # Info sidebar
         'info_title': 'Info',
@@ -159,12 +170,15 @@ UI_STRINGS = {
         'label_blacklisted_phrases': 'Blocked phrases',
         'label_extra_exempt_models': 'Exempt models',
         'label_ticket_pattern': 'Ticket pattern (Regex)',
+        'label_ticket_pattern_hint': 'Ticket example (error message)',
         'label_change_window_enabled': 'Enable change window',
         'label_change_window_start': 'Start time',
         'label_change_window_end': 'End time',
         'label_change_window_weekdays': 'Allowed weekdays',
         'label_audit_log_enabled': 'Enable audit log',
         'label_audit_log_retention_days': 'Retention period (days)',
+        'label_dashboard_top_users_count': 'Top users in dashboard',
+        'label_dry_run': 'Dry-run mode',
 
         # Help texts
         'help_language': 'Language for error messages in the NetBox UI. API messages are always in English.',
@@ -175,12 +189,15 @@ UI_STRINGS = {
         'help_blacklisted_phrases': 'One phrase per line. Changelog entries containing any of these phrases (as whole words) will be rejected.',
         'help_extra_exempt_models': 'One model per line (format: app.model, e.g. myplugin.mymodel).',
         'help_ticket_pattern': 'Regex pattern for required ticket references (e.g. JIRA-\\d+ or #\\d+). Leave empty to disable.',
+        'help_ticket_pattern_hint': 'Human-readable example shown to users in error messages (e.g. "JIRA-1234 or CHG0012345"). If empty, the raw regex pattern is shown.',
         'help_change_window_enabled': 'If enabled, changes are only allowed within the defined time window.',
         'help_change_window_start': 'Start of the allowed change period.',
         'help_change_window_end': 'End of the allowed change period.',
         'help_change_window_weekdays': 'Comma-separated ISO weekday numbers (1=Monday, 7=Sunday).',
         'help_audit_log_enabled': 'If enabled, all rejected changes are logged for compliance tracking.',
-        'help_audit_log_retention_days': 'Number of days to retain audit log entries.',
+        'help_audit_log_retention_days': 'Number of days to retain audit log entries. Older entries are automatically deleted.',
+        'help_dashboard_top_users_count': 'Number of users shown in the dashboard top list.',
+        'help_dry_run': 'If enabled, violations are logged but changes are not blocked. Useful for gradually rolling out new rules.',
 
         # Buttons
         'btn_save': 'Save',
@@ -221,6 +238,7 @@ UI_STRINGS = {
         'rule_help_field_desc': 'The model field to validate (e.g. name, description, tenant)',
         'rule_help_pattern_desc': 'Only for naming rules. The field value must fully match this regex pattern.',
         'rule_help_error_msg_desc': 'Shown to the user when validation fails. Leave empty for default message.',
+        'rule_test_placeholder': 'Enter test value...',
         'dashboard_col_count': 'Count',
 
         # Violations page
@@ -245,7 +263,7 @@ UI_STRINGS = {
         'dashboard_feature_status': 'Feature Status',
         'dashboard_total_violations': 'Total Violations',
         'dashboard_by_reason': 'Violations by Reason',
-        'dashboard_top_users': 'Top 10 Users',
+        'dashboard_top_users': 'Top {count} Users',
         'dashboard_over_time': 'Violations (Last 30 Days)',
         'dashboard_active_rules': 'Active Rules',
         'dashboard_enabled': 'Enabled',
@@ -255,6 +273,10 @@ UI_STRINGS = {
         'dashboard_change_window': 'Change Window',
         'dashboard_audit_log': 'Audit Log',
         'dashboard_no_data': 'No data available.',
+        'dashboard_dry_run': 'Dry-Run Mode',
+
+        # Violations page extras
+        'btn_export_csv': 'CSV Export',
 
         # Info sidebar
         'info_title': 'Info',
@@ -289,12 +311,15 @@ UI_STRINGS = {
         'label_blacklisted_phrases': 'Frases bloqueadas',
         'label_extra_exempt_models': 'Modelos exentos',
         'label_ticket_pattern': 'Patrón de ticket (Regex)',
+        'label_ticket_pattern_hint': 'Ejemplo de ticket (mensaje de error)',
         'label_change_window_enabled': 'Activar ventana de cambios',
         'label_change_window_start': 'Hora de inicio',
         'label_change_window_end': 'Hora de fin',
         'label_change_window_weekdays': 'Días permitidos',
         'label_audit_log_enabled': 'Activar registro de auditoría',
         'label_audit_log_retention_days': 'Retención (días)',
+        'label_dashboard_top_users_count': 'Usuarios principales en el panel',
+        'label_dry_run': 'Modo de prueba',
 
         # Help texts
         'help_language': 'Idioma para mensajes de error en la UI de NetBox. Los mensajes de API siempre son en inglés.',
@@ -305,12 +330,15 @@ UI_STRINGS = {
         'help_blacklisted_phrases': 'Una frase por línea. Las entradas de changelog que contengan estas frases (como palabras completas) serán rechazadas.',
         'help_extra_exempt_models': 'Un modelo por línea (formato: app.model, ej. myplugin.mymodel).',
         'help_ticket_pattern': 'Patrón regex para referencias de tickets requeridas (ej. JIRA-\\d+ o #\\d+). Dejar vacío para desactivar.',
+        'help_ticket_pattern_hint': 'Ejemplo legible mostrado en los mensajes de error (ej. "JIRA-1234 o CHG0012345"). Si está vacío, se muestra el patrón regex.',
         'help_change_window_enabled': 'Si está activado, los cambios solo se permiten dentro de la ventana de tiempo definida.',
         'help_change_window_start': 'Inicio del período de cambios permitido.',
         'help_change_window_end': 'Fin del período de cambios permitido.',
         'help_change_window_weekdays': 'Números de días ISO separados por comas (1=Lunes, 7=Domingo).',
         'help_audit_log_enabled': 'Si está activado, todos los cambios rechazados se registran para seguimiento de cumplimiento.',
-        'help_audit_log_retention_days': 'Número de días para retener las entradas del registro de auditoría.',
+        'help_audit_log_retention_days': 'Número de días para retener las entradas del registro de auditoría. Las entradas más antiguas se eliminan automáticamente.',
+        'help_dashboard_top_users_count': 'Número de usuarios en la lista principal del panel.',
+        'help_dry_run': 'Si está activado, las infracciones se registran pero los cambios no se bloquean. Útil para implementar nuevas reglas gradualmente.',
 
         # Buttons
         'btn_save': 'Guardar',
@@ -351,6 +379,7 @@ UI_STRINGS = {
         'rule_help_field_desc': 'El campo del modelo a validar (ej. name, description, tenant)',
         'rule_help_pattern_desc': 'Solo para reglas de nombres. El valor del campo debe coincidir completamente con este patrón regex.',
         'rule_help_error_msg_desc': 'Se muestra al usuario cuando falla la validación. Dejar vacío para mensaje predeterminado.',
+        'rule_test_placeholder': 'Ingrese valor de prueba...',
         'dashboard_col_count': 'Cantidad',
 
         # Violations page
@@ -375,7 +404,7 @@ UI_STRINGS = {
         'dashboard_feature_status': 'Estado de Funciones',
         'dashboard_total_violations': 'Infracciones Totales',
         'dashboard_by_reason': 'Infracciones por Razón',
-        'dashboard_top_users': 'Top 10 Usuarios',
+        'dashboard_top_users': 'Top {count} Usuarios',
         'dashboard_over_time': 'Infracciones (Últimos 30 Días)',
         'dashboard_active_rules': 'Reglas Activas',
         'dashboard_enabled': 'Activado',
@@ -385,6 +414,10 @@ UI_STRINGS = {
         'dashboard_change_window': 'Ventana de Cambios',
         'dashboard_audit_log': 'Registro de Auditoría',
         'dashboard_no_data': 'No hay datos disponibles.',
+        'dashboard_dry_run': 'Modo de Prueba',
+
+        # Violations page extras
+        'btn_export_csv': 'Exportar CSV',
 
         # Info sidebar
         'info_title': 'Info',

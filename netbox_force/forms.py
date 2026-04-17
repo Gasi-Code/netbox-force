@@ -19,16 +19,19 @@ class ForceSettingsForm(forms.ModelForm):
             'min_length',
             'enforce_on_create',
             'enforce_on_delete',
+            'dry_run',
             'exempt_users',
             'blacklisted_phrases',
             'extra_exempt_models',
             'ticket_pattern',
+            'ticket_pattern_hint',
             'change_window_enabled',
             'change_window_start',
             'change_window_end',
             'change_window_weekdays',
             'audit_log_enabled',
             'audit_log_retention_days',
+            'dashboard_top_users_count',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -62,6 +65,13 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': r'JIRA-\d+ or #\d+',
             }),
+            'ticket_pattern_hint': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'z.B. JIRA-1234 oder CHG0012345',
+            }),
+            'dry_run': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
             'change_window_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
             }),
@@ -84,6 +94,11 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': 1,
                 'max': 3650,
+            }),
+            'dashboard_top_users_count': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 100,
             }),
         }
 

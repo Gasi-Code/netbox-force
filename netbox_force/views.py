@@ -1,3 +1,4 @@
+import csv
 import json
 from datetime import timedelta
 
@@ -7,7 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.db.models.functions import TruncDate
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
@@ -300,27 +301,33 @@ class ValidationRuleDeleteView(SuperuserRequiredMixin, View):
 # VIOLATIONS VIEW
 # =============================================================================
 
+def _get_violation_queryset(request):
+    """Builds the filtered violation queryset from request parameters."""
+    qs = Violation.objects.all()
+
+    reason = request.GET.get('reason', '')
+    username = request.GET.get('username', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if reason:
+        qs = qs.filter(reason=reason)
+    if username:
+        qs = qs.filter(username__icontains=username)
+    if date_from:
+        qs = qs.filter(timestamp__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(timestamp__date__lte=date_to)
+
+    return qs, reason, username, date_from, date_to
+
+
 class ViolationListView(SuperuserRequiredMixin, View):
     """Lists violation audit log entries with filtering and pagination."""
 
     def get(self, request):
         settings = ForceSettings.get_settings()
-        qs = Violation.objects.all()
-
-        # Apply filters
-        reason = request.GET.get('reason', '')
-        username = request.GET.get('username', '')
-        date_from = request.GET.get('date_from', '')
-        date_to = request.GET.get('date_to', '')
-
-        if reason:
-            qs = qs.filter(reason=reason)
-        if username:
-            qs = qs.filter(username__icontains=username)
-        if date_from:
-            qs = qs.filter(timestamp__date__gte=date_from)
-        if date_to:
-            qs = qs.filter(timestamp__date__lte=date_to)
+        qs, reason, username, date_from, date_to = _get_violation_queryset(request)
 
         # Pagination
         paginator = Paginator(qs, 50)
@@ -348,6 +355,36 @@ class ViolationListView(SuperuserRequiredMixin, View):
         })
 
 
+class ViolationExportCSVView(SuperuserRequiredMixin, View):
+    """Exports filtered violations as CSV."""
+
+    def get(self, request):
+        qs, *_ = _get_violation_queryset(request)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="netbox_force_violations.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            'Timestamp', 'Username', 'Model', 'Object', 'Action',
+            'Reason', 'Message', 'Attempted Comment',
+        ])
+
+        for v in qs.iterator():
+            writer.writerow([
+                v.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                v.username,
+                v.model_label,
+                v.object_repr,
+                v.get_action_display(),
+                v.get_reason_display(),
+                v.message,
+                v.attempted_comment,
+            ])
+
+        return response
+
+
 # =============================================================================
 # DASHBOARD VIEW
 # =============================================================================
@@ -357,6 +394,12 @@ class DashboardView(SuperuserRequiredMixin, View):
 
     def get(self, request):
         settings = ForceSettings.get_settings()
+
+        # Run retention cleanup on dashboard access
+        try:
+            Violation.cleanup_expired()
+        except Exception:
+            pass
 
         # Violation statistics
         total_violations = Violation.objects.count()
@@ -373,11 +416,14 @@ class DashboardView(SuperuserRequiredMixin, View):
         for item in violations_by_reason:
             item['display'] = reason_display.get(item['reason'], item['reason'])
 
+        # Configurable top N users
+        top_count = getattr(settings, 'dashboard_top_users_count', 10) if settings else 10
+
         violations_by_user = (
             Violation.objects
             .values('username')
             .annotate(count=Count('username'))
-            .order_by('-count')[:10]
+            .order_by('-count')[:top_count]
         )
 
         # Last 30 days trend
@@ -400,6 +446,10 @@ class DashboardView(SuperuserRequiredMixin, View):
         # Feature status
         active_rules_count = ValidationRule.objects.filter(enabled=True).count()
 
+        # Build top-users label with count
+        ui = _get_ui_context(settings)
+        top_users_label = ui.get('dashboard_top_users', 'Top {count} Users').format(count=top_count)
+
         return render(request, 'netbox_force/dashboard.html', {
             'settings': settings,
             'total_violations': total_violations,
@@ -408,6 +458,7 @@ class DashboardView(SuperuserRequiredMixin, View):
             'violations_over_time': violations_over_time,
             'max_daily_count': max_daily_count,
             'active_rules_count': active_rules_count,
-            'ui': _get_ui_context(settings),
+            'top_users_label': top_users_label,
+            'ui': ui,
             'active_tab': 'dashboard',
         })

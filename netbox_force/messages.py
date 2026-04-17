@@ -15,11 +15,11 @@ MESSAGES = {
         ),
         'ticket_missing': (
             "Ticket-Referenz erforderlich! Der Changelog-Eintrag muss eine "
-            "Ticket-Referenz enthalten, die dem Muster entspricht: {pattern}"
+            "Ticket-Referenz enthalten. {hint}"
         ),
         'naming_violation': (
             "Namenskonvention verletzt! Das Feld '{field}' bei '{model}' "
-            "entspricht nicht dem erforderlichen Muster: {pattern} {custom_msg}"
+            "entspricht nicht dem erforderlichen Muster. {hint}"
         ),
         'required_field': (
             "Pflichtfeld fehlt! Das Feld '{field}' bei '{model}' "
@@ -29,6 +29,7 @@ MESSAGES = {
             "Änderungen sind außerhalb des Änderungsfensters nicht erlaubt "
             "({start} - {end}, {weekdays})."
         ),
+        'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'Erstellen',
         'action_edit': 'Ändern',
         'action_delete': 'Löschen',
@@ -45,11 +46,11 @@ MESSAGES = {
         ),
         'ticket_missing': (
             "Ticket reference required! The changelog entry must contain "
-            "a ticket reference matching the pattern: {pattern}"
+            "a ticket reference. {hint}"
         ),
         'naming_violation': (
             "Naming convention violated! The field '{field}' on '{model}' "
-            "does not match the required pattern: {pattern} {custom_msg}"
+            "does not match the required pattern. {hint}"
         ),
         'required_field': (
             "Required field missing! The field '{field}' on '{model}' "
@@ -59,6 +60,7 @@ MESSAGES = {
             "Changes are not allowed outside the change window "
             "({start} - {end}, {weekdays})."
         ),
+        'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'creating',
         'action_edit': 'modifying',
         'action_delete': 'deleting',
@@ -75,12 +77,11 @@ MESSAGES = {
         ),
         'ticket_missing': (
             "Se requiere referencia de ticket. La entrada del registro de "
-            "cambios debe contener una referencia de ticket que coincida "
-            "con el patrón: {pattern}"
+            "cambios debe contener una referencia de ticket. {hint}"
         ),
         'naming_violation': (
             "Convención de nombres violada. El campo '{field}' en '{model}' "
-            "no coincide con el patrón requerido: {pattern} {custom_msg}"
+            "no coincide con el patrón requerido. {hint}"
         ),
         'required_field': (
             "Campo obligatorio faltante. El campo '{field}' en '{model}' "
@@ -90,6 +91,7 @@ MESSAGES = {
             "No se permiten cambios fuera de la ventana de cambios "
             "({start} - {end}, {weekdays})."
         ),
+        'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'crear',
         'action_edit': 'modificar',
         'action_delete': 'eliminar',
@@ -108,11 +110,11 @@ API_MESSAGES = {
     ),
     'ticket_missing': (
         "Ticket reference required. The changelog entry must contain a "
-        "ticket reference matching the pattern: {pattern}"
+        "ticket reference. {hint}"
     ),
     'naming_violation': (
         "Naming convention violated. The field '{field}' on '{model}' "
-        "does not match the required pattern: {pattern} {custom_msg}"
+        "does not match the required pattern. {hint}"
     ),
     'required_field': (
         "Required field missing. The field '{field}' on '{model}' "

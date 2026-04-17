@@ -11,6 +11,7 @@ urlpatterns = [
     path('rules/<int:pk>/edit/', views.ValidationRuleEditView.as_view(), name='rule_edit'),
     path('rules/<int:pk>/delete/', views.ValidationRuleDeleteView.as_view(), name='rule_delete'),
     path('violations/', views.ViolationListView.as_view(), name='violation_list'),
+    path('violations/export/', views.ViolationExportCSVView.as_view(), name='violation_export_csv'),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
 
     # JSON helper endpoints for dynamic dropdowns

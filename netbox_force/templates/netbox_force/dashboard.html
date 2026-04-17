@@ -55,6 +55,16 @@
                             </td>
                         </tr>
                         <tr>
+                            <td>{{ ui.dashboard_dry_run|default:"Dry-Run Mode" }}</td>
+                            <td class="text-end">
+                                {% if settings.dry_run %}
+                                    <span class="badge border border-warning text-warning">{{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                                {% else %}
+                                    <span class="badge border border-secondary text-secondary">{{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
                             <td>{{ ui.dashboard_active_rules|default:"Active Rules" }}</td>
                             <td class="text-end">
                                 <span class="badge border border-info text-info">{{ active_rules_count }}</span>
@@ -112,7 +122,7 @@
     <div class="col-md-6 mb-4">
         <div class="card h-100">
             <h5 class="card-header">
-                <i class="mdi mdi-account-group"></i> {{ ui.dashboard_top_users|default:"Top 10 Users" }}
+                <i class="mdi mdi-account-group"></i> {{ top_users_label|default:"Top 10 Users" }}
             </h5>
             <div class="card-body">
                 {% if violations_by_user %}

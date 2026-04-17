@@ -70,6 +70,13 @@ class ForceSettings(models.Model):
             '(e.g. JIRA-\\d+ or #\\d+). Leave empty to disable.'
         ),
     )
+    ticket_pattern_hint = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Ticket pattern hint',
+        help_text='Human-readable example shown in error messages (e.g. "JIRA-1234 or CHG0012345").',
+    )
 
     # --- Change Window ---
     change_window_enabled = models.BooleanField(
@@ -104,6 +111,19 @@ class ForceSettings(models.Model):
     audit_log_retention_days = models.PositiveIntegerField(
         default=90,
         verbose_name='Audit log retention (days)',
+    )
+
+    # --- Dashboard ---
+    dashboard_top_users_count = models.PositiveIntegerField(
+        default=10,
+        verbose_name='Dashboard top users count',
+    )
+
+    # --- Dry Run ---
+    dry_run = models.BooleanField(
+        default=False,
+        verbose_name='Dry run mode',
+        help_text='Log violations but do not block changes.',
     )
 
     # In-memory cache with thread safety
@@ -341,3 +361,23 @@ class Violation(models.Model):
 
     def __str__(self):
         return f"{self.timestamp:%Y-%m-%d %H:%M} | {self.username} | {self.reason}"
+
+    @classmethod
+    def cleanup_expired(cls, retention_days=None):
+        """
+        Deletes violation entries older than retention_days.
+        If retention_days is None, reads from ForceSettings.
+        Returns the number of deleted entries.
+        """
+        if retention_days is None:
+            settings = ForceSettings.get_settings()
+            retention_days = getattr(settings, 'audit_log_retention_days', 90) if settings else 90
+
+        if retention_days <= 0:
+            return 0
+
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        cutoff = tz.now() - timedelta(days=retention_days)
+        count, _ = cls.objects.filter(timestamp__lt=cutoff).delete()
+        return count
