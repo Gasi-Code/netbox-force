@@ -19,7 +19,7 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Namenskonvention verletzt! Das Feld '{field}' bei '{model}' "
-            "entspricht nicht dem erforderlichen Muster. {custom_msg}"
+            "entspricht nicht dem erforderlichen Muster: {pattern} {custom_msg}"
         ),
         'required_field': (
             "Pflichtfeld fehlt! Das Feld '{field}' bei '{model}' "
@@ -49,7 +49,7 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Naming convention violated! The field '{field}' on '{model}' "
-            "does not match the required pattern. {custom_msg}"
+            "does not match the required pattern: {pattern} {custom_msg}"
         ),
         'required_field': (
             "Required field missing! The field '{field}' on '{model}' "
@@ -80,7 +80,7 @@ MESSAGES = {
         ),
         'naming_violation': (
             "Convención de nombres violada. El campo '{field}' en '{model}' "
-            "no coincide con el patrón requerido. {custom_msg}"
+            "no coincide con el patrón requerido: {pattern} {custom_msg}"
         ),
         'required_field': (
             "Campo obligatorio faltante. El campo '{field}' en '{model}' "
@@ -112,7 +112,7 @@ API_MESSAGES = {
     ),
     'naming_violation': (
         "Naming convention violated. The field '{field}' on '{model}' "
-        "does not match the required pattern. {custom_msg}"
+        "does not match the required pattern: {pattern} {custom_msg}"
     ),
     'required_field': (
         "Required field missing. The field '{field}' on '{model}' "

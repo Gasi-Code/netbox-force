@@ -8,7 +8,7 @@ from django.utils import timezone
 from utilities.exceptions import AbortRequest
 from netbox.plugins import get_plugin_config
 
-from .middleware import get_current_request
+from .middleware import get_current_request, queue_pending_violation
 from .messages import get_message, get_api_message
 
 logger = logging.getLogger('netbox.plugins.netbox_force')
@@ -351,10 +351,12 @@ def check_naming_conventions(instance, model_label, request=None):
                     return get_api_message('naming_violation',
                                            field=rule.field_name,
                                            model=model_verbose,
+                                           pattern=rule.regex_pattern,
                                            custom_msg=custom_msg)
                 return get_message('naming_violation', language,
                                    field=rule.field_name,
                                    model=model_verbose,
+                                   pattern=rule.regex_pattern,
                                    custom_msg=custom_msg)
         except re.error:
             logger.warning("Invalid naming rule regex: %s — skipping rule",
@@ -413,7 +415,14 @@ def check_required_fields(instance, model_label, request=None):
 def log_violation(username, model_label, instance, action, reason, message,
                   comment=None):
     """
-    Writes a Violation audit log entry (only if audit_log_enabled).
+    Queues a Violation audit log entry for writing after the view completes
+    (only if audit_log_enabled).
+
+    Violations are NOT written directly because NetBox wraps form.save()
+    in transaction.atomic(). A direct write would be rolled back when
+    AbortRequest is raised. Instead, the violation data is buffered in
+    thread-local storage and flushed by the middleware after the response.
+
     Never raises — logging failures must not block enforcement.
     """
     settings = _get_settings()
@@ -421,18 +430,17 @@ def log_violation(username, model_label, instance, action, reason, message,
         return
 
     try:
-        from .models import Violation
-        Violation.objects.create(
-            username=username,
-            model_label=model_label,
-            object_repr=str(instance)[:200],
-            action=action,
-            reason=reason,
-            message=message,
-            attempted_comment=comment or '',
-        )
+        queue_pending_violation({
+            'username': username,
+            'model_label': model_label,
+            'object_repr': str(instance)[:200],
+            'action': action,
+            'reason': reason,
+            'message': message,
+            'attempted_comment': comment or '',
+        })
     except Exception:
-        logger.error("Failed to write violation audit log entry", exc_info=True)
+        logger.error("Failed to queue violation audit log entry", exc_info=True)
 
 
 # =============================================================================
