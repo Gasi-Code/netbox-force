@@ -143,34 +143,6 @@ class ForceSettings(models.Model):
         help_text='Disable to pause all enforcement globally (e.g. during maintenance windows).',
     )
 
-    # --- Group Exemptions ---
-    exempt_groups = models.TextField(
-        blank=True,
-        default='',
-        verbose_name='Exempt groups',
-        help_text='One group name per line. All members of these groups bypass enforcement entirely.',
-    )
-
-    # --- Webhook ---
-    webhook_enabled = models.BooleanField(
-        default=False,
-        verbose_name='Enable webhook',
-    )
-    webhook_url = models.CharField(
-        max_length=500,
-        blank=True,
-        default='',
-        verbose_name='Webhook URL',
-        help_text='HTTP POST endpoint for violation notifications (e.g. Slack, Teams, custom API).',
-    )
-    webhook_secret = models.CharField(
-        max_length=255,
-        blank=True,
-        default='',
-        verbose_name='Webhook secret',
-        help_text='Optional HMAC-SHA256 secret. Sent as X-NetBox-Force-Signature header.',
-    )
-
     # In-memory cache with thread safety
     # RLock (reentrant) because get_settings() holds the lock and may call
     # save() via _init_from_config(), which also acquires the lock.
@@ -259,11 +231,6 @@ class ForceSettings(models.Model):
         if not self.blacklisted_phrases:
             return []
         return [p.strip().lower() for p in self.blacklisted_phrases.splitlines() if p.strip()]
-
-    def get_exempt_groups_list(self):
-        if not self.exempt_groups:
-            return []
-        return [g.strip() for g in self.exempt_groups.splitlines() if g.strip()]
 
     def get_extra_exempt_models_list(self):
         if not self.extra_exempt_models:
@@ -541,111 +508,3 @@ class GuidePage(models.Model):
         except (OperationalError, ProgrammingError):
             return None
 
-
-# =============================================================================
-# MODEL POLICY
-# =============================================================================
-
-class ModelPolicy(models.Model):
-    """
-    Per-model enforcement overrides.
-    When a policy exists for a model, its settings take precedence over
-    the global ForceSettings for that specific model.
-    Null fields mean "use the global setting".
-    """
-    model_label = models.CharField(
-        max_length=100,
-        unique=True,
-        verbose_name='Model',
-        help_text='Format: app.model (e.g. dcim.device)',
-    )
-    enforcement_enabled = models.BooleanField(
-        default=True,
-        verbose_name='Enforcement enabled',
-        help_text='If disabled, all enforcement is skipped for this model regardless of global settings.',
-    )
-    min_length_override = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name='Min. changelog length',
-        help_text='Overrides the global minimum changelog length for this model. Leave empty to use global.',
-    )
-    require_ticket = models.BooleanField(
-        null=True,
-        blank=True,
-        verbose_name='Require ticket reference',
-        help_text='True = always require ticket, False = never require, empty = use global setting.',
-    )
-    enforce_change_window = models.BooleanField(
-        null=True,
-        blank=True,
-        verbose_name='Enforce change window',
-        help_text='True = enforce window, False = skip, empty = use global setting.',
-    )
-    check_naming_rules = models.BooleanField(
-        default=True,
-        verbose_name='Check naming rules',
-        help_text='If disabled, naming convention rules are not checked for this model.',
-    )
-    check_required_fields = models.BooleanField(
-        default=True,
-        verbose_name='Check required fields',
-        help_text='If disabled, required field rules are not checked for this model.',
-    )
-    notes = models.TextField(
-        blank=True,
-        default='',
-        verbose_name='Notes',
-        help_text='Optional notes about this policy (not enforced).',
-    )
-
-    # Cache
-    _policy_cache = None
-    _policy_cache_timestamp = 0
-    _POLICY_CACHE_TTL = 30
-    _policy_cache_lock = threading.Lock()
-
-    class Meta:
-        verbose_name = 'Model Policy'
-        verbose_name_plural = 'Model Policies'
-        ordering = ['model_label']
-
-    def __str__(self):
-        return self.model_label
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self._invalidate_cache()
-
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        self._invalidate_cache()
-
-    @classmethod
-    def _invalidate_cache(cls):
-        with cls._policy_cache_lock:
-            cls._policy_cache = None
-            cls._policy_cache_timestamp = 0
-
-    @classmethod
-    def get_all_policies(cls):
-        """Returns all policies as a dict {model_label: policy} (cached, thread-safe)."""
-        now = time.time()
-        with cls._policy_cache_lock:
-            if (cls._policy_cache is not None
-                    and (now - cls._policy_cache_timestamp) < cls._POLICY_CACHE_TTL):
-                return cls._policy_cache
-
-            try:
-                policies = {p.model_label: p for p in cls.objects.all()}
-            except (OperationalError, ProgrammingError):
-                return {}
-
-            cls._policy_cache = policies
-            cls._policy_cache_timestamp = now
-            return policies
-
-    @classmethod
-    def get_policy_for_model(cls, model_label):
-        """Returns the policy for a specific model, or None."""
-        return cls.get_all_policies().get(model_label)

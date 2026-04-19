@@ -162,35 +162,11 @@ def is_exempt_user(request):
 
     settings = _get_settings()
     if settings is not None:
-        # Individual user exemption
         exempt_list = [u.lower() for u in settings.get_exempt_users_list()]
-        if username in exempt_list:
-            return True
-        # Group exemption
-        exempt_groups = [g.lower() for g in settings.get_exempt_groups_list()]
-        if exempt_groups:
-            try:
-                user_groups = set(
-                    g.lower() for g in
-                    request.user.groups.values_list('name', flat=True)
-                )
-                if user_groups & set(exempt_groups):
-                    return True
-            except Exception:
-                pass
-        return False
+        return username in exempt_list
 
     exempt_users = get_plugin_config('netbox_force', 'exempt_users') or []
     return username in [u.lower() for u in exempt_users]
-
-
-def _get_model_policy(model_label):
-    """Returns ModelPolicy for the given model_label, or None."""
-    try:
-        from .models import ModelPolicy
-        return ModelPolicy.get_policy_for_model(model_label)
-    except Exception:
-        return None
 
 
 def get_changelog_comment(request):
@@ -471,34 +447,6 @@ def check_required_fields(instance, model_label, request=None):
     return None
 
 
-def _send_webhook_async(url, payload, secret=''):
-    """Fire-and-forget webhook notification in a background daemon thread."""
-    import json
-    import urllib.request
-    import hmac as _hmac
-    import hashlib
-    import threading
-
-    def _do():
-        try:
-            data = json.dumps(payload).encode('utf-8')
-            req = urllib.request.Request(
-                url, data=data,
-                headers={'Content-Type': 'application/json'},
-                method='POST',
-            )
-            if secret:
-                sig = _hmac.new(
-                    secret.encode(), data, hashlib.sha256
-                ).hexdigest()
-                req.add_header('X-NetBox-Force-Signature', f'sha256={sig}')
-            urllib.request.urlopen(req, timeout=5)
-        except Exception:
-            logger.warning("Webhook delivery failed to %s", url, exc_info=True)
-
-    threading.Thread(target=_do, daemon=True).start()
-
-
 def log_violation(username, model_label, instance, action, reason, message,
                   comment=None):
     """
@@ -529,26 +477,6 @@ def log_violation(username, model_label, instance, action, reason, message,
             })
         except Exception:
             logger.error("Failed to queue violation audit log entry", exc_info=True)
-
-    if (settings
-            and getattr(settings, 'webhook_enabled', False)
-            and getattr(settings, 'webhook_url', '')):
-        try:
-            _send_webhook_async(
-                settings.webhook_url,
-                {
-                    'event': 'violation',
-                    'username': username,
-                    'model_label': model_label,
-                    'object_repr': str(instance)[:200],
-                    'action': action,
-                    'reason': reason,
-                    'message': message,
-                },
-                secret=getattr(settings, 'webhook_secret', ''),
-            )
-        except Exception:
-            logger.warning("Failed to dispatch webhook", exc_info=True)
 
 
 # =============================================================================
@@ -631,12 +559,6 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         logger.debug("pre_save: %s exempt user, skipping", model_label)
         return
 
-    # --- Per-model policy ---
-    policy = _get_model_policy(model_label)
-    if policy and not policy.enforcement_enabled:
-        logger.debug("pre_save: %s disabled by model policy, skipping", model_label)
-        return
-
     # Determine if this is a new object
     is_new = not instance.pk
 
@@ -659,29 +581,25 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
             raise AbortRequest(error_msg)
 
     # --- Change window check ---
-    # Skip if policy explicitly disables it for this model
-    if policy is None or policy.enforce_change_window is None or policy.enforce_change_window:
-        window_error = check_change_window(settings)
-        if window_error:
-            logger.info("pre_save: %s outside change window, blocking user '%s'",
-                         model_label, username)
-            _enforce('change_window', window_error)
+    window_error = check_change_window(settings)
+    if window_error:
+        logger.info("pre_save: %s outside change window, blocking user '%s'",
+                     model_label, username)
+        _enforce('change_window', window_error)
 
     # --- Naming convention check ---
-    if policy is None or policy.check_naming_rules:
-        naming_error = check_naming_conventions(instance, model_label, request)
-        if naming_error:
-            logger.info("pre_save: %s naming convention violation, blocking user '%s'",
-                         model_label, username)
-            _enforce('naming_violation', naming_error)
+    naming_error = check_naming_conventions(instance, model_label, request)
+    if naming_error:
+        logger.info("pre_save: %s naming convention violation, blocking user '%s'",
+                     model_label, username)
+        _enforce('naming_violation', naming_error)
 
     # --- Required field check ---
-    if policy is None or policy.check_required_fields:
-        required_error = check_required_fields(instance, model_label, request)
-        if required_error:
-            logger.info("pre_save: %s required field missing, blocking user '%s'",
-                         model_label, username)
-            _enforce('required_field', required_error)
+    required_error = check_required_fields(instance, model_label, request)
+    if required_error:
+        logger.info("pre_save: %s required field missing, blocking user '%s'",
+                     model_label, username)
+        _enforce('required_field', required_error)
 
     # --- Changelog-related checks ---
     changelog_required = not is_new or _get_setting('enforce_on_create', False)
@@ -691,11 +609,8 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                       model_label)
         return
 
-    # --- Changelog presence + length (policy can override min_length) ---
-    if policy and policy.min_length_override is not None:
-        min_len = policy.min_length_override
-    else:
-        min_len = _get_setting('min_length', 2)
+    # --- Changelog presence + length ---
+    min_len = _get_setting('min_length', 2)
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
@@ -713,23 +628,12 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                      model_label, matched, username)
         _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check (policy can override) ---
-    if policy and policy.require_ticket is not None:
-        # Policy explicitly controls ticket requirement
-        if policy.require_ticket:
-            ticket_error = check_ticket_reference(comment, settings, instance, request)
-            if ticket_error:
-                logger.info("pre_save: %s missing ticket (policy requires), blocking '%s'",
-                             model_label, username)
-                _enforce('ticket_missing', ticket_error, comment)
-        # else: policy says no ticket required — skip check
-    else:
-        # Use global ticket setting
-        ticket_error = check_ticket_reference(comment, settings, instance, request)
-        if ticket_error:
-            logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
-                         model_label, username)
-            _enforce('ticket_missing', ticket_error, comment)
+    # --- Ticket reference check ---
+    ticket_error = check_ticket_reference(comment, settings, instance, request)
+    if ticket_error:
+        logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
+                     model_label, username)
+        _enforce('ticket_missing', ticket_error, comment)
 
 
 @receiver(pre_delete)
@@ -762,12 +666,6 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         logger.debug("pre_delete: %s exempt user, skipping", model_label)
         return
 
-    # --- Per-model policy ---
-    policy = _get_model_policy(model_label)
-    if policy and not policy.enforcement_enabled:
-        logger.debug("pre_delete: %s disabled by model policy, skipping", model_label)
-        return
-
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
     dry_run = getattr(settings, 'dry_run', False) if settings else False
 
@@ -779,19 +677,15 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         else:
             raise AbortRequest(error_msg)
 
-    # --- Change window check (policy can override) ---
-    if policy is None or policy.enforce_change_window is None or policy.enforce_change_window:
-        window_error = check_change_window(settings)
-        if window_error:
-            logger.info("pre_delete: %s outside change window, blocking user '%s'",
-                         model_label, username)
-            _enforce('change_window', window_error)
+    # --- Change window check ---
+    window_error = check_change_window(settings)
+    if window_error:
+        logger.info("pre_delete: %s outside change window, blocking user '%s'",
+                     model_label, username)
+        _enforce('change_window', window_error)
 
-    # --- Changelog presence + length (policy can override min_length) ---
-    if policy and policy.min_length_override is not None:
-        min_len = policy.min_length_override
-    else:
-        min_len = _get_setting('min_length', 2)
+    # --- Changelog presence + length ---
+    min_len = _get_setting('min_length', 2)
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
@@ -809,17 +703,9 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                      model_label, matched, username)
         _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check (policy can override) ---
-    if policy and policy.require_ticket is not None:
-        if policy.require_ticket:
-            ticket_error = check_ticket_reference(comment, settings, instance, request)
-            if ticket_error:
-                logger.info("pre_delete: %s missing ticket (policy requires), blocking '%s'",
-                             model_label, username)
-                _enforce('ticket_missing', ticket_error, comment)
-    else:
-        ticket_error = check_ticket_reference(comment, settings, instance, request)
-        if ticket_error:
-            logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
-                         model_label, username)
-            _enforce('ticket_missing', ticket_error, comment)
+    # --- Ticket reference check ---
+    ticket_error = check_ticket_reference(comment, settings, instance, request)
+    if ticket_error:
+        logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
+                     model_label, username)
+        _enforce('ticket_missing', ticket_error, comment)

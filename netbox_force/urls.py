@@ -29,15 +29,6 @@ urlpatterns = [
     path('guide/standalone/', views.GuideStandaloneView.as_view(), name='guide_standalone'),
     path('guide/edit/', views.GuideEditView.as_view(), name='guide_edit'),
 
-    # Model Policies
-    path('policies/', views.ModelPolicyListView.as_view(), name='policy_list'),
-    path('policies/add/', views.ModelPolicyCreateView.as_view(), name='policy_add'),
-    path('policies/<int:pk>/edit/', views.ModelPolicyEditView.as_view(), name='policy_edit'),
-    path('policies/<int:pk>/delete/', views.ModelPolicyDeleteView.as_view(), name='policy_delete'),
-
-    # Audit Scan
-    path('audit-scan/', views.AuditScanView.as_view(), name='audit_scan'),
-
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',

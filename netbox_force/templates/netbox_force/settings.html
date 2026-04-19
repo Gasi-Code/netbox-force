@@ -190,43 +190,12 @@
                         <div class="form-text">{{ ui.help_exempt_users|default:"One username per line." }}</div>
                     </div>
                     <div class="mb-3">
-                        <label for="id_exempt_groups" class="form-label">{{ ui.label_exempt_groups|default:"Exempt groups" }}</label>
-                        {{ form.exempt_groups }}
-                        <div class="form-text">{{ ui.help_exempt_groups|default:"One group name per line. All members of these groups bypass enforcement." }}</div>
-                    </div>
-                    <div class="mb-3">
                         <label for="id_extra_exempt_models" class="form-label">{{ ui.label_extra_exempt_models|default:"Exempt models" }}</label>
                         {{ form.extra_exempt_models }}
                         {% if form.extra_exempt_models.errors %}
                             <div class="invalid-feedback d-block">{{ form.extra_exempt_models.errors.0 }}</div>
                         {% endif %}
                         <div class="form-text">{{ ui.help_extra_exempt_models|default:"One model per line (format: app.model)." }}</div>
-                    </div>
-                </div>
-            </div>
-
-            {# Webhook #}
-            <div class="card mb-4">
-                <h5 class="card-header">
-                    <i class="mdi mdi-webhook"></i> {{ ui.section_webhook|default:"Webhook Notifications" }}
-                </h5>
-                <div class="card-body">
-                    <div class="mb-3 form-check">
-                        {{ form.webhook_enabled }}
-                        <label class="form-check-label" for="id_webhook_enabled">{{ ui.label_webhook_enabled|default:"Enable webhook" }}</label>
-                        <div class="form-text">{{ ui.help_webhook_enabled|default:"Send a JSON POST request to the configured URL on every violation." }}</div>
-                    </div>
-                    <div id="webhook-fields">
-                        <div class="mb-3">
-                            <label for="id_webhook_url" class="form-label">{{ ui.label_webhook_url|default:"Webhook URL" }}</label>
-                            {{ form.webhook_url }}
-                            <div class="form-text">{{ ui.help_webhook_url|default:"HTTP POST endpoint. Compatible with Slack, Teams, and custom APIs." }}</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_webhook_secret" class="form-label">{{ ui.label_webhook_secret|default:"Webhook secret" }}</label>
-                            {{ form.webhook_secret }}
-                            <div class="form-text">{{ ui.help_webhook_secret|default:"Optional HMAC-SHA256 secret. Signature sent as X-NetBox-Force-Signature header." }}</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -299,17 +268,6 @@
         }
         toggleWindow();
         checkbox.addEventListener('change', toggleWindow);
-    }
-
-    // Show/hide webhook fields based on checkbox
-    const webhookCheckbox = document.getElementById('id_webhook_enabled');
-    const webhookFields = document.getElementById('webhook-fields');
-    if (webhookCheckbox && webhookFields) {
-        function toggleWebhook() {
-            webhookFields.style.display = webhookCheckbox.checked ? '' : 'none';
-        }
-        toggleWebhook();
-        webhookCheckbox.addEventListener('change', toggleWebhook);
     }
 
     // Ticket pattern suggestion dropdown
