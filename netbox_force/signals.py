@@ -569,7 +569,15 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     if settings and not getattr(settings, 'enforcement_enabled', True):
         return
 
-    # --- Per-model policy ---
+    # --- Exemption checks (BEFORE any per-model DB queries) ---
+    if is_exempt_model(instance):
+        logger.debug("pre_save: %s is exempt model, skipping", model_label)
+        return
+    if is_exempt_user(request):
+        logger.debug("pre_save: %s exempt user, skipping", model_label)
+        return
+
+    # --- Per-model policy (after exemption checks to avoid unnecessary DB access) ---
     policy = None
     try:
         from .models import ModelPolicy
@@ -581,14 +589,6 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         if not policy.enforcement_enabled:
             logger.debug("pre_save: %s enforcement disabled by model policy, skipping", model_label)
             return
-
-    # --- Exemption checks ---
-    if is_exempt_model(instance):
-        logger.debug("pre_save: %s is exempt model, skipping", model_label)
-        return
-    if is_exempt_user(request):
-        logger.debug("pre_save: %s exempt user, skipping", model_label)
-        return
 
     # Determine if this is a new object
     is_new = not instance.pk
@@ -694,7 +694,15 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
 
     model_label = get_model_label(instance)
 
-    # --- Per-model policy ---
+    # --- Exemption checks (BEFORE any per-model DB queries) ---
+    if is_exempt_model(instance):
+        logger.debug("pre_delete: %s is exempt model, skipping", model_label)
+        return
+    if is_exempt_user(request):
+        logger.debug("pre_delete: %s exempt user, skipping", model_label)
+        return
+
+    # --- Per-model policy (after exemption checks to avoid unnecessary DB access) ---
     policy = None
     try:
         from .models import ModelPolicy
@@ -706,13 +714,6 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         if not policy.enforcement_enabled:
             logger.debug("pre_delete: %s enforcement disabled by model policy, skipping", model_label)
             return
-
-    if is_exempt_model(instance):
-        logger.debug("pre_delete: %s is exempt model, skipping", model_label)
-        return
-    if is_exempt_user(request):
-        logger.debug("pre_delete: %s exempt user, skipping", model_label)
-        return
 
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
     dry_run = getattr(settings, 'dry_run', False) if settings else False

@@ -468,7 +468,12 @@ class ModelPolicy(models.Model):
 
     @classmethod
     def get_all_policies(cls):
-        """Returns all enabled policies (cached, thread-safe)."""
+        """
+        Returns all enabled policies (cached, thread-safe).
+        Uses a SAVEPOINT so that a failed query (e.g. table not yet created)
+        does not corrupt the outer PostgreSQL transaction — same pattern as
+        ForceSettings.get_settings().
+        """
         now = time.time()
         with cls._policy_cache_lock:
             if (cls._policy_cache is not None
@@ -476,8 +481,15 @@ class ModelPolicy(models.Model):
                 return cls._policy_cache
 
             try:
-                policies = list(cls.objects.filter(enabled=True))
-            except (OperationalError, ProgrammingError):
+                from django.db import transaction
+                sid = transaction.savepoint()
+                try:
+                    policies = list(cls.objects.filter(enabled=True))
+                    transaction.savepoint_commit(sid)
+                except Exception:
+                    transaction.savepoint_rollback(sid)
+                    return []
+            except Exception:
                 return []
 
             cls._policy_cache = policies
