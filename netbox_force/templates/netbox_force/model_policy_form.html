@@ -1,0 +1,113 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {% if editing %}{{ ui.policy_edit_title|default:"Edit Policy" }}{% else %}{{ ui.policy_add_title|default:"Add Policy" }}{% endif %}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h3 class="mb-3">
+            <i class="mdi mdi-tune-variant"></i>
+            {% if editing %}{{ ui.policy_edit_title|default:"Edit Model Policy" }}{% else %}{{ ui.policy_add_title|default:"Add Model Policy" }}{% endif %}
+        </h3>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {# Model selection #}
+            <div class="card mb-4">
+                <h5 class="card-header"><i class="mdi mdi-database"></i> {{ ui.policy_section_model|default:"Target Model" }}</h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_model_label" class="form-label">{{ ui.policy_col_model|default:"Model" }} <span class="text-danger">*</span></label>
+                        {{ form.model_label }}
+                        {% if form.model_label.errors %}
+                            <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.policy_help_model|default:"Select the model this policy applies to. Format: app.model (e.g. dcim.device)." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_notes" class="form-label">{{ ui.policy_col_notes|default:"Notes" }}</label>
+                        {{ form.notes }}
+                        <div class="form-text">{{ ui.policy_help_notes|default:"Optional description of why this policy exists." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Global enforcement override #}
+            <div class="card mb-4">
+                <h5 class="card-header"><i class="mdi mdi-shield-check"></i> {{ ui.policy_section_enforcement|default:"Enforcement" }}</h5>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        {{ form.enforcement_enabled }}
+                        <label class="form-check-label" for="id_enforcement_enabled">{{ ui.policy_enforcement_enabled|default:"Enforcement enabled" }}</label>
+                        <div class="form-text">{{ ui.policy_help_enforcement|default:"If disabled, all enforcement checks are skipped for this model." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_min_length_override" class="form-label">{{ ui.policy_col_min_length|default:"Min. changelog length override" }}</label>
+                        {{ form.min_length_override }}
+                        {% if form.min_length_override.errors %}
+                            <div class="invalid-feedback d-block">{{ form.min_length_override.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.policy_help_min_length|default:"Overrides the global minimum for this model. Leave empty to use the global setting." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Feature-specific overrides #}
+            <div class="card mb-4">
+                <h5 class="card-header"><i class="mdi mdi-cog-transfer"></i> {{ ui.policy_section_overrides|default:"Feature Overrides" }}</h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="id_require_ticket" class="form-label">{{ ui.policy_col_ticket|default:"Ticket reference" }}</label>
+                        {{ form.require_ticket }}
+                        <div class="form-text">{{ ui.policy_help_ticket|default:"Override ticket enforcement for this model. 'Unknown' = use global setting." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_enforce_change_window" class="form-label">{{ ui.policy_col_change_window|default:"Change window" }}</label>
+                        {{ form.enforce_change_window }}
+                        <div class="form-text">{{ ui.policy_help_change_window|default:"Override change window enforcement for this model. 'Unknown' = use global setting." }}</div>
+                    </div>
+                    <hr>
+                    <div class="mb-3 form-check">
+                        {{ form.check_naming_rules }}
+                        <label class="form-check-label" for="id_check_naming_rules">{{ ui.policy_check_naming|default:"Check naming convention rules" }}</label>
+                        <div class="form-text">{{ ui.policy_help_naming|default:"If disabled, naming convention ValidationRules are not applied to this model." }}</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.check_required_fields }}
+                        <label class="form-check-label" for="id_check_required_fields">{{ ui.policy_check_required|default:"Check required field rules" }}</label>
+                        <div class="form-text">{{ ui.policy_help_required|default:"If disabled, required field ValidationRules are not applied to this model." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'plugins:netbox_force:policy_list' %}" class="btn btn-outline-secondary">
+                    {{ ui.btn_cancel|default:"Cancel" }}
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header"><i class="mdi mdi-information"></i> {{ ui.info_title|default:"Info" }}</h5>
+            <div class="card-body small text-muted">
+                <p>{{ ui.policy_info_text|default:"Model Policies allow you to override global enforcement settings for specific models." }}</p>
+                <ul class="mb-0 ps-3">
+                    <li>{{ ui.policy_info_global|default:"Leave fields at 'Unknown' or empty to inherit global settings" }}</li>
+                    <li>{{ ui.policy_info_disable|default:"Disable enforcement to fully exempt this model" }}</li>
+                    <li>{{ ui.policy_info_override|default:"Overrides take effect immediately" }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

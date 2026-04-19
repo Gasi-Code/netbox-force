@@ -13,6 +13,12 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'policies' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:policy_list' %}">
+            <i class="mdi mdi-tune-variant"></i> {{ ui.tab_policies|default:"Model Policies" }}
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link {% if active_tab == 'violations' %}active{% endif %}"
            href="{% url 'plugins:netbox_force:violation_list' %}">
             <i class="mdi mdi-alert-circle"></i> {{ ui.tab_violations|default:"Violations" }}
@@ -22,6 +28,12 @@
         <a class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}"
            href="{% url 'plugins:netbox_force:dashboard' %}">
             <i class="mdi mdi-view-dashboard"></i> {{ ui.tab_dashboard|default:"Dashboard" }}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'audit_scan' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:audit_scan' %}">
+            <i class="mdi mdi-magnify-scan"></i> {{ ui.tab_audit_scan|default:"Audit Scan" }}
         </a>
     </li>
     {% endif %}

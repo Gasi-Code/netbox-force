@@ -1,0 +1,103 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.policy_title|default:"Model Policies" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">{{ ui.policy_title|default:"Model Policies" }}</h3>
+            <a href="{% url 'plugins:netbox_force:policy_add' %}" class="btn btn-sm btn-primary">
+                <i class="mdi mdi-plus-thick"></i> {{ ui.policy_add_title|default:"Add Policy" }}
+            </a>
+        </div>
+
+        {% if policies %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{{ ui.policy_col_model|default:"Model" }}</th>
+                        <th>{{ ui.policy_col_enforcement|default:"Enforcement" }}</th>
+                        <th>{{ ui.policy_col_min_length|default:"Min Length" }}</th>
+                        <th>{{ ui.policy_col_ticket|default:"Ticket" }}</th>
+                        <th>{{ ui.policy_col_change_window|default:"Change Window" }}</th>
+                        <th>{{ ui.policy_col_checks|default:"Checks" }}</th>
+                        <th>{{ ui.policy_col_notes|default:"Notes" }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for policy in policies %}
+                    <tr>
+                        <td><code>{{ policy.model_label }}</code></td>
+                        <td>
+                            {% if policy.enforcement_enabled %}
+                                <span class="badge bg-success"><i class="mdi mdi-check"></i> {{ ui.dashboard_enabled|default:"Enabled" }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="mdi mdi-close"></i> {{ ui.dashboard_disabled|default:"Disabled" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if policy.min_length_override is not None %}
+                                {{ policy.min_length_override }}
+                            {% else %}
+                                <span class="text-muted small">{{ ui.policy_use_global|default:"global" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if policy.require_ticket is None %}
+                                <span class="text-muted small">{{ ui.policy_use_global|default:"global" }}</span>
+                            {% elif policy.require_ticket %}
+                                <span class="badge bg-warning text-dark"><i class="mdi mdi-ticket-confirmation"></i> {{ ui.policy_required|default:"Required" }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ ui.policy_skipped|default:"Skipped" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if policy.enforce_change_window is None %}
+                                <span class="text-muted small">{{ ui.policy_use_global|default:"global" }}</span>
+                            {% elif policy.enforce_change_window %}
+                                <span class="badge bg-info text-dark"><i class="mdi mdi-clock-outline"></i> {{ ui.policy_enforced|default:"Enforced" }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ ui.policy_skipped|default:"Skipped" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if policy.check_naming_rules %}
+                                <span class="badge bg-secondary me-1" title="{{ ui.policy_col_naming|default:'Naming' }}"><i class="mdi mdi-format-text"></i></span>
+                            {% endif %}
+                            {% if policy.check_required_fields %}
+                                <span class="badge bg-secondary" title="{{ ui.policy_col_required|default:'Required Fields' }}"><i class="mdi mdi-asterisk"></i></span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ policy.notes|truncatechars:50 }}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'plugins:netbox_force:policy_edit' policy.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="mdi mdi-pencil"></i> {{ ui.btn_edit|default:"Edit" }}
+                            </a>
+                            <a href="{% url 'plugins:netbox_force:policy_delete' policy.pk %}" class="btn btn-sm btn-outline-danger ms-1">
+                                <i class="mdi mdi-delete"></i> {{ ui.btn_delete|default:"Delete" }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="mdi mdi-tune-variant" style="font-size: 3rem;"></i>
+            <p class="mt-2">{{ ui.policy_empty|default:"No model policies defined. All models use global settings." }}</p>
+            <a href="{% url 'plugins:netbox_force:policy_add' %}" class="btn btn-sm btn-outline-primary mt-2">
+                <i class="mdi mdi-plus"></i> {{ ui.policy_add_title|default:"Add Policy" }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}

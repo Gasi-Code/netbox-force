@@ -1,0 +1,120 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.audit_scan_title|default:"Audit Scan" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">
+                <i class="mdi mdi-magnify-scan"></i> {{ ui.audit_scan_title|default:"Audit Scan" }}
+            </h3>
+        </div>
+
+        {% if not model_labels %}
+        <div class="alert alert-info">
+            <i class="mdi mdi-information-outline"></i>
+            {{ ui.audit_scan_no_rules|default:"No active Validation Rules found. Create rules first to use the audit scan." }}
+        </div>
+        {% else %}
+
+        {# Scan form #}
+        <div class="card mb-4">
+            <div class="card-body">
+                <p>{{ ui.audit_scan_description|default:"Scans existing objects in the database against active ValidationRules. This is read-only — no changes are made." }}</p>
+                <div class="mb-3">
+                    <strong>{{ ui.audit_scan_models_with_rules|default:"Models with active rules" }}:</strong>
+                    {% for label in model_labels %}
+                        <code class="me-1">{{ label }}</code>
+                    {% endfor %}
+                </div>
+                <div class="alert alert-warning small mb-3">
+                    <i class="mdi mdi-alert-outline"></i>
+                    {{ ui.audit_scan_limit_hint|default:"Scan is limited to 500 objects per model to avoid timeouts." }}
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="mdi mdi-play-circle"></i> {{ ui.audit_scan_run|default:"Run Scan" }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {# Results #}
+        {% if results is not None %}
+        <div class="card">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="mdi mdi-clipboard-list-outline"></i> {{ ui.audit_scan_results|default:"Scan Results" }}</span>
+                <span class="badge {% if total > 0 %}bg-danger{% else %}bg-success{% endif %} fs-6">
+                    {{ total }} {{ ui.audit_scan_violations|default:"violation(s)" }}
+                </span>
+            </h5>
+            <div class="card-body">
+
+                {% if scan_errors %}
+                <div class="alert alert-warning small">
+                    <strong>{{ ui.audit_scan_errors|default:"Scan errors" }}:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for err in scan_errors %}<li>{{ err }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if total == 0 %}
+                <div class="text-center py-4 text-muted">
+                    <i class="mdi mdi-check-circle-outline" style="font-size: 3rem; color: #28a745;"></i>
+                    <p class="mt-2">{{ ui.audit_scan_empty|default:"No violations found. All existing objects comply with the current rules." }}</p>
+                </div>
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>{{ ui.audit_scan_col_model|default:"Model" }}</th>
+                                <th>{{ ui.audit_scan_col_object|default:"Object" }}</th>
+                                <th>{{ ui.audit_scan_col_type|default:"Rule type" }}</th>
+                                <th>{{ ui.audit_scan_col_message|default:"Message" }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                                {% for error in result.errors %}
+                                <tr>
+                                    <td><code class="small">{{ result.label }}</code></td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 250px;" title="{{ result.obj }}">
+                                            {{ result.obj }}
+                                        </span>
+                                        <span class="text-muted small ms-1">#{{ result.pk }}</span>
+                                    </td>
+                                    <td>
+                                        {% if error.type == 'naming' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="mdi mdi-format-text"></i> {{ ui.rule_type_naming|default:"Naming" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="mdi mdi-asterisk"></i> {{ ui.rule_type_required|default:"Required" }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">{{ error.message }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %} {# results is not None #}
+        {% endif %} {# model_labels #}
+    </div>
+</div>
+{% endblock content %}

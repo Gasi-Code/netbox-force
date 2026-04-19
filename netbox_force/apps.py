@@ -14,6 +14,11 @@ _menu_items = (
         permissions=['netbox_force.view_validationrule'],
     ),
     PluginMenuItem(
+        link='plugins:netbox_force:policy_list',
+        link_text='Model Policies',
+        permissions=['netbox_force.view_modelpolicy'],
+    ),
+    PluginMenuItem(
         link='plugins:netbox_force:violation_list',
         link_text='Violations',
         permissions=['netbox_force.view_violation'],
@@ -22,6 +27,11 @@ _menu_items = (
         link='plugins:netbox_force:dashboard',
         link_text='Dashboard',
         permissions=['netbox_force.view_forcesettings'],
+    ),
+    PluginMenuItem(
+        link='plugins:netbox_force:audit_scan',
+        link_text='Audit Scan',
+        permissions=['netbox_force.view_violation'],
     ),
     PluginMenuItem(
         link='plugins:netbox_force:import_template_list',
@@ -40,7 +50,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '4.2.0'
+    version = '4.3.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'

@@ -15,8 +15,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from .forms import ForceSettingsForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm
-from .models import ForceSettings, ValidationRule, Violation, ImportTemplate, GuidePage
+from .forms import ForceSettingsForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm, ModelPolicyForm
+from .models import ForceSettings, ValidationRule, Violation, ImportTemplate, GuidePage, ModelPolicy
 from .ui_strings import get_all_ui_strings
 
 
@@ -982,3 +982,171 @@ class GuideEditView(SuperuserRequiredMixin, View):
             'active_tab': 'guide',
         })
         return render(request, 'netbox_force/guide_edit.html', ctx)
+
+
+# =============================================================================
+# MODEL POLICY VIEWS
+# =============================================================================
+
+class ModelPolicyListView(SuperuserRequiredMixin, View):
+    """List all model policies."""
+
+    def get(self, request):
+        policies = ModelPolicy.objects.all()
+        ctx = _base_context()
+        ctx.update({
+            'policies': policies,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policies.html', ctx)
+
+
+class ModelPolicyCreateView(SuperuserRequiredMixin, View):
+    """Create a new model policy."""
+
+    def get(self, request):
+        form = ModelPolicyForm()
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'editing': False,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policy_form.html', ctx)
+
+    def post(self, request):
+        form = ModelPolicyForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Model policy created.')
+            return redirect('plugins:netbox_force:policy_list')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'editing': False,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policy_form.html', ctx)
+
+
+class ModelPolicyEditView(SuperuserRequiredMixin, View):
+    """Edit an existing model policy."""
+
+    def get(self, request, pk):
+        policy = get_object_or_404(ModelPolicy, pk=pk)
+        form = ModelPolicyForm(instance=policy)
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'policy': policy,
+            'editing': True,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policy_form.html', ctx)
+
+    def post(self, request, pk):
+        policy = get_object_or_404(ModelPolicy, pk=pk)
+        form = ModelPolicyForm(request.POST, instance=policy)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Model policy updated.')
+            return redirect('plugins:netbox_force:policy_list')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'policy': policy,
+            'editing': True,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policy_form.html', ctx)
+
+
+class ModelPolicyDeleteView(SuperuserRequiredMixin, View):
+    """Delete a model policy."""
+
+    def get(self, request, pk):
+        policy = get_object_or_404(ModelPolicy, pk=pk)
+        ctx = _base_context()
+        ctx.update({
+            'policy': policy,
+            'active_tab': 'policies',
+        })
+        return render(request, 'netbox_force/model_policy_delete.html', ctx)
+
+    def post(self, request, pk):
+        policy = get_object_or_404(ModelPolicy, pk=pk)
+        policy.delete()
+        messages.success(request, 'Model policy deleted.')
+        return redirect('plugins:netbox_force:policy_list')
+
+
+# =============================================================================
+# AUDIT SCAN VIEW
+# =============================================================================
+
+class AuditScanView(SuperuserRequiredMixin, View):
+    """Scan existing objects against active ValidationRules (read-only)."""
+
+    _MAX_OBJECTS_PER_MODEL = 500
+
+    def get(self, request):
+        model_labels = list(
+            ValidationRule.objects.filter(enabled=True)
+            .values_list('model_label', flat=True)
+            .distinct()
+            .order_by('model_label')
+        )
+        ctx = _base_context()
+        ctx.update({
+            'model_labels': model_labels,
+            'results': None,
+            'active_tab': 'audit_scan',
+        })
+        return render(request, 'netbox_force/audit_scan.html', ctx)
+
+    def post(self, request):
+        from .signals import check_naming_conventions, check_required_fields
+
+        model_labels = list(
+            ValidationRule.objects.filter(enabled=True)
+            .values_list('model_label', flat=True)
+            .distinct()
+            .order_by('model_label')
+        )
+
+        results = []
+        scan_errors = []
+
+        for label in model_labels:
+            try:
+                app_label, model_name = label.split('.')
+                model = apps.get_model(app_label, model_name)
+                qs = model.objects.all()[:self._MAX_OBJECTS_PER_MODEL]
+                for obj in qs:
+                    errors = []
+                    naming_error = check_naming_conventions(obj, label)
+                    required_error = check_required_fields(obj, label)
+                    if naming_error:
+                        errors.append({'type': 'naming', 'message': naming_error})
+                    if required_error:
+                        errors.append({'type': 'required', 'message': required_error})
+                    if errors:
+                        results.append({
+                            'label': label,
+                            'obj': str(obj),
+                            'pk': obj.pk,
+                            'errors': errors,
+                        })
+            except Exception as e:
+                scan_errors.append(f"{label}: {e}")
+
+        ctx = _base_context()
+        ctx.update({
+            'model_labels': model_labels,
+            'results': results,
+            'scan_errors': scan_errors,
+            'total': len(results),
+            'active_tab': 'audit_scan',
+            'max_objects': self._MAX_OBJECTS_PER_MODEL,
+        })
+        return render(request, 'netbox_force/audit_scan.html', ctx)

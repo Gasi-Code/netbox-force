@@ -4,7 +4,7 @@ from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
 
-from .models import ForceSettings, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
+from .models import ForceSettings, ValidationRule, ImportTemplate, GuidePage, ModelPolicy, LANGUAGE_CHOICES
 
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
@@ -17,11 +17,13 @@ class ForceSettingsForm(forms.ModelForm):
         model = ForceSettings
         fields = [
             'language',
+            'enforcement_enabled',
             'min_length',
             'enforce_on_create',
             'enforce_on_delete',
             'dry_run',
             'exempt_users',
+            'exempt_groups',
             'blacklisted_phrases',
             'extra_exempt_models',
             'ticket_pattern',
@@ -33,6 +35,9 @@ class ForceSettingsForm(forms.ModelForm):
             'audit_log_enabled',
             'audit_log_retention_days',
             'dashboard_top_users_count',
+            'webhook_enabled',
+            'webhook_url',
+            'webhook_secret',
             'import_templates_enabled',
             'guide_enabled',
         ]
@@ -102,6 +107,25 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': 1,
                 'max': 100,
+            }),
+            'enforcement_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'exempt_groups': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'senior-engineers\nnetwork-admins',
+            }),
+            'webhook_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'webhook_url': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://hooks.slack.com/services/...',
+            }),
+            'webhook_secret': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'optional-hmac-secret',
             }),
             'import_templates_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
@@ -350,3 +374,55 @@ class GuidePageForm(forms.ModelForm):
         widgets = {
             'content': forms.HiddenInput(),  # Quill populates this via JS
         }
+
+
+class ModelPolicyForm(forms.ModelForm):
+    """Form for creating/editing per-model enforcement policies."""
+
+    class Meta:
+        model = ModelPolicy
+        fields = [
+            'model_label',
+            'enforcement_enabled',
+            'min_length_override',
+            'require_ticket',
+            'enforce_change_window',
+            'check_naming_rules',
+            'check_required_fields',
+            'notes',
+        ]
+        widgets = {
+            'model_label': forms.Select(attrs={'class': 'form-select'}),
+            'enforcement_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'min_length_override': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 500,
+                'placeholder': 'Leave empty for global default',
+            }),
+            'require_ticket': forms.NullBooleanSelect(attrs={'class': 'form-select'}),
+            'enforce_change_window': forms.NullBooleanSelect(attrs={'class': 'form-select'}),
+            'check_naming_rules': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'check_required_fields': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        model_choices = [('', '---------')]
+        for model in apps.get_models():
+            label = f"{model._meta.app_label}.{model._meta.model_name}"
+            verbose = str(model._meta.verbose_name).title()
+            model_choices.append((label, f"{label} — {verbose}"))
+        model_choices.sort(key=lambda c: c[0])
+        self.fields['model_label'].widget.choices = model_choices
+
+    def clean_model_label(self):
+        value = self.cleaned_data.get('model_label', '')
+        if not value:
+            raise ValidationError("Model label is required.")
+        if not _MODEL_LABEL_RE.match(value.lower()):
+            raise ValidationError(
+                "Invalid model format: '%(value)s'. Use 'app.model' (e.g. 'dcim.device').",
+                params={'value': value},
+                code='invalid_model_format',
+            )
+        return value.lower()
