@@ -215,7 +215,71 @@ UI_STRINGS = {
 
         # Settings fields (v4.3.0)
         'label_enforcement_enabled': 'Erzwingung aktiviert',
-        'help_enforcement_enabled': 'Hauptschalter. Deaktivieren pausiert alle Enforcement-Pr\u00fcfungen global (z.B. w\u00e4hrend Wartungsfenstern). Dry-Run-Modus ist eine sanftere Alternative.',
+        'help_enforcement_enabled': 'Hauptschalter. Deaktivieren pausiert alle Enforcement-Prüfungen global (z.B. während Wartungsfenstern). Dry-Run-Modus ist eine sanftere Alternative.',
+
+        # Settings fields (v4.4.0) — exempt groups
+        'label_exempt_groups': 'Ausgenommene Gruppen',
+        'help_exempt_groups': 'Eine Gruppe pro Zeile. Alle Mitglieder dieser Gruppen sind von der Erzwingung ausgenommen.',
+
+        # Settings sections (v4.4.0) — webhook
+        'section_webhook': 'Webhook-Benachrichtigungen',
+        'label_webhook_enabled': 'Webhook aktivieren',
+        'label_webhook_url': 'Webhook-URL',
+        'label_webhook_secret': 'Webhook-Secret (optional)',
+        'help_webhook_enabled': 'Sendet bei jeder abgelehnten Änderung einen HTTP POST an die konfigurierte URL.',
+        'help_webhook_url': 'Endpunkt für Verstoß-Benachrichtigungen (JSON POST). Kompatibel mit Slack, Teams, webhook.site usw.',
+        'help_webhook_secret': 'Optionales HMAC-SHA256-Secret. Falls gesetzt, wird ein X-NetBox-Force-Signature-Header hinzugefügt.',
+
+        # Tabs (v4.4.0)
+        'tab_policies': 'Modell-Policies',
+        'tab_audit_scan': 'Audit-Scan',
+
+        # Model Policies (v4.4.0)
+        'policies_title': 'Modell-Policies',
+        'policies_empty': 'Keine Modell-Policies definiert.',
+        'policy_add_title': 'Policy hinzufügen',
+        'policy_edit_title': 'Policy bearbeiten',
+        'policy_delete_title': 'Policy löschen',
+        'policy_delete_confirm': 'Soll diese Policy wirklich gelöscht werden?',
+        'policy_col_model': 'Modell',
+        'policy_col_enforcement': 'Erzwingung',
+        'policy_col_min_length': 'Min. Länge',
+        'policy_col_naming': 'Namenskonvention',
+        'policy_col_required': 'Pflichtfelder',
+        'policy_col_enabled': 'Aktiv',
+        'policy_col_actions': 'Aktionen',
+        'btn_add_policy': 'Policy hinzufügen',
+        'policy_help_title': 'Hilfe',
+        'policy_help_desc': 'Modell-Policies überschreiben die globalen Enforcement-Einstellungen für ein bestimmtes Modell. Nur aktive Policies werden angewendet.',
+        'policy_enforcement_inherit': 'Global (Standard)',
+        'policy_enforcement_on': 'Aktiviert',
+        'policy_enforcement_off': 'Deaktiviert',
+        'label_enforcement_enabled_override': 'Erzwingung (Override)',
+        'label_min_length_override': 'Min. Länge (Override)',
+        'label_check_naming_rules': 'Namenskonventions-Regeln prüfen',
+        'label_check_required_fields_rules': 'Pflichtfeld-Regeln prüfen',
+        'label_policy_enabled': 'Policy aktiv',
+        'help_enforcement_enabled_override': 'Überschreibt die globale Erzwingung für dieses Modell. Leer lassen, um die globale Einstellung zu verwenden.',
+        'help_min_length_override': 'Überschreibt die minimale Changelog-Länge für dieses Modell. Leer lassen für globale Einstellung.',
+        'help_check_naming_rules': 'Wenn deaktiviert, werden Namenskonventions-Regeln für dieses Modell nicht geprüft.',
+        'help_check_required_fields_rules': 'Wenn deaktiviert, werden Pflichtfeld-Regeln für dieses Modell nicht geprüft.',
+        'help_policy_enabled': 'Wenn deaktiviert, wird diese Policy ignoriert (globale Einstellungen gelten).',
+
+        # Audit Scan (v4.4.0)
+        'audit_scan_title': 'Audit-Scan',
+        'audit_scan_desc': 'Scannt bestehende Objekte in der Datenbank gegen aktive Validierungsregeln. Read-only — es werden keine Änderungen vorgenommen.',
+        'audit_scan_limit_note': 'Der Scan ist auf {limit} Objekte pro Modell begrenzt.',
+        'audit_scan_no_rules': 'Keine aktiven Validierungsregeln vorhanden. Bitte zuerst Regeln unter "Validierungsregeln" anlegen.',
+        'audit_scan_models_found': 'Modelle mit aktiven Regeln:',
+        'btn_run_scan': 'Scan starten',
+        'audit_scan_results_title': 'Scan-Ergebnisse',
+        'audit_scan_all_ok': 'Alle Objekte konform.',
+        'audit_scan_col_object': 'Objekt',
+        'audit_scan_col_type': 'Regeltyp',
+        'audit_scan_col_message': 'Fehlermeldung',
+        'audit_scan_violations_found': '{count} Verstoß/Verstöße gefunden',
+        'audit_scan_scanned': '{count} Objekte geprüft',
+        'audit_scan_error': 'Fehler beim Scannen',
     },
 
     'en': {
@@ -430,6 +494,70 @@ UI_STRINGS = {
         # Settings fields (v4.3.0)
         'label_enforcement_enabled': 'Enforcement enabled',
         'help_enforcement_enabled': 'Master switch. Disable to pause all enforcement globally (e.g. during maintenance). Dry-run mode is a softer alternative.',
+
+        # Settings fields (v4.4.0) — exempt groups
+        'label_exempt_groups': 'Exempt groups',
+        'help_exempt_groups': 'One group name per line. All members of these groups are exempt from enforcement.',
+
+        # Settings sections (v4.4.0) — webhook
+        'section_webhook': 'Webhook Notifications',
+        'label_webhook_enabled': 'Enable webhook',
+        'label_webhook_url': 'Webhook URL',
+        'label_webhook_secret': 'Webhook secret (optional)',
+        'help_webhook_enabled': 'Sends an HTTP POST to the configured URL on every blocked change.',
+        'help_webhook_url': 'Endpoint to receive violation notifications (JSON POST). Compatible with Slack, Teams, webhook.site, etc.',
+        'help_webhook_secret': 'Optional HMAC-SHA256 secret. If set, adds an X-NetBox-Force-Signature header.',
+
+        # Tabs (v4.4.0)
+        'tab_policies': 'Model Policies',
+        'tab_audit_scan': 'Audit Scan',
+
+        # Model Policies (v4.4.0)
+        'policies_title': 'Model Policies',
+        'policies_empty': 'No model policies defined.',
+        'policy_add_title': 'Add Policy',
+        'policy_edit_title': 'Edit Policy',
+        'policy_delete_title': 'Delete Policy',
+        'policy_delete_confirm': 'Are you sure you want to delete this policy?',
+        'policy_col_model': 'Model',
+        'policy_col_enforcement': 'Enforcement',
+        'policy_col_min_length': 'Min. Length',
+        'policy_col_naming': 'Naming Rules',
+        'policy_col_required': 'Required Fields',
+        'policy_col_enabled': 'Enabled',
+        'policy_col_actions': 'Actions',
+        'btn_add_policy': 'Add Policy',
+        'policy_help_title': 'Help',
+        'policy_help_desc': 'Model policies override global enforcement settings for a specific model. Only enabled policies are applied.',
+        'policy_enforcement_inherit': 'Global (default)',
+        'policy_enforcement_on': 'Enabled',
+        'policy_enforcement_off': 'Disabled',
+        'label_enforcement_enabled_override': 'Enforcement (override)',
+        'label_min_length_override': 'Min. length (override)',
+        'label_check_naming_rules': 'Check naming convention rules',
+        'label_check_required_fields_rules': 'Check required field rules',
+        'label_policy_enabled': 'Policy enabled',
+        'help_enforcement_enabled_override': 'Overrides global enforcement for this model. Leave empty to use the global setting.',
+        'help_min_length_override': 'Overrides the minimum changelog length for this model. Leave empty to use the global setting.',
+        'help_check_naming_rules': 'If disabled, naming convention rules are not checked for this model.',
+        'help_check_required_fields_rules': 'If disabled, required field rules are not checked for this model.',
+        'help_policy_enabled': 'If disabled, this policy is ignored (global settings apply).',
+
+        # Audit Scan (v4.4.0)
+        'audit_scan_title': 'Audit Scan',
+        'audit_scan_desc': 'Scans existing objects in the database against active validation rules. Read-only — no changes are made.',
+        'audit_scan_limit_note': 'Scan is limited to {limit} objects per model.',
+        'audit_scan_no_rules': 'No active validation rules found. Please create rules under "Validation Rules" first.',
+        'audit_scan_models_found': 'Models with active rules:',
+        'btn_run_scan': 'Run Scan',
+        'audit_scan_results_title': 'Scan Results',
+        'audit_scan_all_ok': 'All objects compliant.',
+        'audit_scan_col_object': 'Object',
+        'audit_scan_col_type': 'Rule Type',
+        'audit_scan_col_message': 'Error Message',
+        'audit_scan_violations_found': '{count} violation(s) found',
+        'audit_scan_scanned': '{count} objects scanned',
+        'audit_scan_error': 'Error during scan',
     },
 
     'es': {
@@ -639,11 +767,75 @@ UI_STRINGS = {
         'widget_hint_import_markdown': '### \U0001f4e5 Plantillas de Importaci\u00f3n\n\nPlantillas CSV para importaci\u00f3n masiva:\n\n[\u2192 Abrir Plantillas](/plugins/netbox-force/import-templates/)',
 
         # Settings sections (v4.3.0)
-        'section_enforcement_toggle': 'Aplicaci\u00f3n Global',
+        'section_enforcement_toggle': 'Aplicación Global',
 
         # Settings fields (v4.3.0)
-        'label_enforcement_enabled': 'Aplicaci\u00f3n activada',
-        'help_enforcement_enabled': 'Interruptor principal. Desactivar pausa toda la aplicaci\u00f3n globalmente (p. ej. durante mantenimiento). El modo simulaci\u00f3n es una alternativa m\u00e1s suave.',
+        'label_enforcement_enabled': 'Aplicación activada',
+        'help_enforcement_enabled': 'Interruptor principal. Desactivar pausa toda la aplicación globalmente (p. ej. durante mantenimiento). El modo simulación es una alternativa más suave.',
+
+        # Settings fields (v4.4.0) — exempt groups
+        'label_exempt_groups': 'Grupos exentos',
+        'help_exempt_groups': 'Un nombre de grupo por línea. Todos los miembros de estos grupos están exentos de la aplicación.',
+
+        # Settings sections (v4.4.0) — webhook
+        'section_webhook': 'Notificaciones Webhook',
+        'label_webhook_enabled': 'Activar webhook',
+        'label_webhook_url': 'URL del webhook',
+        'label_webhook_secret': 'Secret del webhook (opcional)',
+        'help_webhook_enabled': 'Envía un HTTP POST a la URL configurada en cada cambio bloqueado.',
+        'help_webhook_url': 'Endpoint para recibir notificaciones de infracciones (JSON POST). Compatible con Slack, Teams, webhook.site, etc.',
+        'help_webhook_secret': 'Secret HMAC-SHA256 opcional. Si se establece, añade un encabezado X-NetBox-Force-Signature.',
+
+        # Tabs (v4.4.0)
+        'tab_policies': 'Políticas de Modelo',
+        'tab_audit_scan': 'Auditoría',
+
+        # Model Policies (v4.4.0)
+        'policies_title': 'Políticas de Modelo',
+        'policies_empty': 'No hay políticas de modelo definidas.',
+        'policy_add_title': 'Agregar Política',
+        'policy_edit_title': 'Editar Política',
+        'policy_delete_title': 'Eliminar Política',
+        'policy_delete_confirm': '¿Está seguro de que desea eliminar esta política?',
+        'policy_col_model': 'Modelo',
+        'policy_col_enforcement': 'Aplicación',
+        'policy_col_min_length': 'Long. mín.',
+        'policy_col_naming': 'Reglas de Nombres',
+        'policy_col_required': 'Campos Requeridos',
+        'policy_col_enabled': 'Activo',
+        'policy_col_actions': 'Acciones',
+        'btn_add_policy': 'Agregar Política',
+        'policy_help_title': 'Ayuda',
+        'policy_help_desc': 'Las políticas de modelo anulan la configuración de aplicación global para un modelo específico. Solo se aplican las políticas habilitadas.',
+        'policy_enforcement_inherit': 'Global (predeterminado)',
+        'policy_enforcement_on': 'Activado',
+        'policy_enforcement_off': 'Desactivado',
+        'label_enforcement_enabled_override': 'Aplicación (anulación)',
+        'label_min_length_override': 'Long. mín. (anulación)',
+        'label_check_naming_rules': 'Verificar reglas de nombres',
+        'label_check_required_fields_rules': 'Verificar reglas de campos requeridos',
+        'label_policy_enabled': 'Política activa',
+        'help_enforcement_enabled_override': 'Anula la aplicación global para este modelo. Dejar vacío para usar la configuración global.',
+        'help_min_length_override': 'Anula la longitud mínima del changelog para este modelo. Dejar vacío para usar la configuración global.',
+        'help_check_naming_rules': 'Si está desactivado, las reglas de nombres no se verifican para este modelo.',
+        'help_check_required_fields_rules': 'Si está desactivado, las reglas de campos requeridos no se verifican para este modelo.',
+        'help_policy_enabled': 'Si está desactivado, esta política se ignora (se aplica la configuración global).',
+
+        # Audit Scan (v4.4.0)
+        'audit_scan_title': 'Auditoría',
+        'audit_scan_desc': 'Escanea objetos existentes en la base de datos contra reglas de validación activas. Solo lectura — no se realizan cambios.',
+        'audit_scan_limit_note': 'El escaneo está limitado a {limit} objetos por modelo.',
+        'audit_scan_no_rules': 'No se encontraron reglas de validación activas. Por favor, cree reglas en "Reglas de Validación" primero.',
+        'audit_scan_models_found': 'Modelos con reglas activas:',
+        'btn_run_scan': 'Iniciar Escaneo',
+        'audit_scan_results_title': 'Resultados del Escaneo',
+        'audit_scan_all_ok': 'Todos los objetos cumplen.',
+        'audit_scan_col_object': 'Objeto',
+        'audit_scan_col_type': 'Tipo de Regla',
+        'audit_scan_col_message': 'Mensaje de Error',
+        'audit_scan_violations_found': '{count} infracción(es) encontrada(s)',
+        'audit_scan_scanned': '{count} objetos verificados',
+        'audit_scan_error': 'Error durante el escaneo',
     },
 }
 

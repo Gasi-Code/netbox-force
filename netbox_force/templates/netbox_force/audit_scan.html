@@ -1,0 +1,159 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.tab_audit_scan|default:"Audit Scan" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+
+        {# Info card #}
+        <div class="card mb-4">
+            <h5 class="card-header">
+                <i class="mdi mdi-magnify-scan"></i> {{ ui.audit_scan_title|default:"Audit Scan" }}
+            </h5>
+            <div class="card-body">
+                <p class="text-muted">{{ ui.audit_scan_desc|default:"Scans existing objects against active validation rules. Read-only." }}</p>
+
+                {% if rules_by_model %}
+                    <p><strong>{{ ui.audit_scan_models_found|default:"Models with active rules:" }}</strong></p>
+                    <ul class="mb-3">
+                        {% for model_label, rules in rules_by_model.items %}
+                        <li>
+                            <code>{{ model_label }}</code>
+                            <span class="text-muted small">({{ rules|length }} rule{% if rules|length != 1 %}s{% endif %})</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="text-muted small">
+                        <i class="mdi mdi-information-outline"></i>
+                        {{ ui.audit_scan_limit_note|default:"Scan is limited to {limit} objects per model."|stringformat:"s" }}
+                        {% comment %}Replace {limit} placeholder{% endcomment %}
+                    </p>
+                    <p class="text-muted small">
+                        <i class="mdi mdi-information-outline"></i>
+                        Scan is limited to {{ scan_limit }} objects per model.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-play"></i> {{ ui.btn_run_scan|default:"Run Scan" }}
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="mdi mdi-alert-outline"></i>
+                        {{ ui.audit_scan_no_rules|default:"No active validation rules found. Please create rules under Validation Rules first." }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Results #}
+        {% if scanned %}
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-clipboard-check-outline"></i> {{ ui.audit_scan_results_title|default:"Scan Results" }}
+            </h5>
+            <div class="card-body">
+                {% if not scan_results %}
+                    <div class="alert alert-success mb-0">
+                        <i class="mdi mdi-check-circle-outline"></i>
+                        {{ ui.audit_scan_all_ok|default:"All objects compliant." }}
+                    </div>
+                {% else %}
+                    {% for result in scan_results %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0"><code>{{ result.model_label }}</code></h6>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="text-muted small">
+                                    {{ ui.audit_scan_scanned|default:"{count} objects scanned" }}
+                                    {# We replace {count} via a simple inline workaround #}
+                                </span>
+                                <span class="text-muted small">({{ result.total_scanned }} checked)</span>
+                                {% if result.error %}
+                                    <span class="badge bg-warning text-dark">{{ ui.audit_scan_error|default:"Error" }}</span>
+                                {% elif result.violations %}
+                                    <span class="badge bg-danger">{{ result.violations|length }} violation{% if result.violations|length != 1 %}s{% endif %}</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ ui.audit_scan_all_ok|default:"All OK" }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if result.error %}
+                            <div class="alert alert-warning py-2">
+                                <i class="mdi mdi-alert-outline"></i> {{ result.error }}
+                            </div>
+                        {% elif result.violations %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ ui.audit_scan_col_object|default:"Object" }}</th>
+                                            <th>{{ ui.audit_scan_col_type|default:"Rule Type" }}</th>
+                                            <th>{{ ui.audit_scan_col_message|default:"Error Message" }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for v in result.violations %}
+                                        <tr>
+                                            <td>
+                                                <span class="small">{{ v.obj }}</span>
+                                                <span class="text-muted small ms-1">(pk={{ v.pk }})</span>
+                                            </td>
+                                            <td>
+                                                {% if v.type == 'naming' %}
+                                                    <span class="badge border border-info text-info">Naming</span>
+                                                {% else %}
+                                                    <span class="badge border border-warning text-warning">Required</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="small">{{ v.message }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-success py-2 mb-0">
+                                <i class="mdi mdi-check-circle-outline"></i>
+                                {{ ui.audit_scan_all_ok|default:"All objects compliant." }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if not forloop.last %}<hr>{% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {# Sidebar #}
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-help-circle"></i> {{ ui.rule_help_title|default:"Help" }}
+            </h5>
+            <div class="card-body small">
+                <p>{{ ui.audit_scan_desc|default:"Scans existing objects in the database against active validation rules." }}</p>
+                <p class="text-muted">The scan checks all <strong>enabled</strong> Validation Rules against objects currently stored in the database.</p>
+                <hr>
+                <p><strong>Important:</strong></p>
+                <ul>
+                    <li>Scan is <strong>read-only</strong> — no data is changed</li>
+                    <li>Limited to {{ scan_limit }} objects per model to avoid timeouts</li>
+                    <li>Only <strong>active</strong> validation rules are applied</li>
+                    <li>Model Policies are <strong>not</strong> applied during audit scan</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

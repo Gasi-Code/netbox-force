@@ -10,6 +10,16 @@ urlpatterns = [
     path('rules/add/', views.ValidationRuleCreateView.as_view(), name='rule_add'),
     path('rules/<int:pk>/edit/', views.ValidationRuleEditView.as_view(), name='rule_edit'),
     path('rules/<int:pk>/delete/', views.ValidationRuleDeleteView.as_view(), name='rule_delete'),
+
+    # Model Policies
+    path('policies/', views.ModelPolicyListView.as_view(), name='policy_list'),
+    path('policies/add/', views.ModelPolicyCreateView.as_view(), name='policy_add'),
+    path('policies/<int:pk>/edit/', views.ModelPolicyEditView.as_view(), name='policy_edit'),
+    path('policies/<int:pk>/delete/', views.ModelPolicyDeleteView.as_view(), name='policy_delete'),
+
+    # Audit Scan
+    path('audit-scan/', views.AuditScanView.as_view(), name='audit_scan'),
+
     path('violations/', views.ViolationListView.as_view(), name='violation_list'),
     path('violations/export/', views.ViolationExportCSVView.as_view(), name='violation_export_csv'),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),

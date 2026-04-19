@@ -57,6 +57,7 @@ EXEMPT_MODELS = {
     # Own plugin models
     'netbox_force.forcesettings',
     'netbox_force.validationrule',
+    'netbox_force.modelpolicy',
     'netbox_force.violation',
     'netbox_force.importtemplate',
     'netbox_force.guidepage',
@@ -162,8 +163,25 @@ def is_exempt_user(request):
 
     settings = _get_settings()
     if settings is not None:
+        # Username exemption
         exempt_list = [u.lower() for u in settings.get_exempt_users_list()]
-        return username in exempt_list
+        if username in exempt_list:
+            return True
+
+        # Group exemption
+        exempt_groups = [g.lower() for g in settings.get_exempt_groups_list()]
+        if exempt_groups:
+            try:
+                user_groups = set(
+                    request.user.groups.values_list('name', flat=True)
+                )
+                user_groups_lower = {g.lower() for g in user_groups}
+                if user_groups_lower.intersection(exempt_groups):
+                    return True
+            except Exception:
+                pass
+
+        return False
 
     exempt_users = get_plugin_config('netbox_force', 'exempt_users') or []
     return username in [u.lower() for u in exempt_users]
@@ -551,6 +569,19 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     if settings and not getattr(settings, 'enforcement_enabled', True):
         return
 
+    # --- Per-model policy ---
+    policy = None
+    try:
+        from .models import ModelPolicy
+        policy = ModelPolicy.get_policy_for_model(model_label)
+    except Exception:
+        pass
+
+    if policy is not None and policy.enforcement_enabled is not None:
+        if not policy.enforcement_enabled:
+            logger.debug("pre_save: %s enforcement disabled by model policy, skipping", model_label)
+            return
+
     # --- Exemption checks ---
     if is_exempt_model(instance):
         logger.debug("pre_save: %s is exempt model, skipping", model_label)
@@ -587,19 +618,21 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                      model_label, username)
         _enforce('change_window', window_error)
 
-    # --- Naming convention check ---
-    naming_error = check_naming_conventions(instance, model_label, request)
-    if naming_error:
-        logger.info("pre_save: %s naming convention violation, blocking user '%s'",
-                     model_label, username)
-        _enforce('naming_violation', naming_error)
+    # --- Naming convention check (respects model policy) ---
+    if policy is None or policy.check_naming_rules:
+        naming_error = check_naming_conventions(instance, model_label, request)
+        if naming_error:
+            logger.info("pre_save: %s naming convention violation, blocking user '%s'",
+                         model_label, username)
+            _enforce('naming_violation', naming_error)
 
-    # --- Required field check ---
-    required_error = check_required_fields(instance, model_label, request)
-    if required_error:
-        logger.info("pre_save: %s required field missing, blocking user '%s'",
-                     model_label, username)
-        _enforce('required_field', required_error)
+    # --- Required field check (respects model policy) ---
+    if policy is None or policy.check_required_fields_rules:
+        required_error = check_required_fields(instance, model_label, request)
+        if required_error:
+            logger.info("pre_save: %s required field missing, blocking user '%s'",
+                         model_label, username)
+            _enforce('required_field', required_error)
 
     # --- Changelog-related checks ---
     changelog_required = not is_new or _get_setting('enforce_on_create', False)
@@ -609,8 +642,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                       model_label)
         return
 
-    # --- Changelog presence + length ---
-    min_len = _get_setting('min_length', 2)
+    # --- Changelog presence + length (min_length respects model policy) ---
+    min_len = (policy.min_length_override
+               if policy and policy.min_length_override is not None
+               else _get_setting('min_length', 2))
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
@@ -659,6 +694,19 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
 
     model_label = get_model_label(instance)
 
+    # --- Per-model policy ---
+    policy = None
+    try:
+        from .models import ModelPolicy
+        policy = ModelPolicy.get_policy_for_model(model_label)
+    except Exception:
+        pass
+
+    if policy is not None and policy.enforcement_enabled is not None:
+        if not policy.enforcement_enabled:
+            logger.debug("pre_delete: %s enforcement disabled by model policy, skipping", model_label)
+            return
+
     if is_exempt_model(instance):
         logger.debug("pre_delete: %s is exempt model, skipping", model_label)
         return
@@ -684,8 +732,10 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                      model_label, username)
         _enforce('change_window', window_error)
 
-    # --- Changelog presence + length ---
-    min_len = _get_setting('min_length', 2)
+    # --- Changelog presence + length (min_length respects model policy) ---
+    min_len = (policy.min_length_override
+               if policy and policy.min_length_override is not None
+               else _get_setting('min_length', 2))
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:

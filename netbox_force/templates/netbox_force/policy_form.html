@@ -1,0 +1,117 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}
+NetBox Force - {% if editing %}{{ ui.policy_edit_title|default:"Edit Policy" }}{% else %}{{ ui.policy_add_title|default:"Add Policy" }}{% endif %}
+{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-{% if editing %}pencil{% else %}plus{% endif %}"></i>
+                {% if editing %}{{ ui.policy_edit_title|default:"Edit Policy" }}{% else %}{{ ui.policy_add_title|default:"Add Policy" }}{% endif %}
+            </h5>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {# Model #}
+                    <div class="mb-3">
+                        <label for="id_model_label" class="form-label">{{ ui.policy_col_model|default:"Model" }}</label>
+                        {{ form.model_label }}
+                        {% if form.model_label.errors %}
+                            <div class="invalid-feedback d-block">{{ form.model_label.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.rule_help_model_format|default:"Format: app.model (e.g. dcim.device)" }}</div>
+                    </div>
+
+                    {# Enforcement enabled override #}
+                    <div class="mb-3">
+                        <label for="id_enforcement_enabled" class="form-label">{{ ui.label_enforcement_enabled_override|default:"Enforcement (override)" }}</label>
+                        {{ form.enforcement_enabled }}
+                        {% if form.enforcement_enabled.errors %}
+                            <div class="invalid-feedback d-block">{{ form.enforcement_enabled.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.help_enforcement_enabled_override|default:"Overrides global enforcement for this model. Leave empty to use the global setting." }}</div>
+                    </div>
+
+                    {# Min length override #}
+                    <div class="mb-3">
+                        <label for="id_min_length_override" class="form-label">{{ ui.label_min_length_override|default:"Min. length (override)" }}</label>
+                        {{ form.min_length_override }}
+                        {% if form.min_length_override.errors %}
+                            <div class="invalid-feedback d-block">{{ form.min_length_override.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ ui.help_min_length_override|default:"Overrides the minimum changelog length for this model. Leave empty to use the global setting." }}</div>
+                    </div>
+
+                    {# Check naming rules #}
+                    <div class="mb-3 form-check">
+                        {{ form.check_naming_rules }}
+                        <label class="form-check-label" for="id_check_naming_rules">{{ ui.label_check_naming_rules|default:"Check naming convention rules" }}</label>
+                        <div class="form-text">{{ ui.help_check_naming_rules|default:"If disabled, naming convention rules are not checked for this model." }}</div>
+                    </div>
+
+                    {# Check required fields rules #}
+                    <div class="mb-3 form-check">
+                        {{ form.check_required_fields_rules }}
+                        <label class="form-check-label" for="id_check_required_fields_rules">{{ ui.label_check_required_fields_rules|default:"Check required field rules" }}</label>
+                        <div class="form-text">{{ ui.help_check_required_fields_rules|default:"If disabled, required field rules are not checked for this model." }}</div>
+                    </div>
+
+                    {# Policy enabled #}
+                    <div class="mb-3 form-check">
+                        {{ form.enabled }}
+                        <label class="form-check-label" for="id_enabled">{{ ui.label_policy_enabled|default:"Policy enabled" }}</label>
+                        <div class="form-text">{{ ui.help_policy_enabled|default:"If disabled, this policy is ignored (global settings apply)." }}</div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'plugins:netbox_force:policy_list' %}" class="btn btn-outline-secondary">
+                            {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# Help Sidebar #}
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-help-circle"></i> {{ ui.policy_help_title|default:"Help" }}
+            </h5>
+            <div class="card-body small">
+                <p>{{ ui.policy_help_desc|default:"Model policies override global enforcement settings for a specific model. Only enabled policies are applied." }}</p>
+                <hr>
+                <p><strong>{{ ui.label_enforcement_enabled_override|default:"Enforcement override" }}:</strong></p>
+                <ul>
+                    <li><strong>{{ ui.policy_enforcement_inherit|default:"Global (default)" }}</strong> — use the global setting</li>
+                    <li><strong>{{ ui.policy_enforcement_on|default:"Enabled" }}</strong> — enforce for this model regardless of global setting</li>
+                    <li><strong>{{ ui.policy_enforcement_off|default:"Disabled" }}</strong> — skip all enforcement for this model</li>
+                </ul>
+                <hr>
+                <p><strong>{{ ui.label_min_length_override|default:"Min. length override" }}:</strong></p>
+                <p class="text-muted">Leave empty to inherit the global minimum. Set to a higher value for more critical models, or lower for less important ones.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

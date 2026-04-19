@@ -79,11 +79,38 @@ All features are **opt-in**. Out of the box, only the changelog presence check i
 | **Weekday filter** | Limit changes to specific days of the week (ISO weekday numbers) |
 | **Overnight windows** | Supports windows that cross midnight (e.g. 22:00–06:00) |
 
+### Model Policies
+
+| Feature | Description |
+|---|---|
+| **Per-model enforcement toggle** | Disable enforcement entirely for a specific model regardless of global settings |
+| **Per-model min. length override** | Require longer (or shorter) changelog entries for specific models |
+| **Per-model naming rule toggle** | Disable naming convention checks for a specific model |
+| **Per-model required field toggle** | Disable required field checks for a specific model |
+
+### Audit Scan
+
+| Feature | Description |
+|---|---|
+| **Retroactive compliance scan** | Scan existing database objects against active validation rules — read-only, no changes made |
+| **Per-model results** | Results grouped by model with violation count, object name, rule type, and error message |
+| **500-object limit** | Scan is capped at 500 objects per model to avoid timeouts |
+
+### Webhook Notifications
+
+| Feature | Description |
+|---|---|
+| **Violation webhooks** | Send an HTTP POST to a configurable URL on every blocked change |
+| **JSON payload** | Payload includes event type, username, model, object, action, reason, and error message |
+| **HMAC-SHA256 signing** | Optional secret for payload signing — adds `X-NetBox-Force-Signature` header |
+| **Fire-and-forget** | Webhook runs in a background thread — never blocks the NetBox response |
+
 ### Exemptions
 
 | Feature | Description |
 |---|---|
 | **Exempt users** | Skip all enforcement for specific usernames (case-insensitive) — useful for automation accounts |
+| **Exempt groups** | Skip all enforcement for all members of specific Django groups — no need to list every username |
 | **Exempt models** | Skip enforcement for additional models beyond the built-in system exclusions |
 
 ### Audit Log (Violations)

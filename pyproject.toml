@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-force"
-version = "4.3.0"
+version = "4.4.0"
 description = "NetBox plugin for enforcing changelog messages, validation policies, and compliance rules"
 readme = "README.md"
 license = {text = "AGPL-3.0"}

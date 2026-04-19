@@ -4,7 +4,7 @@ from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
 
-from .models import ForceSettings, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
+from .models import ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
 
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
@@ -22,9 +22,7 @@ class ForceSettingsForm(forms.ModelForm):
             'enforce_on_create',
             'enforce_on_delete',
             'dry_run',
-            'exempt_users',
             'blacklisted_phrases',
-            'extra_exempt_models',
             'ticket_pattern',
             'ticket_pattern_hint',
             'change_window_enabled',
@@ -34,6 +32,12 @@ class ForceSettingsForm(forms.ModelForm):
             'audit_log_enabled',
             'audit_log_retention_days',
             'dashboard_top_users_count',
+            'webhook_enabled',
+            'webhook_url',
+            'webhook_secret',
+            'exempt_users',
+            'exempt_groups',
+            'extra_exempt_models',
             'import_templates_enabled',
             'guide_enabled',
         ]
@@ -106,6 +110,22 @@ class ForceSettingsForm(forms.ModelForm):
             }),
             'enforcement_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
+            }),
+            'webhook_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'webhook_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://webhook.site/your-unique-url',
+            }),
+            'webhook_secret': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Optional HMAC secret',
+            }),
+            'exempt_groups': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'network-admins\nautomation-team',
             }),
             'import_templates_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
@@ -329,6 +349,61 @@ class ImportTemplateForm(forms.ModelForm):
             model_choices.append((label, f"{label} — {verbose}"))
         model_choices.sort(key=lambda c: c[0])
         self.fields['model_label'].widget.choices = model_choices
+
+    def clean_model_label(self):
+        """Validate that the model label matches the app.model format."""
+        value = self.cleaned_data.get('model_label', '')
+        if not value:
+            raise ValidationError("Model label is required.")
+        if not _MODEL_LABEL_RE.match(value.lower()):
+            raise ValidationError(
+                "Invalid model format: '%(value)s'. "
+                "Use the format 'app.model' (e.g. 'dcim.device').",
+                params={'value': value},
+                code='invalid_model_format',
+            )
+        return value.lower()
+
+
+class ModelPolicyForm(forms.ModelForm):
+    """Form for creating/editing per-model enforcement policies."""
+
+    class Meta:
+        model = ModelPolicy
+        fields = [
+            'model_label',
+            'enforcement_enabled',
+            'min_length_override',
+            'check_naming_rules',
+            'check_required_fields_rules',
+            'enabled',
+        ]
+        widgets = {
+            'model_label': forms.Select(attrs={'class': 'form-select'}),
+            'enforcement_enabled': forms.NullBooleanSelect(attrs={'class': 'form-select'}),
+            'min_length_override': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 500,
+                'placeholder': 'Leave empty to use global setting',
+            }),
+            'check_naming_rules': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'check_required_fields_rules': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Populate model_label choices from Django's app registry
+        model_choices = [('', '---------')]
+        for model in apps.get_models():
+            label = f"{model._meta.app_label}.{model._meta.model_name}"
+            verbose = str(model._meta.verbose_name).title()
+            model_choices.append((label, f"{label} — {verbose}"))
+        model_choices.sort(key=lambda c: c[0])
+        self.fields['model_label'].widget.choices = model_choices
+        # Make min_length_override not required
+        self.fields['min_length_override'].required = False
 
     def clean_model_label(self):
         """Validate that the model label matches the app.model format."""
