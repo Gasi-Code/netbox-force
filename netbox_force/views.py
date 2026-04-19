@@ -437,6 +437,19 @@ class ValidationRuleDeleteView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:rule_list')
 
 
+class ValidationRuleToggleView(SuperuserRequiredMixin, View):
+    """Toggle the enabled state of a validation rule (inline, no confirmation)."""
+
+    def post(self, request, pk):
+        rule = get_object_or_404(ValidationRule, pk=pk)
+        rule.enabled = not rule.enabled
+        rule.save()
+        # Bust the 30-second rule cache immediately
+        ValidationRule._rule_cache = None
+        ValidationRule._rule_cache_timestamp = 0
+        return redirect('plugins:netbox_force:rule_list')
+
+
 # =============================================================================
 # MODEL POLICY VIEWS
 # =============================================================================
@@ -530,6 +543,19 @@ class ModelPolicyDeleteView(SuperuserRequiredMixin, View):
         policy = get_object_or_404(ModelPolicy, pk=pk)
         policy.delete()
         messages.success(request, 'Model policy deleted.')
+        return redirect('plugins:netbox_force:policy_list')
+
+
+class ModelPolicyToggleView(SuperuserRequiredMixin, View):
+    """Toggle the enabled state of a model policy (inline, no confirmation)."""
+
+    def post(self, request, pk):
+        policy = get_object_or_404(ModelPolicy, pk=pk)
+        policy.enabled = not policy.enabled
+        policy.save()
+        # Bust the 30-second policy cache immediately
+        ModelPolicy._policy_cache = None
+        ModelPolicy._policy_cache_timestamp = 0
         return redirect('plugins:netbox_force:policy_list')
 
 

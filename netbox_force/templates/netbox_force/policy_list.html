@@ -68,11 +68,18 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if policy.enabled %}
-                                        <span class="badge border border-success text-success">ON</span>
-                                    {% else %}
-                                        <span class="badge border border-secondary text-secondary">OFF</span>
-                                    {% endif %}
+                                    <form method="post" action="{% url 'plugins:netbox_force:policy_toggle' pk=policy.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        {% if policy.enabled %}
+                                            <button type="submit" class="btn btn-sm btn-success" title="{{ ui.btn_disable|default:'Disable' }}" style="min-width:52px;">
+                                                <i class="mdi mdi-check"></i> ON
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-sm btn-secondary" title="{{ ui.btn_enable|default:'Enable' }}" style="min-width:52px;">
+                                                <i class="mdi mdi-close"></i> OFF
+                                            </button>
+                                        {% endif %}
+                                    </form>
                                 </td>
                                 <td>
                                     <a href="{% url 'plugins:netbox_force:policy_edit' pk=policy.pk %}"
