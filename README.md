@@ -1,131 +1,165 @@
 # NetBox Force
 
-A comprehensive NetBox plugin that enforces changelog messages, naming conventions, required fields, ticket references, change windows, and compliance auditing on all object changes.
+> A comprehensive NetBox plugin that enforces changelog discipline, naming conventions, required fields, ticket references, change windows, and compliance auditing on every object change.
 
-All features are **opt-in** — out of the box, only changelog enforcement is active. Everything else can be enabled and configured through the web UI.
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 
-## Compatibility
+---
 
-| Requirement | Version |
-|---|---|
-| **NetBox** | 4.0.0+ |
-| **Python** | 3.10+ |
+## Overview
 
-Works with all NetBox deployment types: Docker (official image, LinuxServer.io), bare-metal Linux, virtual machines, Kubernetes.
+NetBox is a powerful source-of-truth platform, but out of the box it places no constraints on *how* changes are made. Teams often end up with a change history full of empty comments, cryptic one-liners like "fix" or "test", or device names that don't follow any convention — making audits, rollbacks, and root-cause analysis painful.
+
+**NetBox Force** adds a configurable enforcement layer that sits between every save/delete operation and the database. Before any change goes through, the plugin can verify that:
+
+- A meaningful changelog comment was provided
+- The comment references a ticket number (JIRA, ServiceNow, GitHub, etc.)
+- The change happens within an approved time window
+- Field values conform to naming patterns
+- Required fields are actually filled in
+
+All features are **opt-in**. Out of the box, only the changelog presence check is active with a 2-character minimum. Everything else is enabled and configured through the plugin's web UI — no configuration file changes required after initial setup.
+
+---
 
 ## Features
 
-### Changelog Enforcement (always active)
-Requires a meaningful changelog comment when creating, editing, or deleting objects.
+### Enforcement Controls
 
-- **Minimum length** — configurable minimum character count (default: 2)
-- **Enforce on create** — optionally require changelog when creating new objects (default: off)
-- **Enforce on delete** — require changelog when deleting objects (default: on)
-- **Blocked phrases** — reject changelog entries containing specific words (whole-word matching)
-- **Exempt users** — skip enforcement for automation accounts (case-insensitive)
-- **Exempt models** — skip enforcement for specific models
+| Feature | Description |
+|---|---|
+| **Global enforcement toggle** | Master switch to pause all enforcement globally (e.g. during maintenance windows) |
+| **Dry-run mode** | Log violations without actually blocking changes — ideal for rolling out rules incrementally |
+| **Enforce on create** | Optionally require a changelog when *creating* new objects (default: off) |
+| **Enforce on delete** | Require a changelog when *deleting* objects (default: on) |
 
-### Ticket Reference Requirement (opt-in)
-Requires every changelog comment to contain a ticket reference matching a regex pattern.
+### Changelog Enforcement
 
-**Examples:**
+| Feature | Description |
+|---|---|
+| **Changelog requirement** | Blocks saves/deletes unless a changelog comment is provided |
+| **Minimum length** | Configurable minimum character count for changelog entries (default: 2) |
+| **Blocked phrases** | Reject changelog entries that contain only meaningless words (whole-word matching, e.g. "fix", "test", "update") |
+
+### Ticket Reference
+
+| Feature | Description |
+|---|---|
+| **Regex-based ticket requirement** | Require every changelog comment to reference a ticket number matching a configurable regex pattern |
+| **Human-readable hint** | Show a custom example (e.g. `JIRA-1234`) instead of the raw regex in error messages |
+
+**Built-in examples:**
+
 | Pattern | Matches | Use Case |
 |---|---|---|
 | `JIRA-\d+` | JIRA-1234 | Jira |
-| `[A-Z]+-\d+` | PROJ-123 | Generic Jira-style |
+| `[A-Z]+-\d+` | PROJ-123, OPS-42 | Generic Jira-style |
 | `#\d+` | #123 | GitHub / GitLab |
 | `INC\d{7}` | INC0012345 | ServiceNow Incident |
 | `CHG\d{7}` | CHG0012345 | ServiceNow Change |
-| `(INC\|CHG\|REQ)\d+` | INC/CHG/REQ + number | ServiceNow (any) |
+| `(INC\|CHG\|REQ)\d+` | INC123, CHG456 | ServiceNow (any type) |
 
-**How to enable:** Settings → Ticket Reference → enter a regex pattern. Leave empty to disable.
+### Validation Rules
 
-### Naming Convention Enforcement (opt-in)
-Enforces that field values on specific models match a regex pattern.
+| Feature | Description |
+|---|---|
+| **Naming convention rules** | Enforce that a field value matches a regex pattern (uses `re.fullmatch`) |
+| **Required field rules** | Enforce that a field is not empty, null, or blank |
+| **Per-model, per-field** | Each rule targets a specific model + field combination |
+| **Custom error messages** | Show a human-readable hint when a rule fails |
+| **Model dropdown** | Searchable dropdown of all installed models in the rule editor |
 
-**Example:** Require all device names to follow the format `XX-YYYY-NNN`:
-- Model: `dcim.device`
-- Field: `name`
-- Pattern: `^[A-Z]{2}-[A-Z]+-\d{3}$`
-- Error message: `Device name must match format: XX-SITE-001`
+### Change Windows
 
-The plugin provides a searchable dropdown of all installed models and their fields when creating rules.
+| Feature | Description |
+|---|---|
+| **Time window** | Restrict changes to a defined start/end time (24-hour, timezone-aware) |
+| **Weekday filter** | Limit changes to specific days of the week (ISO weekday numbers) |
+| **Overnight windows** | Supports windows that cross midnight (e.g. 22:00–06:00) |
 
-**How to enable:** Validation Rules tab → Add Rule → select "Naming Convention".
+### Exemptions
 
-### Required Fields Enforcement (opt-in)
-Enforces that specific fields on specific models are not empty, null, or blank.
+| Feature | Description |
+|---|---|
+| **Exempt users** | Skip all enforcement for specific usernames (case-insensitive) — useful for automation accounts |
+| **Exempt models** | Skip enforcement for additional models beyond the built-in system exclusions |
 
-**Example:** Require every device to have a tenant assigned:
-- Model: `dcim.device`
-- Field: `tenant`
+### Audit Log (Violations)
 
-**How to enable:** Validation Rules tab → Add Rule → select "Required Field".
-
-### Change Window Enforcement (opt-in)
-Restricts changes to a defined time window (time of day + weekdays).
-
-- **Start/end time** — e.g. 08:00 to 18:00
-- **Allowed weekdays** — comma-separated ISO weekday numbers (1=Monday, 7=Sunday)
-- **Overnight windows** — supports windows that cross midnight (e.g. 22:00 to 06:00)
-
-Exempt users bypass the change window.
-
-**How to enable:** Settings → Change Window → enable and configure times.
-
-### Audit Log (opt-in)
-Records every blocked change attempt for compliance tracking.
-
-Each violation entry contains:
-- Timestamp
-- Username
-- Model and object
-- Action (create/edit/delete)
-- Reason (missing changelog, too short, blacklisted phrase, missing ticket, naming violation, required field, change window)
-- Error message shown to the user
-- The attempted changelog comment
-
-**Filterable** by reason, username, and date range. **Paginated** for large datasets.
-
-**How to enable:** Settings → Audit Log → enable. Configure retention period in days.
+| Feature | Description |
+|---|---|
+| **Violation logging** | Every blocked action is recorded with timestamp, user, model, object, action, reason, error message, and attempted changelog comment |
+| **Filterable log** | Filter violations by reason, username, and date range |
+| **Automatic retention** | Configurable automatic cleanup of old violation entries |
+| **CSV export** | Export all violation data for external analysis |
 
 ### Dashboard
-Read-only overview showing:
-- **Feature status** — which features are enabled/disabled
-- **Total violations** — lifetime count
-- **Violations by reason** — breakdown with progress bars
-- **Top 10 users** — most frequently blocked users
-- **Last 30 days** — daily violation trend
 
-### Multilingual UI (DE / EN / ES)
-All labels, help texts, error messages, and section headers change dynamically based on the selected language. API error messages are always in English.
+| Feature | Description |
+|---|---|
+| **Feature status overview** | See which enforcement features are currently enabled |
+| **Violation statistics** | Total count, breakdown by reason with progress bars |
+| **Top users** | Most frequently blocked users |
+| **30-day trend** | Daily violation chart for the past month |
+
+### Modules
+
+| Feature | Description |
+|---|---|
+| **Import Templates** | Admins can create downloadable CSV templates for NetBox's built-in bulk import — with UTF-8 BOM for Excel compatibility |
+| **User Guide** | Built-in WYSIWYG HTML guide page for end users — supports full standalone HTML pages or simple rich-text content |
+
+### General
+
+| Feature | Description |
+|---|---|
+| **Multilingual UI** | All labels, help texts, and error messages in German, English, and Spanish. Language switchable per-plugin settings |
+| **API support** | Enforcement applies to both UI and API requests. API error messages are always in English |
+| **Singleton settings** | All settings stored in the database — configurable through the web UI without editing configuration files |
+
+---
+
+## Requirements
+
+| Component | Version |
+|---|---|
+| **NetBox** | 4.0.0 or later |
+| **Python** | 3.11 or later |
+| **Database** | PostgreSQL (required by NetBox) |
+
+---
+
+## Tested Environments
+
+NetBox Force has been tested on:
+
+- **Docker** — official NetBox Docker image and LinuxServer.io image
+- **Linux VM** — Debian-based virtual machines (bare-metal and VMware)
+
+Other deployment types (Kubernetes, other Linux distributions) should work but have not been explicitly verified.
+
+---
 
 ## Installation
 
-### Method 1: pip install from GitHub
+### 1. Install the plugin
+
+Activate the NetBox virtual environment and install directly from GitHub:
 
 ```bash
-pip install https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz
+source /opt/netbox/venv/bin/activate
+pip install git+https://github.com/Gasi-Code/netbox-force.git
 ```
 
-### Method 2: pip install from local clone
-
-```bash
-git clone https://github.com/Gasi-Code/netbox-force.git
-pip install -e ./netbox-force/
-```
-
-### Method 3: Docker (official NetBox image)
-
-Add to your `docker-compose.yml` or Dockerfile:
+For Docker (official NetBox image), add to your `Dockerfile`:
 
 ```dockerfile
-RUN pip install https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz
+RUN pip install git+https://github.com/Gasi-Code/netbox-force.git
 ```
 
-### Method 4: Docker (LinuxServer.io image)
-
-Use Docker Mods for automatic installation before NetBox starts:
+For **LinuxServer.io** Docker image, use Docker Mods (runs before NetBox init scripts):
 
 ```yaml
 services:
@@ -133,189 +167,258 @@ services:
     image: ghcr.io/linuxserver/netbox:latest
     environment:
       DOCKER_MODS: linuxserver/mods:universal-package-install
-      INSTALL_PIP_PACKAGES: https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz
+      INSTALL_PIP_PACKAGES: git+https://github.com/Gasi-Code/netbox-force.git
 ```
 
-> **Important:** Do not use `custom-cont-init.d` scripts for plugin installation — they run after NetBox's init scripts, causing migration failures. Docker Mods run before init scripts.
+> **Note for LinuxServer.io:** Do not use `custom-cont-init.d` scripts for plugin installation — they run *after* NetBox's init scripts, which can cause migration failures. Docker Mods run before init scripts.
 
-### Method 5: Kubernetes / Helm
+### 2. Register the plugin
 
-Add to your init container or custom image build:
-
-```bash
-pip install https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz
-```
-
-## Configuration
-
-Add to your NetBox `configuration.py`:
+Add `netbox_force` to the `PLUGINS` list in your NetBox `configuration.py`:
 
 ```python
 PLUGINS = [
     'netbox_force',
 ]
+```
 
-# Optional: override defaults (all values below are the defaults)
+### 3. Run database migrations
+
+```bash
+cd /opt/netbox/netbox
+python manage.py migrate netbox_force
+```
+
+### 4. Restart NetBox services
+
+```bash
+sudo systemctl restart netbox netbox-rq
+```
+
+For Docker:
+
+```bash
+docker compose restart netbox
+```
+
+---
+
+## Updating
+
+To update to the latest version, reinstall with the `--force-reinstall` and `--no-cache-dir` flags (required because pip caches by version number):
+
+```bash
+source /opt/netbox/venv/bin/activate
+pip install --force-reinstall --no-cache-dir git+https://github.com/Gasi-Code/netbox-force.git
+```
+
+Then run migrations and restart:
+
+```bash
+cd /opt/netbox/netbox
+python manage.py migrate netbox_force
+sudo systemctl restart netbox netbox-rq
+```
+
+---
+
+## Configuration
+
+`PLUGINS_CONFIG` in `configuration.py` sets the **initial defaults** only. After the first startup, all settings are managed through the plugin's web UI and stored in the database.
+
+```python
 PLUGINS_CONFIG = {
     'netbox_force': {
-        'min_length': 2,                 # Minimum changelog message length
-        'exempt_users': [                # Users exempt from enforcement
-            'automation',
-            'monitoring',
-            'netbox',
-        ],
-        'enforce_on_create': False,      # Require changelog on object creation
-        'enforce_on_delete': True,       # Require changelog on object deletion
-        'extra_exempt_models': [],       # Additional models to exempt (e.g. 'myplugin.mymodel')
+        'min_length': 2,
+        'exempt_users': ['automation', 'monitoring', 'netbox'],
+        'enforce_on_create': False,
+        'enforce_on_delete': True,
+        'extra_exempt_models': [],
     },
 }
 ```
 
-After installation, restart NetBox:
+| Setting | Default | Description |
+|---|---|---|
+| `min_length` | `2` | Minimum number of characters required in a changelog entry |
+| `exempt_users` | `['automation', 'monitoring', 'netbox']` | Usernames exempt from all enforcement checks (case-insensitive) |
+| `enforce_on_create` | `False` | Whether to require a changelog when creating new objects |
+| `enforce_on_delete` | `True` | Whether to require a changelog when deleting objects |
+| `extra_exempt_models` | `[]` | Additional model labels to exempt (format: `app.model`) |
 
-```bash
-# Bare-metal
-sudo systemctl restart netbox netbox-rq
+All other settings (ticket reference, change window, audit log, validation rules, etc.) are configured exclusively through the web UI.
 
-# Docker
-docker compose restart netbox
+---
 
-# Docker (full rebuild)
-docker compose up -d --force-recreate netbox
-```
+## Usage
 
-The database migration runs automatically on startup.
+After installation, superusers will find **NetBox Force** in the sidebar navigation. All plugin views are restricted to superusers by default.
+
+### Settings
+
+The main configuration page. Organized into sections:
+
+- **Global Enforcement** — master on/off switch for all enforcement
+- **Enforcement Rules** — minimum length, create/delete behavior, dry-run mode
+- **Blocked Phrases** — comma-separated words to reject
+- **Ticket Reference** — regex pattern and human-readable hint
+- **Change Window** — time range and weekday filter
+- **Audit Log** — enable/disable logging and set retention period
+- **Exemptions** — exempt users and exempt models
+- **Modules** — enable/disable Import Templates and User Guide
+
+### Validation Rules
+
+Create and manage naming convention and required field rules. Each rule targets a specific model and field. Rules are cached for 30 seconds and take effect immediately after saving.
+
+### Violations (Audit Log)
+
+A paginated, filterable log of every blocked change. Filter by:
+- **Reason** — why the change was blocked
+- **Username** — who attempted the change
+- **Date range** — when the attempt occurred
+
+Violations can be exported as CSV for compliance reporting.
+
+### Dashboard
+
+A read-only statistics page showing enforcement activity. Includes feature status indicators, violation breakdowns, top blocked users, and a 30-day daily trend chart.
+
+### Import Templates
+
+*(Requires enabling in Settings → Modules)*
+
+Admins can create CSV header templates that users can download as a starting point for NetBox's built-in bulk import. Templates are Excel-compatible (UTF-8 BOM + `sep=,` hint).
+
+### User Guide
+
+*(Requires enabling in Settings → Modules)*
+
+An editable HTML page for documenting internal procedures, naming conventions, or usage guidelines. Supports both WYSIWYG editing and raw HTML mode (including full standalone HTML pages with embedded CSS/JS).
+
+---
+
+## Screenshots
+
+> Screenshots will be added in a future release.
+
+---
 
 ## How It Works
 
-### Architecture
+### Enforcement Flow
 
 ```
 HTTP Request
-    |
-    v
-RequestContextMiddleware --> stores request in thread-local storage
-    |
-    v
+    │
+    ▼
+RequestContextMiddleware ──── stores request in thread-local storage
+    │
+    ▼
 Django View (NetBox)
-    |
-    v
+    │
+    ▼
 Model.save() / Model.delete()
-    |
-    v
+    │
+    ▼
 Signal Handler (pre_save / pre_delete)
-    |
-    |-- Is model exempt? --> skip
-    |-- Is user exempt? --> skip
-    |-- Is request method enforced? --> skip
-    |-- New object + enforce_on_create=False? --> skip
-    |-- No real changes? --> skip
-    |
-    |-- Change window check --> AbortRequest
-    |-- Changelog present + long enough? --> AbortRequest
-    |-- Blacklisted phrases? --> AbortRequest
-    |-- Ticket reference present? --> AbortRequest
-    |-- Naming convention valid? --> AbortRequest
-    |-- Required fields filled? --> AbortRequest
-    |
-    +-- All checks passed --> save proceeds
+    │
+    ├── No HTTP request (migration/management command)? ──► skip
+    ├── Model exempt? ──────────────────────────────────► skip
+    ├── User exempt? ──────────────────────────────────► skip
+    ├── Global enforcement disabled? ─────────────────► skip
+    ├── Existing object with no real changes? ─────────► skip
+    │
+    ├── Change window check ───────────────────────────► AbortRequest (if outside window)
+    ├── Naming convention check ───────────────────────► AbortRequest (if violated)
+    ├── Required field check ──────────────────────────► AbortRequest (if empty)
+    ├── Changelog present + long enough? ─────────────► AbortRequest (if missing/short)
+    ├── Blocked phrases check ─────────────────────────► AbortRequest (if matched)
+    └── Ticket reference check ────────────────────────► AbortRequest (if missing)
+         │
+         ▼
+    All checks passed ──────────────────────────────────► save/delete proceeds
 ```
-
-### Enforcement Chain
-
-Checks run in this order (first failure wins):
-
-1. **Change Window** — blanket denial regardless of content
-2. **Changelog Presence** — must exist and meet minimum length
-3. **Blocked Phrases** — whole-word matching against blacklist
-4. **Ticket Reference** — regex search in changelog comment
-5. **Naming Convention** — `re.fullmatch()` against field value
-6. **Required Fields** — field must not be empty/null/blank
-
-### What Gets Skipped Automatically
-
-The plugin automatically exempts:
-- All authentication and session models (`auth.*`, `users.*`, `sessions.*`)
-- NetBox internal objects (`extras.objectchange`, `extras.journalentry`, `core.job`, etc.)
-- The plugin's own models (`netbox_force.forcesettings`, `netbox_force.validationrule`, `netbox_force.violation`)
-- Unauthenticated requests
-- Management commands (no HTTP context)
-- Changes where only timestamp fields changed (e.g. `last_updated`)
-
-### Settings Storage
-
-Settings are stored in a singleton database row (ForceSettings, pk=1) with a 30-second in-memory cache. The cache uses `threading.Lock()` for thread safety. Changes made through the UI take effect immediately (cache is invalidated on save).
-
-`PLUGINS_CONFIG` values are used as initial defaults when the database row is first created. After that, the UI settings override config file values.
 
 ### API Support
 
-The plugin enforces rules on both UI and API requests:
-- **UI:** Reads changelog from the `comments` form field
-- **API:** Reads changelog from the `changelog_message` JSON body field
-
-API error messages are always in English, regardless of the language setting.
+Enforcement applies to both the NetBox UI and REST API. The plugin reads the changelog comment from:
+- **UI requests:** the `comments` form field
+- **API requests:** the `changelog_message` JSON body field
 
 ```bash
-# API request with changelog message
+# Example: API PATCH with changelog message
 curl -X PATCH https://netbox.example.com/api/dcim/devices/1/ \
-  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Authorization: Token YOUR_API_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "new-name", "changelog_message": "Renamed device per JIRA-1234"}'
+  -d '{
+    "name": "new-hostname",
+    "changelog_message": "Renamed per JIRA-1234"
+  }'
 ```
 
-## Navigation
+API error messages are always in English regardless of the plugin's language setting.
 
-After installation, superusers see four menu items under **NetBox Force** in the sidebar:
+### Automatic Exemptions
 
-| Tab | Description |
-|---|---|
-| **Settings** | General configuration, enforcement rules, ticket reference, change window, audit log, exemptions |
-| **Validation Rules** | CRUD for naming convention and required field rules |
-| **Violations** | Filterable audit log of blocked changes |
-| **Dashboard** | Statistics overview with feature status |
+The plugin automatically bypasses enforcement for:
 
-Regular users do not see the plugin menu items.
+- All authentication and session models (`auth.*`, `users.*`, `sessions.*`)
+- NetBox internal objects (`extras.objectchange`, `extras.journalentry`, `core.job`, `extras.dashboard`, etc.)
+- Django migration recorder (`migrations.migration`)
+- The plugin's own models (`netbox_force.*`)
+- Unauthenticated requests and management commands
 
-## Upgrading
-
-```bash
-# Reinstall from GitHub (latest)
-pip install --upgrade --force-reinstall \
-  https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz
-
-# Restart NetBox (migrations run automatically)
-sudo systemctl restart netbox netbox-rq
-```
-
-For Docker, redeploy the stack — the container will pull the latest version on startup.
+---
 
 ## Troubleshooting
 
-### Plugin not appearing in sidebar
-- Verify the plugin is installed: `pip show netbox-force`
-- Verify `'netbox_force'` is in `PLUGINS` in `configuration.py`
-- Check container logs for migration errors
-- Ensure you are logged in as a **superuser** (regular users don't see the menu)
+### Plugin not appearing in the sidebar
+- Verify installation: `pip show netbox-force`
+- Verify `'netbox_force'` is listed in `PLUGINS` in `configuration.py`
+- Check NetBox logs for migration errors
+- Confirm you are logged in as a **superuser** (the menu is hidden for non-superusers)
 
-### "You do not have permission to access this page"
-- The plugin settings are restricted to superusers. Log in with an admin account.
-
-### Changes not being enforced
-- Check that the user is not in the exempt users list
-- Check that the model is not in the exempt models list
-- Check that `enforce_on_create` is enabled (if testing with new objects)
-- Check the container logs for `netbox.plugins.netbox_force` debug messages
+### Enforcement not working
+- Confirm the user is not in the exempt users list (Settings → Exemptions)
+- Confirm the model is not in the exempt models list
+- Check that `enforce_on_create` is enabled when testing with new objects
+- Enable debug logging: add `'netbox.plugins.netbox_force': 'DEBUG'` to `LOGGING` in `configuration.py`
 
 ### Migration errors on startup
-- Ensure the plugin is installed before NetBox runs migrations
-- For LinuxServer.io Docker: use `DOCKER_MODS` (not `custom-cont-init.d`)
-- For official Docker: install in Dockerfile (not at runtime)
+- Ensure the plugin is installed **before** NetBox runs its init process
+- For LinuxServer.io Docker: use `DOCKER_MODS` — never `custom-cont-init.d`
+- For official Docker: install in a `Dockerfile` layer, not at runtime
+
+### pip installs old version after update
+pip caches packages by version number. Use `--force-reinstall --no-cache-dir`:
+
+```bash
+pip install --force-reinstall --no-cache-dir git+https://github.com/Gasi-Code/netbox-force.git
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. Please open an issue before submitting a pull request for larger changes so we can discuss the approach.
+
+- **Bug reports:** Open an issue with reproduction steps and NetBox/plugin version
+- **Feature requests:** Open an issue describing the use case
+- **Pull requests:** Fork the repository, make your changes, and open a PR against `main`
+
+Please keep pull requests focused — one feature or fix per PR.
+
+---
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
-## Author
+See [LICENSE](LICENSE) for the full license text.
 
-[Gasi-Code](https://github.com/Gasi-Code)
+> The AGPL-3.0 requires that if you modify this software and run it as a network service, you must make the modified source code available to users of that service under the same license.
+
+---
+
+*Maintained by [Gasi-Code](https://github.com/Gasi-Code)*
