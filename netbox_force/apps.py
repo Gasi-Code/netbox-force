@@ -1,28 +1,70 @@
 from netbox.plugins import PluginConfig, PluginMenu, PluginMenuItem
 
 
+# Module-level variable — NetBox's _load_resource resolves 'menu = "_menu"'
+# as import_string("netbox_force.apps._menu"), exactly like _menu_items before.
+# Initial values are English; _localize_menu() overwrites at startup.
+_menu = PluginMenu(
+    label='NetBox Force',
+    groups=(
+        ('', (
+            PluginMenuItem(
+                link='plugins:netbox_force:settings',
+                link_text='Settings',
+                permissions=['netbox_force.view_forcesettings'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_force:rule_list',
+                link_text='Validation Rules',
+                permissions=['netbox_force.view_validationrule'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_force:violation_list',
+                link_text='Violations',
+                permissions=['netbox_force.view_violation'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_force:dashboard',
+                link_text='Dashboard',
+                permissions=['netbox_force.view_forcesettings'],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_force:import_template_list',
+                link_text='Import Templates',
+                permissions=[],
+            ),
+            PluginMenuItem(
+                link='plugins:netbox_force:guide',
+                link_text='Guide',
+                permissions=[],
+            ),
+        )),
+    ),
+    icon_class='mdi mdi-shield-check',
+)
+
+
 def _localize_menu():
     """
-    Rebuilds navigation.menu with translated labels based on the DB language setting.
+    Rebuilds _menu with translated labels based on the DB language setting.
     Called once in ready(), before the first HTTP request.
 
-    After changing the language in plugin settings the sidebar navigation labels
-    update on the next NetBox restart. In-plugin tabs update immediately on every
-    request without a restart.
+    After changing the language in plugin settings the sidebar labels update
+    on the next NetBox restart. In-plugin tabs update immediately.
     """
+    import netbox_force.apps as _self
     try:
         from django.db import connection
         if 'netbox_force_forcesettings' not in connection.introspection.table_names():
             return  # Table not yet created (e.g. during first migration)
         from .models import ForceSettings
         from .ui_strings import get_all_ui_strings
-        import netbox_force.navigation as nav
 
         settings = ForceSettings.get_settings()
         lang = getattr(settings, 'language', 'en') if settings else 'en'
         ui = get_all_ui_strings(lang)
 
-        nav.menu = PluginMenu(
+        _self._menu = PluginMenu(
             label='NetBox Force',
             groups=(
                 ('', (
@@ -77,10 +119,9 @@ class NetboxForceConfig(PluginConfig):
         'netbox_force.middleware.RequestContextMiddleware',
     ]
 
-    # Standalone top-level nav section (like Slurp'it) instead of the shared
-    # "Plugins" dropdown.  _localize_menu() rewrites navigation.menu at startup
-    # with translated labels.
-    menu = 'netbox_force.navigation.menu'
+    # Standalone top-level nav section (like Slurp'it).
+    # NetBox resolves '_menu' as import_string("netbox_force.apps._menu").
+    menu = '_menu'
 
     default_settings = {
         'min_length': 2,
