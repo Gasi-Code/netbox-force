@@ -335,8 +335,19 @@ class QuickLinksWidget(DashboardWidget):
         )
 
 
-# Backwards-compatibility alias.
-# Dashboard configs saved before the rename from BookmarksWidget to
-# QuickLinksWidget continue to load without errors.  Not registered as a
-# separate widget so it won't appear twice in the "Add widget" dialog.
-BookmarksWidget = QuickLinksWidget
+# Backwards-compatibility shim.
+#
+# A plain Python alias (BookmarksWidget = QuickLinksWidget) does NOT fix the
+# error because the alias shares the same __name__ ('QuickLinksWidget').
+# NetBox's widget registry is keyed by  f"{cls.__module__}.{cls.__name__}",
+# so a lookup for 'netbox_force.dashboards.BookmarksWidget' still returns
+# nothing.  Creating a real subclass gives it __name__ == 'BookmarksWidget',
+# which @register_widget then stores under the correct key.
+#
+# Downside: "Quick Links" appears twice in the Add-widget picker until
+# users have migrated their dashboards — acceptable vs. a broken dashboard.
+@register_widget
+class BookmarksWidget(QuickLinksWidget):
+    """Registered under the old class name so existing per-user dashboard
+    configs continue to load after the rename to QuickLinksWidget."""
+    pass
