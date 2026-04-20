@@ -645,15 +645,23 @@ class ImportTemplate(models.Model):
     def netbox_import_url(self):
         """
         Returns the NetBox CSV import URL using Django's URL resolver.
-        NetBox registers import views as {app_label}:{model_name}_import.
+        NetBox 4.x registers import views as {app_label}:{model_name}_bulk_import.
+        Older versions used {app_label}:{model_name}_import.
         Returns None if the model has no registered import view.
         """
+        from django.urls import reverse, NoReverseMatch
         try:
-            from django.urls import reverse
             app_label, model_name = self.model_label.lower().split('.', 1)
-            return reverse(f'{app_label}:{model_name}_import')
-        except Exception:
+        except (ValueError, AttributeError):
             return None
+        # Try NetBox 4.x naming first, then fall back to older naming
+        for pattern in (f'{app_label}:{model_name}_bulk_import',
+                        f'{app_label}:{model_name}_import'):
+            try:
+                return reverse(pattern)
+            except NoReverseMatch:
+                continue
+        return None
 
 
 # =============================================================================
