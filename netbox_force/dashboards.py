@@ -214,7 +214,7 @@ def _parse_quicklink_lines(raw_text):
 @register_widget
 class QuickLinksWidget(DashboardWidget):
     default_title = 'Quick Links'
-    description = 'Configurable quick-links with logos and optional notice / Schnellzugriff mit Logos und Hinweistext'
+    description = 'Configurable quick-links with logos and optional notice'
     width = 4
     height = 3
 
@@ -258,12 +258,15 @@ class QuickLinksWidget(DashboardWidget):
                 notice_hlp = ui.get('widget_quicklinks_notice_help',
                                     'Optional text shown above the links.')
                 links_lbl = ui.get('widget_quicklinks_links_label', 'Links')
+                links_hlp = ui.get('widget_quicklinks_links_help', '')
                 if notice_lbl:
                     self.fields['notice'].label = notice_lbl
                 if notice_hlp:
                     self.fields['notice'].help_text = notice_hlp
                 if links_lbl:
                     self.fields['links'].label = links_lbl
+                if links_hlp:
+                    self.fields['links'].help_text = links_hlp
             except Exception:
                 pass
 
