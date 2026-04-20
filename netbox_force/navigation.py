@@ -7,7 +7,7 @@ from netbox.plugins import PluginMenu, PluginMenuItem
 menu = PluginMenu(
     label='NetBox Force',
     groups=(
-        ('', (
+        ('NetBox Force', (
             PluginMenuItem(
                 link='plugins:netbox_force:settings',
                 link_text='Settings',

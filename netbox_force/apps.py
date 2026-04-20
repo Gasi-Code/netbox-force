@@ -72,7 +72,7 @@ def _localize_menu():
         _self._menu = PluginMenu(
             label='NetBox Force',
             groups=(
-                ('', (
+                ('NetBox Force', (
                     PluginMenuItem(
                         link='plugins:netbox_force:settings',
                         link_text=ui.get('tab_settings', 'Settings'),
