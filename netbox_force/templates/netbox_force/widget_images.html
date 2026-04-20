@@ -142,7 +142,9 @@
 
 {# Config data for CSP-safe JS (no inline script) #}
 <div id="widget-images-config" style="display:none;"
-     data-copied="{{ ui.widget_images_copied|default:'Copied!' }}">
+     data-copied="{{ ui.widget_images_copied|default:'Copied!' }}"
+     data-choose-file="{{ ui.widget_images_choose_file|default:'Choose file' }}"
+     data-no-file="{{ ui.widget_images_no_file|default:'No file selected' }}">
 </div>
 <script src="{% static 'netbox_force/widget_images.js' %}"></script>
 {% endblock content %}

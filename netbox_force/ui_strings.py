@@ -320,6 +320,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Kopiert!',
         'widget_images_upload_success': 'Bild "{name}" erfolgreich hochgeladen.',
         'widget_images_delete_success': 'Bild "{name}" gelöscht.',
+        'widget_images_choose_file': 'Datei auswählen',
+        'widget_images_no_file': 'Keine Datei ausgewählt',
     },
 
     'en': {
@@ -638,6 +640,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Copied!',
         'widget_images_upload_success': 'Image "{name}" uploaded successfully.',
         'widget_images_delete_success': 'Image "{name}" deleted.',
+        'widget_images_choose_file': 'Choose file',
+        'widget_images_no_file': 'No file selected',
     },
 
     'es': {
@@ -956,6 +960,8 @@ UI_STRINGS = {
         'widget_images_copied': '¡Copiado!',
         'widget_images_upload_success': 'Imagen "{name}" subida correctamente.',
         'widget_images_delete_success': 'Imagen "{name}" eliminada.',
+        'widget_images_choose_file': 'Elegir archivo',
+        'widget_images_no_file': 'Ningún archivo seleccionado',
     },
 
     'cs': {
@@ -1243,6 +1249,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Zkopírováno!',
         'widget_images_upload_success': 'Obrázek "{name}" byl úspěšně nahrán.',
         'widget_images_delete_success': 'Obrázek "{name}" byl smazán.',
+        'widget_images_choose_file': 'Vybrat soubor',
+        'widget_images_no_file': 'Žádný soubor nebyl vybrán',
     },
 
     'da': {
@@ -1530,6 +1538,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Kopieret!',
         'widget_images_upload_success': 'Billede "{name}" uploadet succesfuldt.',
         'widget_images_delete_success': 'Billede "{name}" slettet.',
+        'widget_images_choose_file': 'Vælg fil',
+        'widget_images_no_file': 'Ingen fil valgt',
     },
 
     'fr': {
@@ -1817,6 +1827,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Copié !',
         'widget_images_upload_success': 'Image "{name}" téléversée avec succès.',
         'widget_images_delete_success': 'Image "{name}" supprimée.',
+        'widget_images_choose_file': 'Choisir un fichier',
+        'widget_images_no_file': 'Aucun fichier sélectionné',
     },
 
     'it': {
@@ -2104,6 +2116,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Copiato!',
         'widget_images_upload_success': 'Immagine "{name}" caricata con successo.',
         'widget_images_delete_success': 'Immagine "{name}" eliminata.',
+        'widget_images_choose_file': 'Scegli file',
+        'widget_images_no_file': 'Nessun file selezionato',
     },
 
     'ja': {
@@ -2391,6 +2405,8 @@ UI_STRINGS = {
         'widget_images_copied': 'コピーしました！',
         'widget_images_upload_success': '画像 "{name}" を正常にアップロードしました。',
         'widget_images_delete_success': '画像 "{name}" を削除しました。',
+        'widget_images_choose_file': 'ファイルを選択',
+        'widget_images_no_file': 'ファイルが選択されていません',
     },
 
     'lv': {
@@ -2678,6 +2694,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Nokopēts!',
         'widget_images_upload_success': 'Attēls "{name}" veiksmīgi augšupielādēts.',
         'widget_images_delete_success': 'Attēls "{name}" dzēsts.',
+        'widget_images_choose_file': 'Izvēlēties failu',
+        'widget_images_no_file': 'Nav izvēlēts neviens fails',
     },
 
     'nl': {
@@ -2965,6 +2983,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Gekopieerd!',
         'widget_images_upload_success': 'Afbeelding "{name}" succesvol geüpload.',
         'widget_images_delete_success': 'Afbeelding "{name}" verwijderd.',
+        'widget_images_choose_file': 'Bestand kiezen',
+        'widget_images_no_file': 'Geen bestand geselecteerd',
     },
 
     'pl': {
@@ -3252,6 +3272,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Skopiowano!',
         'widget_images_upload_success': 'Obraz "{name}" przesłany pomyślnie.',
         'widget_images_delete_success': 'Obraz "{name}" usunięty.',
+        'widget_images_choose_file': 'Wybierz plik',
+        'widget_images_no_file': 'Nie wybrano pliku',
     },
 
     'pt': {
@@ -3539,6 +3561,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Copiado!',
         'widget_images_upload_success': 'Imagem "{name}" carregada com sucesso.',
         'widget_images_delete_success': 'Imagem "{name}" eliminada.',
+        'widget_images_choose_file': 'Escolher arquivo',
+        'widget_images_no_file': 'Nenhum arquivo selecionado',
     },
 
     'ru': {
@@ -3826,6 +3850,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Скопировано!',
         'widget_images_upload_success': 'Изображение "{name}" успешно загружено.',
         'widget_images_delete_success': 'Изображение "{name}" удалено.',
+        'widget_images_choose_file': 'Выбрать файл',
+        'widget_images_no_file': 'Файл не выбран',
     },
 
     'tr': {
@@ -4113,6 +4139,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Kopyalandı!',
         'widget_images_upload_success': '"{name}" görseli başarıyla yüklendi.',
         'widget_images_delete_success': '"{name}" görseli silindi.',
+        'widget_images_choose_file': 'Dosya seç',
+        'widget_images_no_file': 'Dosya seçilmedi',
     },
 
     'uk': {
@@ -4400,6 +4428,8 @@ UI_STRINGS = {
         'widget_images_copied': 'Скопійовано!',
         'widget_images_upload_success': 'Зображення "{name}" успішно завантажено.',
         'widget_images_delete_success': 'Зображення "{name}" видалено.',
+        'widget_images_choose_file': 'Вибрати файл',
+        'widget_images_no_file': 'Файл не вибрано',
     },
 
     'zh-hans': {
@@ -4687,6 +4717,8 @@ UI_STRINGS = {
         'widget_images_copied': '已复制！',
         'widget_images_upload_success': '图片"{name}"上传成功。',
         'widget_images_delete_success': '图片"{name}"已删除。',
+        'widget_images_choose_file': '选择文件',
+        'widget_images_no_file': '未选择文件',
     },
 }
 
