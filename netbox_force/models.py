@@ -644,17 +644,14 @@ class ImportTemplate(models.Model):
     @property
     def netbox_import_url(self):
         """
-        Returns the NetBox CSV import URL for this template's model, e.g.
-        'dcim.device' → '/dcim/devices/import/'
-        NetBox import URLs follow: /{app_label}/{verbose_name_plural_slug}/import/
-        Returns None if the model cannot be resolved.
+        Returns the NetBox CSV import URL using Django's URL resolver.
+        NetBox registers import views as {app_label}:{model_name}_import.
+        Returns None if the model has no registered import view.
         """
         try:
-            from django.apps import apps
+            from django.urls import reverse
             app_label, model_name = self.model_label.lower().split('.', 1)
-            model = apps.get_model(app_label, model_name)
-            slug = model._meta.verbose_name_plural.lower().replace(' ', '-')
-            return f'/{app_label}/{slug}/import/'
+            return reverse(f'{app_label}:{model_name}_import')
         except Exception:
             return None
 
