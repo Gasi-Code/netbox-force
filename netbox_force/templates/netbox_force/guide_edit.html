@@ -122,12 +122,12 @@
             {% csrf_token %}
             {{ form.content }}
 
-            {# Mode Tabs #}
+            {# Mode Tabs — onclick is handled in guide_editor.js (CSP-safe) #}
             <div class="editor-tabs">
-                <div class="editor-tab active" id="tab-wysiwyg" onclick="switchEditor('wysiwyg')">
+                <div class="editor-tab active" id="tab-wysiwyg" style="cursor:pointer;">
                     <i class="mdi mdi-format-text"></i> WYSIWYG
                 </div>
-                <div class="editor-tab" id="tab-html" onclick="switchEditor('html')">
+                <div class="editor-tab" id="tab-html" style="cursor:pointer;">
                     <i class="mdi mdi-code-tags"></i> HTML-Code
                 </div>
             </div>
@@ -170,124 +170,11 @@
     </div>
 </div>
 
+{# Config data for guide_editor.js — passed via data attributes, no inline JS needed #}
+<div id="guide-editor-config" style="display:none;"
+     data-confirm-switch="{{ ui.guide_confirm_switch|default:"The HTML content is a full page with its own CSS/JS. Switching to WYSIWYG mode will lose formatting. Switch anyway?" }}"
+     data-preview-empty="{{ ui.guide_preview_label|default:"Preview" }}">
+</div>
 <script src="{% static 'netbox_force/quill.min.js' %}"></script>
-<script>
-(function() {
-    var quill = new Quill('#quill-editor', {
-        theme: 'snow',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['blockquote', 'code-block'],
-                [{ 'color': [] }, { 'background': [] }],
-                ['clean']
-            ]
-        }
-    });
-
-    var hiddenInput = document.getElementById('id_content');
-    var wysiwygPanel = document.getElementById('wysiwyg-editor-panel');
-    var htmlPanel = document.getElementById('html-editor-panel');
-    var htmlArea = document.getElementById('html-editor-area');
-    var previewFrame = document.getElementById('preview-iframe');
-    var tabWysiwyg = document.getElementById('tab-wysiwyg');
-    var tabHtml = document.getElementById('tab-html');
-    var currentMode = 'wysiwyg';
-    var previewTimer = null;
-
-    // Live preview: update iframe as user types
-    function updatePreview() {
-        var content = htmlArea.value;
-        if (!content.trim()) {
-            previewFrame.srcdoc = '<html><body style="font-family:sans-serif;color:#888;text-align:center;padding:40px;"><p>{{ ui.guide_preview_label|default:"Preview" }}...</p></body></html>';
-            return;
-        }
-        // If it's a full HTML page, render directly
-        if (/^\s*<!DOCTYPE|^\s*<html/i.test(content)) {
-            previewFrame.srcdoc = content;
-        } else {
-            // Wrap simple HTML in a basic page
-            previewFrame.srcdoc = '<html><head><style>body{font-family:sans-serif;padding:20px;line-height:1.6;}</style></head><body>' + content + '</body></html>';
-        }
-    }
-
-    htmlArea.addEventListener('input', function() {
-        clearTimeout(previewTimer);
-        previewTimer = setTimeout(updatePreview, 400);
-    });
-
-    // Tab support in textarea
-    htmlArea.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            var start = this.selectionStart;
-            var end = this.selectionEnd;
-            this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
-            this.selectionStart = this.selectionEnd = start + 2;
-        }
-    });
-
-    // Define switchEditor BEFORE content detection (otherwise full-HTML
-    // pages would call switchEditor() before it exists and crash the IIFE).
-    window.switchEditor = function(mode) {
-        if (mode === currentMode) return;
-
-        if (mode === 'html') {
-            if (currentMode === 'wysiwyg') {
-                var quillHtml = quill.root.innerHTML;
-                if (quillHtml === '<p><br></p>') quillHtml = '';
-                if (!htmlArea.value.trim()) {
-                    htmlArea.value = quillHtml;
-                }
-            }
-            wysiwygPanel.style.display = 'none';
-            htmlPanel.style.display = '';
-            tabWysiwyg.classList.remove('active');
-            tabHtml.classList.add('active');
-            updatePreview();
-        } else {
-            var htmlContent = htmlArea.value.trim();
-            var isPage = /^\s*<!DOCTYPE|^\s*<html/i.test(htmlContent);
-            if (isPage) {
-                if (!confirm('{{ ui.guide_confirm_switch|default:"The HTML content is a full page with its own CSS/JS. Switching to WYSIWYG mode will lose formatting. Switch anyway?" }}')) {
-                    return;
-                }
-            }
-            if (htmlContent) {
-                quill.root.innerHTML = htmlContent;
-            }
-            htmlPanel.style.display = 'none';
-            wysiwygPanel.style.display = '';
-            tabHtml.classList.remove('active');
-            tabWysiwyg.classList.add('active');
-        }
-        currentMode = mode;
-    };
-
-    // Detect if content is a full HTML page and load into correct editor
-    var existingContent = hiddenInput.value;
-    var isFullHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(existingContent);
-
-    if (isFullHtml) {
-        htmlArea.value = existingContent;
-        switchEditor('html');
-    } else if (existingContent) {
-        quill.root.innerHTML = existingContent;
-    }
-
-    // On submit, copy the active editor's content to hidden input
-    document.getElementById('guide-form').addEventListener('submit', function() {
-        if (currentMode === 'html') {
-            hiddenInput.value = htmlArea.value;
-        } else {
-            var html = quill.root.innerHTML;
-            if (html === '<p><br></p>') html = '';
-            hiddenInput.value = html;
-        }
-    });
-})();
-</script>
+<script src="{% static 'netbox_force/guide_editor.js' %}"></script>
 {% endblock content %}
