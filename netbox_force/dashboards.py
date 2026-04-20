@@ -11,6 +11,26 @@ from extras.dashboard.utils import register_widget
 from extras.dashboard.widgets import DashboardWidget, WidgetConfigForm
 
 
+class _LocalizedAttr:
+    """Descriptor that reads a ui_strings key at access time so class-level
+    widget attributes (description, default_title) are served in the active
+    plugin language without requiring an instance."""
+
+    def __init__(self, key, default):
+        self.key = key
+        self.default = default
+
+    def __get__(self, obj, objtype=None):
+        try:
+            from .models import ForceSettings
+            from .ui_strings import get_all_ui_strings
+            settings = ForceSettings.get_settings()
+            lang = getattr(settings, 'language', 'en') if settings else 'en'
+            return get_all_ui_strings(lang).get(self.key, self.default)
+        except Exception:
+            return self.default
+
+
 def _get_widget_strings():
     """Load UI strings based on the plugin's current language setting."""
     try:
@@ -214,7 +234,10 @@ def _parse_quicklink_lines(raw_text):
 @register_widget
 class QuickLinksWidget(DashboardWidget):
     default_title = 'Quick Links'
-    description = 'Configurable quick-links with logos and optional notice'
+    description = _LocalizedAttr(
+        'widget_quicklinks_description',
+        'Configurable quick-links with logos and optional notice',
+    )
     width = 4
     height = 3
 
@@ -254,6 +277,12 @@ class QuickLinksWidget(DashboardWidget):
             super().__init__(*args, **kwargs)
             try:
                 ui, _ = _get_widget_strings()
+                # NetBox base-class fields (title / color)
+                if 'title' in self.fields:
+                    self.fields['title'].label = ui.get('widget_title_label', 'Title')
+                if 'color' in self.fields:
+                    self.fields['color'].label = ui.get('widget_color_label', 'Color')
+                # Plugin-specific fields
                 notice_lbl = ui.get('widget_quicklinks_notice_label', 'Notice text')
                 notice_hlp = ui.get('widget_quicklinks_notice_help',
                                     'Optional text shown above the links.')
