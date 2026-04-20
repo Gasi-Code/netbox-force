@@ -7,11 +7,22 @@
 {% endblock tabs %}
 
 {% block content %}
+{# Config div for JS (CSP-safe: strings via data-* attributes) #}
+<div id="sort-config" style="display:none;"
+     data-reorder-url="{% url 'plugins:netbox_force:import_template_reorder' %}"
+     data-saved="{{ ui.import_template_sort_saved|default:'Order saved.' }}"
+     data-error="{{ ui.import_template_sort_error|default:'Error saving order.' }}"
+     data-drag-hint="{{ ui.import_template_drag_hint|default:'Drag to reorder' }}">
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>{{ ui.import_templates_admin_title|default:"Manage Import Templates" }}</h3>
-    <a href="{% url 'plugins:netbox_force:import_template_add' %}" class="btn btn-primary btn-sm">
-        <i class="mdi mdi-plus-thick"></i> {{ ui.btn_add_template|default:"Add Template" }}
-    </a>
+    <div class="d-flex gap-2 align-items-center">
+        <span id="sort-status" class="small text-success" style="display:none!important;opacity:0;transition:opacity .4s;"></span>
+        <a href="{% url 'plugins:netbox_force:import_template_add' %}" class="btn btn-primary btn-sm">
+            <i class="mdi mdi-plus-thick"></i> {{ ui.btn_add_template|default:"Add Template" }}
+        </a>
+    </div>
 </div>
 
 {% if templates %}
@@ -20,6 +31,7 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width:2rem;"></th>
                     <th>{{ ui.import_templates_col_name|default:"Name" }}</th>
                     <th>{{ ui.import_templates_col_model|default:"Model" }}</th>
                     <th>{{ ui.import_templates_col_description|default:"Description" }}</th>
@@ -27,9 +39,14 @@
                     <th class="text-end">{{ ui.import_templates_col_actions|default:"Actions" }}</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="sortable-template-list">
                 {% for tpl in templates %}
-                <tr>
+                <tr data-pk="{{ tpl.pk }}" class="sortable-row">
+                    <td class="text-center drag-handle"
+                        style="cursor:grab; user-select:none;"
+                        title="{{ ui.import_template_drag_hint|default:'Drag to reorder' }}">
+                        <i class="mdi mdi-drag-vertical text-muted"></i>
+                    </td>
                     <td>
                         <strong>{{ tpl.display_name }}</strong>
                     </td>
@@ -69,4 +86,6 @@
     </div>
 </div>
 {% endif %}
+
+<script src="{{ STATIC_URL }}netbox_force/import_template_sort.js"></script>
 {% endblock content %}

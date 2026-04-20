@@ -1081,6 +1081,22 @@ class ImportTemplateDeleteView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:import_template_admin')
 
 
+class ImportTemplateReorderView(SuperuserRequiredMixin, View):
+    """AJAX endpoint: save drag-drop sort order for import templates.
+    Expects POST body: {"order": [pk1, pk2, pk3, ...]}
+    """
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            order = data.get('order', [])
+            for position, pk in enumerate(order):
+                ImportTemplate.objects.filter(pk=int(pk)).update(sort_order=position)
+            return JsonResponse({'status': 'ok'})
+        except Exception as exc:
+            return JsonResponse({'status': 'error', 'message': str(exc)}, status=400)
+
+
 class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
     """Downloads a single import template as CSV file."""
 

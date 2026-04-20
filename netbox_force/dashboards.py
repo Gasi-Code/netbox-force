@@ -99,6 +99,14 @@ class ImportTemplatesWidget(DashboardWidget):
             required=False,
             initial=True,
         )
+        max_items = forms.IntegerField(
+            label='Max templates',
+            required=False,
+            initial=10,
+            min_value=1,
+            max_value=50,
+            widget=forms.NumberInput(attrs={'style': 'width:5rem;'}),
+        )
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -109,6 +117,11 @@ class ImportTemplatesWidget(DashboardWidget):
                 self.fields['show_model'].help_text = ui.get(
                     'import_templates_show_model_help',
                     'Show or hide the model column in the table.')
+                self.fields['max_items'].label = ui.get(
+                    'import_templates_max_items', 'Max templates')
+                self.fields['max_items'].help_text = ui.get(
+                    'import_templates_max_items_help',
+                    'Maximum number of templates shown in the widget (1–50).')
             except Exception:
                 pass
 
@@ -118,6 +131,12 @@ class ImportTemplatesWidget(DashboardWidget):
 
         # show_model defaults True — backward-compatible with existing widgets
         show_model = self.config.get('show_model', True)
+
+        # max_items defaults 10 — backward-compatible with existing widgets
+        try:
+            max_items = max(1, int(self.config.get('max_items') or 10))
+        except (TypeError, ValueError):
+            max_items = 10
 
         try:
             list_url = reverse('plugins:netbox_force:import_template_list')
@@ -148,7 +167,7 @@ class ImportTemplatesWidget(DashboardWidget):
 
         try:
             from .models import ImportTemplate
-            templates = list(ImportTemplate.objects.filter(enabled=True)[:10])
+            templates = list(ImportTemplate.objects.filter(enabled=True)[:max_items])
         except Exception:
             templates = []
 

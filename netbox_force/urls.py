@@ -31,6 +31,7 @@ urlpatterns = [
     # Import Templates
     path('import-templates/', views.ImportTemplateListView.as_view(), name='import_template_list'),
     path('import-templates/admin/', views.ImportTemplateAdminListView.as_view(), name='import_template_admin'),
+    path('import-templates/reorder/', views.ImportTemplateReorderView.as_view(), name='import_template_reorder'),
     path('import-templates/add/', views.ImportTemplateCreateView.as_view(), name='import_template_add'),
     path('import-templates/<int:pk>/edit/', views.ImportTemplateEditView.as_view(), name='import_template_edit'),
     path('import-templates/<int:pk>/delete/', views.ImportTemplateDeleteView.as_view(), name='import_template_delete'),
