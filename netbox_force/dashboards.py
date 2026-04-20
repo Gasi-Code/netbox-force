@@ -333,3 +333,10 @@ class QuickLinksWidget(DashboardWidget):
             notice=notice_html,
             links=mark_safe(''.join(str(r) for r in rows)),
         )
+
+
+# Backwards-compatibility alias.
+# Dashboard configs saved before the rename from BookmarksWidget to
+# QuickLinksWidget continue to load without errors.  Not registered as a
+# separate widget so it won't appear twice in the "Add widget" dialog.
+BookmarksWidget = QuickLinksWidget
