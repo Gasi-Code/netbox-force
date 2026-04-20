@@ -7,7 +7,7 @@ from netbox.plugins import PluginConfig, PluginMenu, PluginMenuItem
 _menu = PluginMenu(
     label='NetBox Force',
     groups=(
-        ('', (
+        ('NetBox Force', (
             PluginMenuItem(
                 link='plugins:netbox_force:settings',
                 link_text='Settings',
@@ -112,8 +112,11 @@ def _localize_menu():
             ),
             icon_class='mdi mdi-shield-check',
         )
-    except Exception:
-        pass  # Keep English defaults on any failure
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            'netbox_force: _localize_menu() failed, using static defaults: %s', exc
+        )
 
 
 class NetboxForceConfig(PluginConfig):
