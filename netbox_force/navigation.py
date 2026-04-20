@@ -38,6 +38,11 @@ menu = PluginMenu(
                 link_text='Guide',
                 permissions=[],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_force:widget_image_list',
+                link_text='Widget Images',
+                permissions=['netbox_force.view_widgetimage'],
+            ),
         )),
     ),
     icon_class='mdi mdi-shield-check',

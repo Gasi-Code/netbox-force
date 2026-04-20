@@ -10,13 +10,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.db.models.functions import TruncDate
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from .forms import ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm
-from .models import ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate, GuidePage
+from .forms import ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm, WidgetImageUploadForm
+from .models import ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate, GuidePage, WidgetImage
 from .signals import check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
 
@@ -1201,3 +1201,115 @@ class GuideEditView(SuperuserRequiredMixin, View):
         })
         return render(request, 'netbox_force/guide_edit.html', ctx)
 
+
+# =============================================================================
+# WIDGET IMAGES
+# =============================================================================
+
+def _get_widget_strings():
+    """Load UI strings based on the plugin language."""
+    try:
+        from .ui_strings import get_all_ui_strings
+        settings = ForceSettings.get_settings()
+        language = getattr(settings, 'language', 'en') if settings else 'en'
+        return get_all_ui_strings(language), settings
+    except Exception:
+        return {}, None
+
+
+class WidgetImagesView(SuperuserRequiredMixin, View):
+    """
+    List and upload widget images (superuser only).
+    GET  — show upload form + table of existing images
+    POST — handle file upload
+    """
+
+    def _render(self, request, form, images=None):
+        if images is None:
+            images = WidgetImage.objects.all()
+        ctx = _base_context()
+        ctx.update({
+            'active_tab': 'widget_images',
+            'form': form,
+            'images': images,
+            # Absolute base URL so the template can display copy-ready URLs
+            'base_url': request.build_absolute_uri('/').rstrip('/'),
+        })
+        return render(request, 'netbox_force/widget_images.html', ctx)
+
+    def get(self, request):
+        return self._render(request, WidgetImageUploadForm())
+
+    def post(self, request):
+        import mimetypes
+        import re as _re
+        import unicodedata
+
+        form = WidgetImageUploadForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return self._render(request, form)
+
+        uploaded = request.FILES['file']
+
+        # Sanitize filename: normalize unicode, replace non-safe chars with '_'
+        raw_name = uploaded.name
+        raw_name = unicodedata.normalize('NFKD', raw_name)
+        safe_name = _re.sub(r'[^\w.\-]', '_', raw_name)
+        safe_name = safe_name.lstrip('.')  # No leading dots
+
+        # Detect MIME type
+        import mimetypes as _mimetypes
+        content_type, _ = _mimetypes.guess_type(safe_name)
+        if not content_type:
+            content_type = 'application/octet-stream'
+
+        # If a file with this name already exists, delete the old one first
+        existing = WidgetImage.objects.filter(name=safe_name).first()
+        if existing:
+            existing.delete()
+
+        img = WidgetImage(
+            name=safe_name,
+            file_size=uploaded.size,
+            content_type=content_type,
+            uploaded_by=request.user.username,
+        )
+        img.file.save(safe_name, uploaded, save=True)
+
+        ui, _ = _get_widget_strings()
+        msg = ui.get('widget_images_upload_success', 'Image "{name}" uploaded successfully.')
+        messages.success(request, msg.replace('{name}', safe_name))
+        return redirect('plugins:netbox_force:widget_image_list')
+
+
+class WidgetImageDeleteView(SuperuserRequiredMixin, View):
+    """Delete a widget image record + its file (superuser only, POST only)."""
+
+    def post(self, request, pk):
+        img = get_object_or_404(WidgetImage, pk=pk)
+        name = img.name
+        img.delete()
+        ui, _ = _get_widget_strings()
+        msg = ui.get('widget_images_delete_success', 'Image "{name}" deleted.')
+        messages.success(request, msg.replace('{name}', name))
+        return redirect('plugins:netbox_force:widget_image_list')
+
+
+class WidgetImageServeView(AuthenticatedRequiredMixin, View):
+    """
+    Serve an uploaded widget image file.
+    Only authenticated users can access (authentication via LoginRequiredMixin).
+    """
+
+    def get(self, request, filename):
+        from django.http import Http404
+        img = get_object_or_404(WidgetImage, name=filename)
+        try:
+            f = img.file.open('rb')
+            response = FileResponse(
+                f,
+                content_type=img.content_type or 'application/octet-stream',
+            )
+            return response
+        except (FileNotFoundError, OSError):
+            raise Http404('Image file not found on disk.')

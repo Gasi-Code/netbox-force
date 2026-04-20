@@ -688,3 +688,63 @@ class GuidePage(models.Model):
         except (OperationalError, ProgrammingError):
             return None
 
+
+# =============================================================================
+# WIDGET IMAGES
+# =============================================================================
+
+class WidgetImage(models.Model):
+    """
+    Uploaded image files for use in dashboard widgets (e.g. QuickLinksWidget logos).
+    Files are served at /plugins/netbox-force/widget/images/<name>.
+    Superusers can upload / delete; authenticated users can view.
+    """
+
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        verbose_name='Filename',
+        help_text='Filename as used in the widget URL (e.g. company-logo.png)',
+    )
+    file = models.FileField(
+        upload_to='netbox_force/widget_images/',
+        verbose_name='File',
+    )
+    file_size = models.PositiveIntegerField(
+        default=0,
+        verbose_name='File size (bytes)',
+    )
+    content_type = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Content type',
+    )
+    uploaded_by = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Uploaded by',
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Uploaded at',
+    )
+
+    class Meta:
+        verbose_name = 'Widget Image'
+        verbose_name_plural = 'Widget Images'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def delete(self, *args, **kwargs):
+        """Delete the actual file from storage when the DB record is removed."""
+        if self.file:
+            try:
+                self.file.delete(save=False)
+            except Exception:
+                pass
+        super().delete(*args, **kwargs)
+

@@ -38,6 +38,11 @@ _menu = PluginMenu(
                 link_text='Guide',
                 permissions=[],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_force:widget_image_list',
+                link_text='Widget Images',
+                permissions=['netbox_force.view_widgetimage'],
+            ),
         )),
     ),
     icon_class='mdi mdi-shield-check',
@@ -97,6 +102,11 @@ def _localize_menu():
                         link='plugins:netbox_force:guide',
                         link_text=ui.get('tab_guide', 'Guide'),
                         permissions=[],
+                    ),
+                    PluginMenuItem(
+                        link='plugins:netbox_force:widget_image_list',
+                        link_text=ui.get('tab_widget_images', 'Widget Images'),
+                        permissions=['netbox_force.view_widgetimage'],
                     ),
                 )),
             ),

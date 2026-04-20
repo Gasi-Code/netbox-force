@@ -1,0 +1,148 @@
+{% extends 'base/layout.html' %}
+{% load static %}
+
+{% block title %}NetBox Force - {{ ui.widget_images_title|default:"Widget Images" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>{{ ui.widget_images_title|default:"Widget Images" }}</h3>
+</div>
+
+{# Upload Form #}
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="mdi mdi-upload"></i> {{ ui.widget_images_upload_title|default:"Upload Image" }}</strong>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="row align-items-end g-3">
+                <div class="col-md-8">
+                    <label class="form-label">{{ ui.widget_images_file_label|default:"Image file" }}</label>
+                    {{ form.file }}
+                    <div class="form-text text-muted mt-1">
+                        <i class="mdi mdi-information-outline"></i>
+                        {{ ui.widget_images_allowed|default:"Allowed formats: SVG, PNG, JPG, JPEG, GIF. Max size: 5 MB." }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="mdi mdi-upload"></i> {{ ui.widget_images_btn_upload|default:"Upload" }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Usage Hint #}
+<div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+    <i class="mdi mdi-lightbulb-outline mt-1" style="font-size: 1.2rem; flex-shrink: 0;"></i>
+    <div>
+        <strong>{{ ui.widget_images_hint_title|default:"How to use" }}</strong><br>
+        <span class="small">{{ ui.widget_images_usage_hint|default:"Copy the URL of an uploaded image and paste it as the logo URL in a Quick Links widget entry. Format: logo-URL | Name | target-URL" }}</span>
+    </div>
+</div>
+
+{# Image Table #}
+{% if images %}
+<div class="card">
+    <div class="card-header">
+        <strong><i class="mdi mdi-image-multiple"></i> {{ ui.widget_images_table_title|default:"Uploaded Images" }}</strong>
+        <span class="badge bg-secondary ms-2">{{ images|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">{{ ui.widget_images_col_preview|default:"Preview" }}</th>
+                    <th>{{ ui.widget_images_col_name|default:"Filename" }}</th>
+                    <th>{{ ui.widget_images_col_size|default:"Size" }}</th>
+                    <th>{{ ui.widget_images_col_uploaded_by|default:"Uploaded by" }}</th>
+                    <th>{{ ui.widget_images_col_uploaded_at|default:"Uploaded at" }}</th>
+                    <th>{{ ui.widget_images_col_url|default:"URL" }}</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for img in images %}
+                {% with img_url=base_url|add:"/plugins/netbox-force/widget/images/"|add:img.name %}
+                <tr>
+                    <td>
+                        <img src="{{ img_url }}" alt="{{ img.name }}"
+                             style="max-width: 48px; max-height: 36px; object-fit: contain; border-radius: 3px;"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
+                        <i class="mdi mdi-image-broken text-muted" style="display:none; font-size: 1.5rem;"></i>
+                    </td>
+                    <td>
+                        <code class="small">{{ img.name }}</code>
+                    </td>
+                    <td class="text-muted small text-nowrap">
+                        {{ img.file_size }} B
+                    </td>
+                    <td class="small">{{ img.uploaded_by|default:"—" }}</td>
+                    <td class="small text-muted text-nowrap">{{ img.uploaded_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <div class="input-group input-group-sm" style="min-width: 260px; max-width: 420px;">
+                            <input type="text" class="form-control font-monospace"
+                                   value="{{ img_url }}"
+                                   id="url-{{ img.pk }}"
+                                   readonly
+                                   style="font-size: 0.75rem;">
+                            <button class="btn btn-outline-secondary btn-sm"
+                                    type="button"
+                                    data-copy-target="url-{{ img.pk }}"
+                                    title="{{ ui.widget_images_copy_url|default:'Copy URL' }}">
+                                <i class="mdi mdi-content-copy"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <form method="post"
+                              action="{% url 'plugins:netbox_force:widget_image_delete' img.pk %}"
+                              style="display:inline;"
+                              class="widget-image-delete-form"
+                              data-confirm="{{ ui.widget_images_delete_confirm|default:'Delete this image?' }}">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="btn btn-sm btn-outline-danger"
+                                    title="{{ ui.btn_delete|default:'Delete' }}">
+                                <i class="mdi mdi-trash-can-outline"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="mdi mdi-image-off-outline text-muted" style="font-size: 3rem;"></i>
+        <p class="text-muted mt-3">{{ ui.widget_images_empty|default:"No images uploaded yet." }}</p>
+    </div>
+</div>
+{% endif %}
+
+{# Config data for CSP-safe JS (no inline script) #}
+<div id="widget-images-config" style="display:none;"
+     data-copied="{{ ui.widget_images_copied|default:'Copied!' }}">
+</div>
+<script src="{% static 'netbox_force/widget_images.js' %}"></script>
+{% endblock content %}

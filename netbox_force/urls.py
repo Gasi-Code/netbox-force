@@ -41,6 +41,11 @@ urlpatterns = [
     path('guide/standalone/', views.GuideStandaloneView.as_view(), name='guide_standalone'),
     path('guide/edit/', views.GuideEditView.as_view(), name='guide_edit'),
 
+    # Widget Images — order matters: specific patterns before the catch-all serve
+    path('widget/images/', views.WidgetImagesView.as_view(), name='widget_image_list'),
+    path('widget/images/<int:pk>/delete/', views.WidgetImageDeleteView.as_view(), name='widget_image_delete'),
+    path('widget/images/<str:filename>', views.WidgetImageServeView.as_view(), name='widget_image_serve'),
+
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',

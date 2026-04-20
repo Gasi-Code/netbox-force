@@ -3,6 +3,7 @@ import re
 from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 
 from .models import ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
 
@@ -437,5 +438,33 @@ class GuidePageForm(forms.ModelForm):
         widgets = {
             'content': forms.HiddenInput(),  # Quill populates this via JS
         }
+
+
+class WidgetImageUploadForm(forms.Form):
+    """Form for uploading widget images."""
+
+    _MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+    _ALLOWED_EXTENSIONS = ['svg', 'png', 'jpg', 'jpeg', 'gif']
+
+    file = forms.FileField(
+        label='Image file',
+        validators=[
+            FileExtensionValidator(allowed_extensions=_ALLOWED_EXTENSIONS),
+        ],
+        help_text='Allowed formats: SVG, PNG, JPG, JPEG, GIF. Max size: 5 MB.',
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.svg,.png,.jpg,.jpeg,.gif',
+        }),
+    )
+
+    def clean_file(self):
+        f = self.cleaned_data.get('file')
+        if f and f.size > self._MAX_SIZE_BYTES:
+            raise ValidationError(
+                'File too large. Maximum allowed size is 5 MB '
+                f'(uploaded: {f.size / 1024 / 1024:.1f} MB).'
+            )
+        return f
 
 
