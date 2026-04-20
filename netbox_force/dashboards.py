@@ -277,12 +277,9 @@ class QuickLinksWidget(DashboardWidget):
             super().__init__(*args, **kwargs)
             try:
                 ui, _ = _get_widget_strings()
-                # NetBox base-class fields (title / color)
-                if 'title' in self.fields:
-                    self.fields['title'].label = ui.get('widget_title_label', 'Title')
-                if 'color' in self.fields:
-                    self.fields['color'].label = ui.get('widget_color_label', 'Color')
-                # Plugin-specific fields
+                # Note: 'title' and 'color' are rendered by NetBox's own
+                # dashboard template, NOT in this ConfigForm — they cannot
+                # be translated from a plugin.
                 notice_lbl = ui.get('widget_quicklinks_notice_label', 'Notice text')
                 notice_hlp = ui.get('widget_quicklinks_notice_help',
                                     'Optional text shown above the links.')
