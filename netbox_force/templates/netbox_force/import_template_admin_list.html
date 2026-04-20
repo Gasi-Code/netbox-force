@@ -11,6 +11,7 @@
 {# Config div for JS (CSP-safe: strings via data-* attributes) #}
 <div id="sort-config" style="display:none;"
      data-reorder-url="{% url 'plugins:netbox_force:import_template_reorder' %}"
+     data-csrf="{{ csrf_token }}"
      data-saved="{{ ui.import_template_sort_saved|default:'Order saved.' }}"
      data-error="{{ ui.import_template_sort_error|default:'Error saving order.' }}"
      data-drag-hint="{{ ui.import_template_drag_hint|default:'Drag to reorder' }}">

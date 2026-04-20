@@ -18,6 +18,7 @@
     if (!cfg) return;
 
     var reorderUrl = cfg.dataset.reorderUrl || '';
+    var csrfToken  = cfg.dataset.csrf       || '';
     var savedMsg   = cfg.dataset.saved      || 'Order saved.';
     var errorMsg   = cfg.dataset.error      || 'Error saving order.';
 
@@ -28,12 +29,6 @@
     var dragSrc  = null;   // the <tr> being dragged
     var overRow  = null;   // the <tr> currently highlighted as drop target
     var dropBefore = true; // insert before or after overRow
-
-    // ── CSRF helper ──────────────────────────────────────────────────────────
-    function getCsrf() {
-        var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : '';
-    }
 
     // ── Status toast ─────────────────────────────────────────────────────────
     function showStatus(msg, isError) {
@@ -81,7 +76,7 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrf(),
+                'X-CSRFToken': csrfToken,
             },
             body: JSON.stringify({ order: order }),
         })
