@@ -366,17 +366,13 @@ class QuickLinksWidget(DashboardWidget):
 
 # Backwards-compatibility shim.
 #
-# A plain Python alias (BookmarksWidget = QuickLinksWidget) does NOT fix the
-# error because the alias shares the same __name__ ('QuickLinksWidget').
-# NetBox's widget registry is keyed by  f"{cls.__module__}.{cls.__name__}",
-# so a lookup for 'netbox_force.dashboards.BookmarksWidget' still returns
-# nothing.  Creating a real subclass gives it __name__ == 'BookmarksWidget',
-# which @register_widget then stores under the correct key.
-#
-# Downside: "Quick Links" appears twice in the Add-widget picker until
-# users have migrated their dashboards — acceptable vs. a broken dashboard.
-@register_widget
+# NOT decorated with @register_widget — that would add a second "Quick Links"
+# entry to the Add-widget picker.  NetBox loads widget classes for existing
+# dashboard configs via import_string('netbox_force.dashboards.BookmarksWidget'),
+# which finds this class by name in the module without it being in the registry.
+# The proper __name__ ('BookmarksWidget', not 'QuickLinksWidget') is what makes
+# the import_string lookup work correctly.
 class BookmarksWidget(QuickLinksWidget):
-    """Registered under the old class name so existing per-user dashboard
-    configs continue to load after the rename to QuickLinksWidget."""
+    """Not registered — only here so import_string can resolve existing
+    per-user dashboard configs saved under the old class name."""
     pass
