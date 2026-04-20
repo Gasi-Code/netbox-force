@@ -24,8 +24,8 @@
         <i class="mdi mdi-chevron-down"></i>
     </a>
     <div class="collapse mt-2" id="widget-hint-body">
-        <p>{{ ui.widget_hint_guide_text|default:"To add a quick link on the NetBox dashboard: Home → Add Widget → Note → paste the Markdown below:" }}</p>
-        <pre class="bg-dark text-light p-2 rounded small mb-0">{{ ui.widget_hint_guide_markdown }}</pre>
+        <p>{{ ui.widget_hint_guide_text|default:"To add the Guide widget to your NetBox home dashboard: Home → Add Widget → search for \"NetBox Force\" → select the desired widget." }}</p>
+        {% if ui.widget_hint_guide_markdown %}<pre class="bg-dark text-light p-2 rounded small mb-0">{{ ui.widget_hint_guide_markdown }}</pre>{% endif %}
     </div>
 </div>
 
