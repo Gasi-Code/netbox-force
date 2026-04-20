@@ -43,7 +43,7 @@
             </thead>
             <tbody id="sortable-template-list">
                 {% for tpl in templates %}
-                <tr data-pk="{{ tpl.pk }}" class="sortable-row">
+                <tr data-pk="{{ tpl.pk }}" class="sortable-row" draggable="true">
                     <td class="text-center drag-handle"
                         style="cursor:grab; user-select:none;"
                         title="{{ ui.import_template_drag_hint|default:'Drag to reorder' }}">

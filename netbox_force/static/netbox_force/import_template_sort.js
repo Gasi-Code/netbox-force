@@ -184,7 +184,6 @@
     tbody.addEventListener('drop',      onDrop);
 
     tbody.querySelectorAll('tr[data-pk]').forEach(function (row) {
-        row.setAttribute('draggable', 'true');
         row.addEventListener('dragstart', onDragStart);
         row.addEventListener('dragend',   onDragEnd);
     });
