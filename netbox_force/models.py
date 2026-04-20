@@ -6,9 +6,22 @@ from django.db.utils import OperationalError, ProgrammingError
 
 
 LANGUAGE_CHOICES = [
+    ('cs', 'Čeština'),
+    ('da', 'Dansk'),
     ('de', 'Deutsch'),
     ('en', 'English'),
     ('es', 'Español'),
+    ('fr', 'Français'),
+    ('it', 'Italiano'),
+    ('ja', '日本語'),
+    ('lv', 'Latviešu'),
+    ('nl', 'Nederlands'),
+    ('pl', 'Polski'),
+    ('pt', 'Português'),
+    ('ru', 'Русский'),
+    ('tr', 'Türkçe'),
+    ('uk', 'Українська'),
+    ('zh-hans', '中文'),
 ]
 
 
@@ -20,7 +33,7 @@ class ForceSettings(models.Model):
 
     # --- General ---
     language = models.CharField(
-        max_length=5,
+        max_length=10,
         choices=LANGUAGE_CHOICES,
         default='de',
         verbose_name='Language',
@@ -149,6 +162,18 @@ class ForceSettings(models.Model):
         default='',
         verbose_name='Exempt groups',
         help_text='One group name per line. All members of these groups are exempt from enforcement.',
+    )
+
+    # --- Feature Toggles ---
+    ticket_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Enable ticket reference check',
+        help_text='If disabled, ticket reference checks are skipped even if a pattern is configured.',
+    )
+    blacklist_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Enable blocked phrases check',
+        help_text='If disabled, blocked phrase checks are skipped even if phrases are configured.',
     )
 
     # --- Webhook Notifications ---

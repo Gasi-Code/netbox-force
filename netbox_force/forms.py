@@ -22,7 +22,9 @@ class ForceSettingsForm(forms.ModelForm):
             'enforce_on_create',
             'enforce_on_delete',
             'dry_run',
+            'blacklist_enabled',
             'blacklisted_phrases',
+            'ticket_enabled',
             'ticket_pattern',
             'ticket_pattern_hint',
             'change_window_enabled',
@@ -78,6 +80,12 @@ class ForceSettingsForm(forms.ModelForm):
                 'placeholder': 'z.B. JIRA-1234 oder CHG0012345',
             }),
             'dry_run': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'blacklist_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'ticket_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
             }),
             'change_window_enabled': forms.CheckboxInput(attrs={

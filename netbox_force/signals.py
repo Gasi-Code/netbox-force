@@ -80,13 +80,43 @@ _NOT_CHECKED = object()
 
 # Weekday names for error messages
 _WEEKDAY_NAMES = {
+    'cs': {1: 'Po', 2: 'Út', 3: 'St', 4: 'Čt', 5: 'Pá', 6: 'So', 7: 'Ne'},
+    'da': {1: 'Man', 2: 'Tir', 3: 'Ons', 4: 'Tor', 5: 'Fre', 6: 'Lør', 7: 'Søn'},
     'de': {1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa', 7: 'So'},
     'en': {1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'},
     'es': {1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom'},
+    'fr': {1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim'},
+    'it': {1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Gio', 5: 'Ven', 6: 'Sab', 7: 'Dom'},
+    'ja': {1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土', 7: '日'},
+    'lv': {1: 'Pir', 2: 'Otr', 3: 'Tre', 4: 'Cet', 5: 'Pie', 6: 'Ses', 7: 'Svt'},
+    'nl': {1: 'Ma', 2: 'Di', 3: 'Wo', 4: 'Do', 5: 'Vr', 6: 'Za', 7: 'Zo'},
+    'pl': {1: 'Pon', 2: 'Wt', 3: 'Śr', 4: 'Czw', 5: 'Pt', 6: 'Sob', 7: 'Ndz'},
+    'pt': {1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb', 7: 'Dom'},
+    'ru': {1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Вс'},
+    'tr': {1: 'Pzt', 2: 'Sal', 3: 'Çar', 4: 'Per', 5: 'Cum', 6: 'Cmt', 7: 'Paz'},
+    'uk': {1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Нд'},
+    'zh-hans': {1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日'},
 }
 
 # Language-specific prefix for example hints in error messages
-_EXAMPLE_PREFIX = {'de': 'Beispiel', 'en': 'Example', 'es': 'Ejemplo'}
+_EXAMPLE_PREFIX = {
+    'cs': 'Příklad',
+    'da': 'Eksempel',
+    'de': 'Beispiel',
+    'en': 'Example',
+    'es': 'Ejemplo',
+    'fr': 'Exemple',
+    'it': 'Esempio',
+    'ja': '例',
+    'lv': 'Piemērs',
+    'nl': 'Voorbeeld',
+    'pl': 'Przykład',
+    'pt': 'Exemplo',
+    'ru': 'Пример',
+    'tr': 'Örnek',
+    'uk': 'Приклад',
+    'zh-hans': '示例',
+}
 
 
 def _format_hint(custom_msg, prefix=''):
@@ -656,19 +686,21 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         _enforce(reason, error_msg, comment)
 
     # --- Blacklist check ---
-    matched = check_blacklist(comment)
-    if matched:
-        error_msg = build_blacklist_message(instance, request, matched)
-        logger.info("pre_save: %s changelog matches blacklist %s, blocking user '%s'",
-                     model_label, matched, username)
-        _enforce('blacklisted', error_msg, comment)
+    if _get_setting('blacklist_enabled', True):
+        matched = check_blacklist(comment)
+        if matched:
+            error_msg = build_blacklist_message(instance, request, matched)
+            logger.info("pre_save: %s changelog matches blacklist %s, blocking user '%s'",
+                         model_label, matched, username)
+            _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check ---
-    ticket_error = check_ticket_reference(comment, settings, instance, request)
-    if ticket_error:
-        logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
-                     model_label, username)
-        _enforce('ticket_missing', ticket_error, comment)
+    if _get_setting('ticket_enabled', True):
+        ticket_error = check_ticket_reference(comment, settings, instance, request)
+        if ticket_error:
+            logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
+                         model_label, username)
+            _enforce('ticket_missing', ticket_error, comment)
 
 
 @receiver(pre_delete)
@@ -747,16 +779,18 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         _enforce(reason, error_msg, comment)
 
     # --- Blacklist check ---
-    matched = check_blacklist(comment)
-    if matched:
-        error_msg = build_blacklist_message(instance, request, matched)
-        logger.info("pre_delete: %s changelog matches blacklist %s, blocking user '%s'",
-                     model_label, matched, username)
-        _enforce('blacklisted', error_msg, comment)
+    if _get_setting('blacklist_enabled', True):
+        matched = check_blacklist(comment)
+        if matched:
+            error_msg = build_blacklist_message(instance, request, matched)
+            logger.info("pre_delete: %s changelog matches blacklist %s, blocking user '%s'",
+                         model_label, matched, username)
+            _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check ---
-    ticket_error = check_ticket_reference(comment, settings, instance, request)
-    if ticket_error:
-        logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
-                     model_label, username)
-        _enforce('ticket_missing', ticket_error, comment)
+    if _get_setting('ticket_enabled', True):
+        ticket_error = check_ticket_reference(comment, settings, instance, request)
+        if ticket_error:
+            logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
+                         model_label, username)
+            _enforce('ticket_missing', ticket_error, comment)

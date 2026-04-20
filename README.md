@@ -5,6 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![Version](https://img.shields.io/badge/version-4.5.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -20,7 +21,7 @@ NetBox is a powerful source-of-truth platform, but out of the box it places no c
 - Field values conform to naming patterns
 - Required fields are actually filled in
 
-All features are **opt-in**. Out of the box, only the changelog presence check is active with a 2-character minimum. Everything else is enabled and configured through the plugin's web UI — no configuration file changes required after initial setup.
+All features are **opt-in** and can be individually toggled. Out of the box, only the changelog presence check is active with a 2-character minimum. Everything else is enabled and configured through the plugin's web UI — no configuration file changes required after initial setup.
 
 ---
 
@@ -41,12 +42,13 @@ All features are **opt-in**. Out of the box, only the changelog presence check i
 |---|---|
 | **Changelog requirement** | Blocks saves/deletes unless a changelog comment is provided |
 | **Minimum length** | Configurable minimum character count for changelog entries (default: 2) |
-| **Blocked phrases** | Reject changelog entries that contain only meaningless words (whole-word matching, e.g. "fix", "test", "update") |
+| **Blocked phrases** | Reject changelog entries that contain only meaningless words (whole-word matching, e.g. "fix", "test", "update"). Has an explicit enable/disable toggle |
 
 ### Ticket Reference
 
 | Feature | Description |
 |---|---|
+| **Explicit toggle** | Enable or disable the ticket reference check independently with a dedicated toggle |
 | **Regex-based ticket requirement** | Require every changelog comment to reference a ticket number matching a configurable regex pattern |
 | **Human-readable hint** | Show a custom example (e.g. `JIRA-1234`) instead of the raw regex in error messages |
 
@@ -70,6 +72,7 @@ All features are **opt-in**. Out of the box, only the changelog presence check i
 | **Per-model, per-field** | Each rule targets a specific model + field combination |
 | **Custom error messages** | Show a human-readable hint when a rule fails |
 | **Model dropdown** | Searchable dropdown of all installed models in the rule editor |
+| **Inline enable/disable** | Toggle rules on/off from the list view without opening the edit form |
 
 ### Change Windows
 
@@ -87,6 +90,7 @@ All features are **opt-in**. Out of the box, only the changelog presence check i
 | **Per-model min. length override** | Require longer (or shorter) changelog entries for specific models |
 | **Per-model naming rule toggle** | Disable naming convention checks for a specific model |
 | **Per-model required field toggle** | Disable required field checks for a specific model |
+| **Inline enable/disable** | Toggle policies on/off from the list view without opening the edit form |
 
 ### Audit Scan
 
@@ -142,9 +146,31 @@ All features are **opt-in**. Out of the box, only the changelog presence check i
 
 | Feature | Description |
 |---|---|
-| **Multilingual UI** | All labels, help texts, and error messages in German, English, and Spanish. Language switchable per-plugin settings |
+| **Multilingual UI** | All labels, help texts, and error messages available in 16 languages. Language switchable in plugin settings |
+| **Sidebar localization** | Sidebar navigation labels follow the configured plugin language (updated on NetBox restart) |
 | **API support** | Enforcement applies to both UI and API requests. API error messages are always in English |
 | **Singleton settings** | All settings stored in the database — configurable through the web UI without editing configuration files |
+
+**Supported languages:**
+
+| Code | Language |
+|---|---|
+| `cs` | Čeština (Czech) |
+| `da` | Dansk (Danish) |
+| `de` | Deutsch (German) |
+| `en` | English |
+| `es` | Español (Spanish) |
+| `fr` | Français (French) |
+| `it` | Italiano (Italian) |
+| `ja` | 日本語 (Japanese) |
+| `lv` | Latviešu (Latvian) |
+| `nl` | Nederlands (Dutch) |
+| `pl` | Polski (Polish) |
+| `pt` | Português (Portuguese) |
+| `ru` | Русский (Russian) |
+| `tr` | Türkçe (Turkish) |
+| `uk` | Українська (Ukrainian) |
+| `zh-hans` | 中文 (Chinese Simplified) |
 
 ---
 
@@ -287,16 +313,21 @@ The main configuration page. Organized into sections:
 
 - **Global Enforcement** — master on/off switch for all enforcement
 - **Enforcement Rules** — minimum length, create/delete behavior, dry-run mode
-- **Blocked Phrases** — comma-separated words to reject
-- **Ticket Reference** — regex pattern and human-readable hint
+- **Blocked Phrases** — enable/disable toggle + list of phrases to reject (whole-word match)
+- **Ticket Reference** — enable/disable toggle + regex pattern and human-readable hint
 - **Change Window** — time range and weekday filter
 - **Audit Log** — enable/disable logging and set retention period
-- **Exemptions** — exempt users and exempt models
+- **Webhook** — enable/disable + endpoint URL and optional HMAC signing secret
+- **Exemptions** — exempt users, groups, and models
 - **Modules** — enable/disable Import Templates and User Guide
 
 ### Validation Rules
 
-Create and manage naming convention and required field rules. Each rule targets a specific model and field. Rules are cached for 30 seconds and take effect immediately after saving.
+Create and manage naming convention and required field rules. Each rule targets a specific model and field. Rules are cached for 30 seconds and take effect immediately after saving. Rules can be toggled on/off from the list view using inline buttons.
+
+### Model Policies
+
+Override enforcement behavior for specific models without touching global settings. Model policies allow you to exempt a single model, set a longer minimum changelog length, or selectively disable naming/required-field checks. Policies can be toggled on/off from the list view using inline buttons.
 
 ### Violations (Audit Log)
 
@@ -352,7 +383,7 @@ Signal Handler (pre_save / pre_delete)
     │
     ├── No HTTP request (migration/management command)? ──► skip
     ├── Model exempt? ──────────────────────────────────► skip
-    ├── User exempt? ──────────────────────────────────► skip
+    ├── User exempt (by username or group)? ───────────► skip
     ├── Global enforcement disabled? ─────────────────► skip
     ├── Existing object with no real changes? ─────────► skip
     │
@@ -360,12 +391,16 @@ Signal Handler (pre_save / pre_delete)
     ├── Naming convention check ───────────────────────► AbortRequest (if violated)
     ├── Required field check ──────────────────────────► AbortRequest (if empty)
     ├── Changelog present + long enough? ─────────────► AbortRequest (if missing/short)
-    ├── Blocked phrases check ─────────────────────────► AbortRequest (if matched)
-    └── Ticket reference check ────────────────────────► AbortRequest (if missing)
+    ├── Blocked phrases check (if enabled) ────────────► AbortRequest (if matched)
+    └── Ticket reference check (if enabled) ───────────► AbortRequest (if missing)
          │
          ▼
     All checks passed ──────────────────────────────────► save/delete proceeds
 ```
+
+### Language & Sidebar Localization
+
+The plugin's UI language is set in **Settings → Language**. In-plugin tabs, labels, help texts, and error messages update immediately on every request. Sidebar navigation labels (in NetBox's left nav) are read at startup — they update after the next **NetBox restart**.
 
 ### API Support
 
@@ -398,6 +433,25 @@ The plugin automatically bypasses enforcement for:
 
 ---
 
+## Changelog
+
+### v4.5.0
+- **Explicit feature toggles** — Blocked Phrases and Ticket Reference now each have a dedicated enable/disable checkbox, consistent with Change Window and Webhook. Existing setups are unaffected (both default to enabled).
+- **16 languages** — Added Czech, Danish, French, Italian, Japanese, Latvian, Dutch, Polish, Portuguese, Russian, Turkish, Ukrainian, and Chinese Simplified. All UI strings are fully translated in each language.
+- **Sidebar localization** — Plugin sidebar navigation labels now follow the configured language (requires NetBox restart after language change).
+
+### v4.4.0
+- **Model Policies** — Per-model enforcement overrides: enable/disable enforcement, set a custom minimum changelog length, and toggle naming/required-field checks per model.
+- **Audit Scan** — Retroactive compliance scan that checks existing database objects against active validation rules without making any changes.
+- **Webhook Notifications** — HTTP POST notifications on every blocked change, with optional HMAC-SHA256 payload signing.
+- **Group Exemptions** — Exempt all members of a Django group from enforcement without listing individual usernames.
+- **Inline Toggle Buttons** — Enable/disable Validation Rules and Model Policies directly from the list view.
+
+### v4.3.x and earlier
+- Initial release with changelog enforcement, ticket reference, blocked phrases, change windows, validation rules, audit log, dashboard, import templates, and user guide.
+
+---
+
 ## Troubleshooting
 
 ### Plugin not appearing in the sidebar
@@ -408,9 +462,14 @@ The plugin automatically bypasses enforcement for:
 
 ### Enforcement not working
 - Confirm the user is not in the exempt users list (Settings → Exemptions)
+- Confirm the user is not a member of an exempt group
 - Confirm the model is not in the exempt models list
 - Check that `enforce_on_create` is enabled when testing with new objects
+- Verify that the relevant feature toggle (Blocked Phrases, Ticket Reference) is enabled in Settings
 - Enable debug logging: add `'netbox.plugins.netbox_force': 'DEBUG'` to `LOGGING` in `configuration.py`
+
+### Sidebar labels still in English after changing language
+The sidebar navigation is read once at NetBox startup. After changing the language in Settings, restart NetBox for the sidebar labels to update. In-plugin tabs and all UI strings update immediately without a restart.
 
 ### Migration errors on startup
 - Ensure the plugin is installed **before** NetBox runs its init process

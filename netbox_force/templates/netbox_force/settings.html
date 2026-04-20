@@ -21,7 +21,7 @@
                     <div class="mb-3">
                         <label for="id_language" class="form-label">{{ ui.label_language|default:"Language" }}</label>
                         {{ form.language }}
-                        <div class="form-text">{{ ui.help_language|default:"Language for error messages in the NetBox UI." }}</div>
+                        <div class="form-text">{{ ui.help_language|default:"Language for error messages in the NetBox UI." }} <span class="text-muted">{{ ui.help_language_sidebar|default:"In-plugin tabs update immediately. Sidebar navigation labels update after NetBox restart." }}</span></div>
                     </div>
                 </div>
             </div>
@@ -77,10 +77,17 @@
                     <i class="mdi mdi-block-helper"></i> {{ ui.section_blocked_phrases|default:"Blocked Phrases" }}
                 </h5>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label for="id_blacklisted_phrases" class="form-label">{{ ui.label_blacklisted_phrases|default:"Blocked phrases" }}</label>
-                        {{ form.blacklisted_phrases }}
-                        <div class="form-text">{{ ui.help_blacklisted_phrases|default:"One phrase per line." }}</div>
+                    <div class="mb-3 form-check">
+                        {{ form.blacklist_enabled }}
+                        <label class="form-check-label" for="id_blacklist_enabled">{{ ui.label_blacklist_enabled|default:"Enable blocked phrases check" }}</label>
+                        <div class="form-text">{{ ui.help_blacklist_enabled|default:"If disabled, blocked phrase checks are skipped even if phrases are configured." }}</div>
+                    </div>
+                    <div id="blacklist-fields">
+                        <div class="mb-3">
+                            <label for="id_blacklisted_phrases" class="form-label">{{ ui.label_blacklisted_phrases|default:"Blocked phrases" }}</label>
+                            {{ form.blacklisted_phrases }}
+                            <div class="form-text">{{ ui.help_blacklisted_phrases|default:"One phrase per line." }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -91,23 +98,30 @@
                     <i class="mdi mdi-ticket-confirmation"></i> {{ ui.section_ticket|default:"Ticket Reference" }}
                 </h5>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label for="id_ticket_pattern" class="form-label">{{ ui.label_ticket_pattern|default:"Ticket pattern (Regex)" }}</label>
-                        <div class="input-group">
-                            {{ form.ticket_pattern }}
-                            <select id="ticket-suggestion-select" class="form-select" style="max-width: 280px;">
-                                <option value="">-- {{ ui.rule_help_naming_examples|default:"Examples" }} --</option>
-                            </select>
-                        </div>
-                        {% if form.ticket_pattern.errors %}
-                            <div class="invalid-feedback d-block">{{ form.ticket_pattern.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text" id="ticket-hint">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
+                    <div class="mb-3 form-check">
+                        {{ form.ticket_enabled }}
+                        <label class="form-check-label" for="id_ticket_enabled">{{ ui.label_ticket_enabled|default:"Enable ticket reference check" }}</label>
+                        <div class="form-text">{{ ui.help_ticket_enabled|default:"If disabled, ticket reference checks are skipped even if a pattern is configured." }}</div>
                     </div>
-                    <div class="mb-3">
-                        <label for="id_ticket_pattern_hint" class="form-label">{{ ui.label_ticket_pattern_hint|default:"Ticket example (error message)" }}</label>
-                        {{ form.ticket_pattern_hint }}
-                        <div class="form-text">{{ ui.help_ticket_pattern_hint|default:"Human-readable example shown in error messages. If empty, the raw regex is shown." }}</div>
+                    <div id="ticket-fields">
+                        <div class="mb-3">
+                            <label for="id_ticket_pattern" class="form-label">{{ ui.label_ticket_pattern|default:"Ticket pattern (Regex)" }}</label>
+                            <div class="input-group">
+                                {{ form.ticket_pattern }}
+                                <select id="ticket-suggestion-select" class="form-select" style="max-width: 280px;">
+                                    <option value="">-- {{ ui.rule_help_naming_examples|default:"Examples" }} --</option>
+                                </select>
+                            </div>
+                            {% if form.ticket_pattern.errors %}
+                                <div class="invalid-feedback d-block">{{ form.ticket_pattern.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text" id="ticket-hint">{{ ui.help_ticket_pattern|default:"Regex pattern for required ticket references. Leave empty to disable." }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_ticket_pattern_hint" class="form-label">{{ ui.label_ticket_pattern_hint|default:"Ticket example (error message)" }}</label>
+                            {{ form.ticket_pattern_hint }}
+                            <div class="form-text">{{ ui.help_ticket_pattern_hint|default:"Human-readable example shown in error messages. If empty, the raw regex is shown." }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -275,7 +289,7 @@
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
-                        <td>4.4.0</td>
+                        <td>4.5.0</td>
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>
@@ -313,6 +327,28 @@
         }
         toggleWebhook();
         webhookCheckbox.addEventListener('change', toggleWebhook);
+    }
+
+    // Show/hide blacklist fields based on checkbox
+    const blacklistCheckbox = document.getElementById('id_blacklist_enabled');
+    const blacklistFields = document.getElementById('blacklist-fields');
+    if (blacklistCheckbox && blacklistFields) {
+        function toggleBlacklist() {
+            blacklistFields.style.display = blacklistCheckbox.checked ? '' : 'none';
+        }
+        toggleBlacklist();
+        blacklistCheckbox.addEventListener('change', toggleBlacklist);
+    }
+
+    // Show/hide ticket fields based on checkbox
+    const ticketCheckbox = document.getElementById('id_ticket_enabled');
+    const ticketFields = document.getElementById('ticket-fields');
+    if (ticketCheckbox && ticketFields) {
+        function toggleTicket() {
+            ticketFields.style.display = ticketCheckbox.checked ? '' : 'none';
+        }
+        toggleTicket();
+        ticketCheckbox.addEventListener('change', toggleTicket);
     }
 
     // Ticket pattern suggestion dropdown
