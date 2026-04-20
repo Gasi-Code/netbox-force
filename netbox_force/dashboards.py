@@ -94,11 +94,30 @@ class ImportTemplatesWidget(DashboardWidget):
     height = 3
 
     class ConfigForm(WidgetConfigForm):
-        pass
+        show_model = forms.BooleanField(
+            label='Show model column',
+            required=False,
+            initial=True,
+        )
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            try:
+                ui, _ = _get_widget_strings()
+                self.fields['show_model'].label = ui.get(
+                    'import_templates_show_model', 'Show model column')
+                self.fields['show_model'].help_text = ui.get(
+                    'import_templates_show_model_help',
+                    'Show or hide the model column in the table.')
+            except Exception:
+                pass
 
     def render(self, request):
         ui, settings = _get_widget_strings()
         enabled = settings.import_templates_enabled if settings else False
+
+        # show_model defaults True — backward-compatible with existing widgets
+        show_model = self.config.get('show_model', True)
 
         try:
             list_url = reverse('plugins:netbox_force:import_template_list')
@@ -113,6 +132,9 @@ class ImportTemplatesWidget(DashboardWidget):
         empty_msg = ui.get('import_templates_empty',
                            'Keine Vorlagen vorhanden.')
         all_link = ui.get('widget_templates_all', 'Alle Vorlagen')
+        import_tooltip = ui.get('import_templates_import_tooltip',
+                                'Open NetBox import page for this model')
+        btn_import = ui.get('import_templates_btn_import', 'Import')
 
         if not enabled:
             return format_html(
@@ -148,32 +170,58 @@ class ImportTemplatesWidget(DashboardWidget):
                                  args=[tpl.pk])
             except Exception:
                 dl_url = '#'
+
+            # Description cell
             desc_cell = format_html(
                 '<td class="small text-muted">{}</td>',
                 tpl.description[:60] + '...' if len(tpl.description) > 60
                 else tpl.description
             ) if tpl.description else '<td></td>'
+
+            # Model cell (optional)
+            model_cell = (
+                format_html('<td><code class="small">{}</code></td>', tpl.model_label)
+                if show_model else mark_safe('')
+            )
+
+            # Import button (only when a valid URL can be derived)
+            import_url = tpl.netbox_import_url
+            import_btn = (
+                format_html(
+                    '<a href="{url}" class="btn btn-sm btn-outline-secondary" '
+                    'title="{tooltip}"><i class="mdi mdi-upload"></i></a>',
+                    url=import_url,
+                    tooltip=import_tooltip,
+                )
+                if import_url else mark_safe('')
+            )
+
             rows.append(format_html(
                 '<tr>'
                 '<td>{name}</td>'
-                '<td><code class="small">{model}</code></td>'
+                '{model}'
                 '{desc}'
-                '<td class="text-end">'
-                '<a href="{dl}" class="btn btn-sm btn-outline-primary" '
+                '<td class="text-end" style="white-space:nowrap;">'
+                '<a href="{dl}" class="btn btn-sm btn-outline-primary me-1" '
                 'title="Download"><i class="mdi mdi-download"></i></a>'
+                '{import_btn}'
                 '</td></tr>',
                 name=tpl.display_name,
-                model=tpl.model_label,
+                model=model_cell,
                 desc=mark_safe(desc_cell),
                 dl=dl_url,
+                import_btn=import_btn,
             ))
+
+        # Build header based on show_model
+        model_th = format_html('<th>{}</th>', col_model) if show_model else mark_safe('')
 
         table_rows = mark_safe(''.join(rows))
         return format_html(
             '<div class="table-responsive">'
             '<table class="table table-sm table-hover mb-0">'
             '<thead><tr>'
-            '<th>{col_name}</th><th>{col_model}</th>'
+            '<th>{col_name}</th>{model_th}'
             '<th>{col_desc}</th><th></th>'
             '</tr></thead>'
             '<tbody>{rows}</tbody></table></div>'
@@ -181,7 +229,7 @@ class ImportTemplatesWidget(DashboardWidget):
             '<a href="{url}" class="small text-muted">'
             '{all_link} &rarr;</a></div>',
             col_name=col_name,
-            col_model=col_model,
+            model_th=model_th,
             col_desc=col_desc,
             rows=table_rows,
             url=list_url,

@@ -45,11 +45,18 @@
                 <p class="card-text small">{{ tpl.description }}</p>
                 {% endif %}
             </div>
-            <div class="card-footer">
+            <div class="card-footer d-flex gap-2 flex-wrap">
                 <a href="{% url 'plugins:netbox_force:import_template_download' tpl.pk %}"
                    class="btn btn-sm btn-primary">
                     <i class="mdi mdi-download"></i> {{ ui.btn_download|default:"Download" }}
                 </a>
+                {% if tpl.netbox_import_url %}
+                <a href="{{ tpl.netbox_import_url }}"
+                   class="btn btn-sm btn-outline-secondary"
+                   title="{{ ui.import_templates_import_tooltip|default:'Open NetBox import page for this model' }}">
+                    <i class="mdi mdi-upload"></i> {{ ui.import_templates_btn_import|default:"Import" }}
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
