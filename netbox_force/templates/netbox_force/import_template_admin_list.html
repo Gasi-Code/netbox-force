@@ -1,4 +1,5 @@
 {% extends 'base/layout.html' %}
+{% load static %}
 
 {% block title %}NetBox Force - {{ ui.import_templates_admin_title|default:"Manage Import Templates" }}{% endblock %}
 
@@ -87,5 +88,5 @@
 </div>
 {% endif %}
 
-<script src="{{ STATIC_URL }}netbox_force/import_template_sort.js"></script>
+<script src="{% static 'netbox_force/import_template_sort.js' %}"></script>
 {% endblock content %}
