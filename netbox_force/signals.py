@@ -54,13 +54,14 @@ EXEMPT_MODELS = {
     'core.datasourcefile',
     'core.autosyncrecord',
 
-    # Own plugin models
+    # Own plugin models (plugin-internal, never need a changelog)
     'netbox_force.forcesettings',
     'netbox_force.validationrule',
     'netbox_force.modelpolicy',
     'netbox_force.violation',
     'netbox_force.importtemplate',
     'netbox_force.guidepage',
+    'netbox_force.widgetimage',
 }
 
 # HTTP methods that require a changelog (save)
