@@ -149,15 +149,15 @@
 
     function onDrop(e) {
         e.preventDefault();
-        var target = e.target.closest('tr[data-pk]');
-        if (!target || !dragSrc || target === dragSrc) {
-            clearIndicator(overRow);
-            overRow = null;
-            return;
-        }
 
-        clearIndicator(target);
+        // Use overRow (reliably set by dragenter/dragover) as the drop target.
+        // e.target.closest() is unreliable here because the drop event can fire
+        // on a <td> or the <tbody> itself rather than the <tr>.
+        var target = overRow;
+        clearIndicator(overRow);
         overRow = null;
+
+        if (!target || !dragSrc || target === dragSrc) return;
 
         if (dropBefore) {
             tbody.insertBefore(dragSrc, target);
