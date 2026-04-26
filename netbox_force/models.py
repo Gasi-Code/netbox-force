@@ -175,6 +175,15 @@ class ForceSettings(models.Model):
         verbose_name='Enable blocked phrases check',
         help_text='If disabled, blocked phrase checks are skipped even if phrases are configured.',
     )
+    auto_changelog_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Auto-generate changelog',
+        help_text=(
+            'Automatically generate a changelog message from changed fields '
+            'when the user leaves the field empty. If the user provides a '
+            'message, it is always used as-is.'
+        ),
+    )
 
     # --- Webhook Notifications ---
     webhook_enabled = models.BooleanField(

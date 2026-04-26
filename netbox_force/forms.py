@@ -43,6 +43,7 @@ class ForceSettingsForm(forms.ModelForm):
             'extra_exempt_models',
             'import_templates_enabled',
             'guide_enabled',
+            'auto_changelog_enabled',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -140,6 +141,9 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-check-input',
             }),
             'guide_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'auto_changelog_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
             }),
         }

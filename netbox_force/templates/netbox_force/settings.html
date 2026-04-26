@@ -264,6 +264,11 @@
                         <label class="form-check-label" for="id_guide_enabled">{{ ui.label_guide_enabled|default:"Enable user guide" }}</label>
                         <div class="form-text">{{ ui.help_guide_enabled|default:"If enabled, an editable user guide is shown in the plugin." }}</div>
                     </div>
+                    <div class="mb-3 form-check">
+                        {{ form.auto_changelog_enabled }}
+                        <label class="form-check-label" for="id_auto_changelog_enabled">{{ ui.label_auto_changelog_enabled|default:"Auto-generate changelog" }}</label>
+                        <div class="form-text">{{ ui.help_auto_changelog_enabled|default:"Automatically generates a changelog message from changed fields when the user leaves the field empty. User-provided messages always take priority." }}</div>
+                    </div>
                 </div>
             </div>
 

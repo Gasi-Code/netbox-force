@@ -567,6 +567,145 @@ def build_blacklist_message(instance, request, matched_words):
 
 
 # =============================================================================
+# AUTO-CHANGELOG HELPERS
+# =============================================================================
+
+# Fields never included in the auto-generated diff
+_AUTO_CHANGELOG_SKIP_FIELDS = frozenset({
+    'id', 'pk', 'created', 'last_updated', 'custom_field_data',
+    'local_context_data',
+})
+
+
+def _get_field_display(obj, field):
+    """Return a human-readable value for a single model field."""
+    try:
+        # Choice field (status, type, …)
+        get_display = getattr(obj, f'get_{field.name}_display', None)
+        if callable(get_display):
+            return get_display()
+
+        # ForeignKey — use string representation of related object
+        if field.is_relation and not field.many_to_many and not field.one_to_many:
+            val_id = getattr(obj, field.attname, None)
+            if val_id is None:
+                return '—'
+            try:
+                related = getattr(obj, field.name)
+                return str(related) if related is not None else '—'
+            except Exception:
+                return str(val_id)
+
+        val = getattr(obj, field.attname, None)
+        if val is None:
+            return '—'
+        if isinstance(val, bool):
+            return 'Yes' if val else 'No'
+        s = str(val)
+        return (s[:60] + '…') if len(s) > 60 else s
+    except Exception:
+        return '?'
+
+
+def _generate_changelog_comment(instance):
+    """
+    Generate a human-readable changelog message by comparing the instance
+    with its current database state (for updates) or summarising the object
+    name (for creates).  Returns None on any error so callers can fall back
+    to normal enforcement.
+    """
+    try:
+        model_class = type(instance)
+        verbose = model_class._meta.verbose_name.capitalize()
+
+        # New object — no DB state to compare
+        if instance._state.adding or not instance.pk:
+            return f'{verbose} created: {instance}'
+
+        # Existing object — fetch the original from DB
+        try:
+            original = model_class.objects.get(pk=instance.pk)
+        except model_class.DoesNotExist:
+            return f'{verbose} created: {instance}'
+
+        changes = []
+        for field in model_class._meta.fields:
+            if field.name in _AUTO_CHANGELOG_SKIP_FIELDS:
+                continue
+            if field.attname.endswith('_ptr_id'):
+                continue
+
+            old_val = getattr(original, field.attname, None)
+            new_val = getattr(instance, field.attname, None)
+            if old_val == new_val:
+                continue
+
+            old_display = _get_field_display(original, field)
+            new_display = _get_field_display(instance, field)
+            label = (field.verbose_name or field.name).capitalize()
+            changes.append(f"{label}: '{old_display}' → '{new_display}'")
+
+        if not changes:
+            return None  # Nothing changed — let normal flow handle it
+
+        MAX_SHOWN = 8
+        if len(changes) > MAX_SHOWN:
+            shown = '; '.join(changes[:MAX_SHOWN])
+            return f'{shown} (+{len(changes) - MAX_SHOWN} more)'
+        return '; '.join(changes)
+
+    except Exception:
+        return None
+
+
+def _try_inject_auto_changelog(request, instance):
+    """
+    If auto_changelog_enabled is on and the comment field is currently empty,
+    generate a diff string and inject it into request.POST so that
+    get_changelog_comment() and NetBox's ObjectChangeMiddleware both pick it up.
+
+    Returns True if an auto-comment was injected, False otherwise.
+    """
+    if not _get_setting('auto_changelog_enabled', False):
+        return False
+
+    # Peek at the raw values without triggering the cache
+    raw = ''
+    for fname in ('changelog_message', 'comments', '_changelog_message'):
+        if hasattr(request, 'data') and isinstance(request.data, dict):
+            raw = (request.data.get(fname) or '').strip()
+        if not raw:
+            raw = request.POST.get(fname, '').strip()
+        if raw:
+            break
+
+    if raw:
+        return False  # User already wrote something — leave it alone
+
+    auto = _generate_changelog_comment(instance)
+    if not auto:
+        return False
+
+    # Inject into request.POST (copy() makes it mutable)
+    try:
+        post = request.POST.copy()
+        post['changelog_message'] = auto
+        request.POST = post
+    except Exception:
+        return False
+
+    # Clear the comment cache so get_changelog_comment() re-reads from POST
+    if hasattr(request, '_netbox_force_changelog_comment'):
+        del request._netbox_force_changelog_comment
+
+    # Flag so min_length / blacklist / ticket checks are skipped
+    request._auto_generated_changelog = True
+    logger.debug("auto-changelog injected for %s: %s",
+                 get_model_label(instance), auto[:80])
+    return True
+
+
+# =============================================================================
 # SIGNAL HANDLERS
 # =============================================================================
 
@@ -673,6 +812,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                       model_label)
         return
 
+    # --- Auto-changelog: inject generated comment if field is empty ---
+    _try_inject_auto_changelog(request, instance)
+    auto_generated = getattr(request, '_auto_generated_changelog', False)
+
     # --- Changelog presence + length (min_length respects model policy) ---
     min_len = (policy.min_length_override
                if policy and policy.min_length_override is not None
@@ -680,14 +823,18 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
-        reason = 'too_short' if comment else 'missing_changelog'
-        error_msg = build_error_message(instance, request)
-        logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
-                     model_label, len(comment) if comment else 0, min_len, username)
-        _enforce(reason, error_msg, comment)
+        if auto_generated:
+            # Auto-generated comment is always considered sufficient
+            pass
+        else:
+            reason = 'too_short' if comment else 'missing_changelog'
+            error_msg = build_error_message(instance, request)
+            logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
+                         model_label, len(comment) if comment else 0, min_len, username)
+            _enforce(reason, error_msg, comment)
 
-    # --- Blacklist check ---
-    if _get_setting('blacklist_enabled', True):
+    # --- Blacklist check (skip for auto-generated comments) ---
+    if not auto_generated and _get_setting('blacklist_enabled', True):
         matched = check_blacklist(comment)
         if matched:
             error_msg = build_blacklist_message(instance, request, matched)
@@ -695,8 +842,8 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                          model_label, matched, username)
             _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check ---
-    if _get_setting('ticket_enabled', True):
+    # --- Ticket reference check (skip for auto-generated comments) ---
+    if not auto_generated and _get_setting('ticket_enabled', True):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
@@ -766,6 +913,31 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                      model_label, username)
         _enforce('change_window', window_error)
 
+    # --- Auto-changelog: inject "deleted: Name" if field is empty ---
+    if _get_setting('auto_changelog_enabled', False):
+        raw = ''
+        for fname in ('changelog_message', 'comments', '_changelog_message'):
+            if hasattr(request, 'data') and isinstance(request.data, dict):
+                raw = (request.data.get(fname) or '').strip()
+            if not raw:
+                raw = request.POST.get(fname, '').strip()
+            if raw:
+                break
+        if not raw:
+            verbose = type(instance)._meta.verbose_name.capitalize()
+            auto = f'{verbose} deleted: {instance}'
+            try:
+                post = request.POST.copy()
+                post['changelog_message'] = auto
+                request.POST = post
+                if hasattr(request, '_netbox_force_changelog_comment'):
+                    del request._netbox_force_changelog_comment
+                request._auto_generated_changelog = True
+            except Exception:
+                pass
+
+    auto_generated = getattr(request, '_auto_generated_changelog', False)
+
     # --- Changelog presence + length (min_length respects model policy) ---
     min_len = (policy.min_length_override
                if policy and policy.min_length_override is not None
@@ -773,14 +945,17 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     comment = get_changelog_comment(request)
 
     if not comment or len(comment) < min_len:
-        reason = 'too_short' if comment else 'missing_changelog'
-        error_msg = build_error_message(instance, request)
-        logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
-                     model_label, username)
-        _enforce(reason, error_msg, comment)
+        if auto_generated:
+            pass  # Auto-generated is always sufficient
+        else:
+            reason = 'too_short' if comment else 'missing_changelog'
+            error_msg = build_error_message(instance, request)
+            logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
+                         model_label, username)
+            _enforce(reason, error_msg, comment)
 
-    # --- Blacklist check ---
-    if _get_setting('blacklist_enabled', True):
+    # --- Blacklist check (skip for auto-generated comments) ---
+    if not auto_generated and _get_setting('blacklist_enabled', True):
         matched = check_blacklist(comment)
         if matched:
             error_msg = build_blacklist_message(instance, request, matched)
@@ -788,8 +963,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                          model_label, matched, username)
             _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check ---
-    if _get_setting('ticket_enabled', True):
+    # --- Ticket reference check (skip for auto-generated comments) ---
+    if not auto_generated and _get_setting('ticket_enabled', True):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
