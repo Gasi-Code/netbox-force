@@ -698,6 +698,15 @@ def _try_inject_auto_changelog(request, instance):
     if hasattr(request, '_netbox_force_changelog_comment'):
         del request._netbox_force_changelog_comment
 
+    # Also set directly on the instance so NetBox's to_objectchange() picks it up.
+    # NetBox 4.x reads self._changelog_message from the instance (not request.POST)
+    # in ChangeLoggingMixin.to_objectchange() when creating the ObjectChange record.
+    try:
+        if not getattr(instance, '_changelog_message', None):
+            instance._changelog_message = auto
+    except Exception:
+        pass  # Harmless — instance attribute is best-effort
+
     # Flag so min_length / blacklist / ticket checks are skipped
     request._auto_generated_changelog = True
     logger.debug("auto-changelog injected for %s: %s",
@@ -933,6 +942,12 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                 if hasattr(request, '_netbox_force_changelog_comment'):
                     del request._netbox_force_changelog_comment
                 request._auto_generated_changelog = True
+            except Exception:
+                pass
+            # Also set directly on instance for NetBox's native change logging
+            try:
+                if not getattr(instance, '_changelog_message', None):
+                    instance._changelog_message = auto
             except Exception:
                 pass
 
