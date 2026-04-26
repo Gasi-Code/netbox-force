@@ -33,6 +33,11 @@ MESSAGES = {
         'action_create': 'Erstellen',
         'action_edit': 'Ändern',
         'action_delete': 'Löschen',
+        'auto_changelog_created_msg': '{verbose} erstellt: {name}',
+        'auto_changelog_deleted_msg': '{verbose} gelöscht: {name}',
+        'auto_changelog_more': '(+{n} weitere)',
+        'auto_changelog_bool_yes': 'Ja',
+        'auto_changelog_bool_no': 'Nein',
     },
     'en': {
         'changelog_required': (
@@ -64,6 +69,11 @@ MESSAGES = {
         'action_create': 'creating',
         'action_edit': 'modifying',
         'action_delete': 'deleting',
+        'auto_changelog_created_msg': '{verbose} created: {name}',
+        'auto_changelog_deleted_msg': '{verbose} deleted: {name}',
+        'auto_changelog_more': '(+{n} more)',
+        'auto_changelog_bool_yes': 'Yes',
+        'auto_changelog_bool_no': 'No',
     },
     'es': {
         'changelog_required': (
@@ -95,6 +105,11 @@ MESSAGES = {
         'action_create': 'crear',
         'action_edit': 'modificar',
         'action_delete': 'eliminar',
+        'auto_changelog_created_msg': '{verbose} creado: {name}',
+        'auto_changelog_deleted_msg': '{verbose} eliminado: {name}',
+        'auto_changelog_more': '(+{n} más)',
+        'auto_changelog_bool_yes': 'Sí',
+        'auto_changelog_bool_no': 'No',
     },
     'cs': {
         'changelog_required': (
@@ -126,6 +141,11 @@ MESSAGES = {
         'action_create': 'vytvoření',
         'action_edit': 'úpravě',
         'action_delete': 'odstranění',
+        'auto_changelog_created_msg': '{verbose} vytvořen: {name}',
+        'auto_changelog_deleted_msg': '{verbose} smazán: {name}',
+        'auto_changelog_more': '(+{n} dalších)',
+        'auto_changelog_bool_yes': 'Ano',
+        'auto_changelog_bool_no': 'Ne',
     },
     'da': {
         'changelog_required': (
@@ -157,6 +177,11 @@ MESSAGES = {
         'action_create': 'oprettelse',
         'action_edit': 'ændring',
         'action_delete': 'sletning',
+        'auto_changelog_created_msg': '{verbose} oprettet: {name}',
+        'auto_changelog_deleted_msg': '{verbose} slettet: {name}',
+        'auto_changelog_more': '(+{n} mere)',
+        'auto_changelog_bool_yes': 'Ja',
+        'auto_changelog_bool_no': 'Nej',
     },
     'fr': {
         'changelog_required': (
@@ -188,6 +213,11 @@ MESSAGES = {
         'action_create': 'la création',
         'action_edit': 'la modification',
         'action_delete': 'la suppression',
+        'auto_changelog_created_msg': '{verbose} créé : {name}',
+        'auto_changelog_deleted_msg': '{verbose} supprimé : {name}',
+        'auto_changelog_more': '(+{n} de plus)',
+        'auto_changelog_bool_yes': 'Oui',
+        'auto_changelog_bool_no': 'Non',
     },
     'it': {
         'changelog_required': (
@@ -219,6 +249,11 @@ MESSAGES = {
         'action_create': 'creazione',
         'action_edit': 'modifica',
         'action_delete': 'eliminazione',
+        'auto_changelog_created_msg': '{verbose} creato: {name}',
+        'auto_changelog_deleted_msg': '{verbose} eliminato: {name}',
+        'auto_changelog_more': '(+{n} altri)',
+        'auto_changelog_bool_yes': 'Sì',
+        'auto_changelog_bool_no': 'No',
     },
     'ja': {
         'changelog_required': (
@@ -250,6 +285,11 @@ MESSAGES = {
         'action_create': '作成',
         'action_edit': '編集',
         'action_delete': '削除',
+        'auto_changelog_created_msg': '{verbose} を作成: {name}',
+        'auto_changelog_deleted_msg': '{verbose} を削除: {name}',
+        'auto_changelog_more': '(他 +{n} 件)',
+        'auto_changelog_bool_yes': 'はい',
+        'auto_changelog_bool_no': 'いいえ',
     },
     'lv': {
         'changelog_required': (
@@ -281,6 +321,11 @@ MESSAGES = {
         'action_create': 'izveidošana',
         'action_edit': 'rediģēšana',
         'action_delete': 'dzēšana',
+        'auto_changelog_created_msg': '{verbose} izveidots: {name}',
+        'auto_changelog_deleted_msg': '{verbose} dzēsts: {name}',
+        'auto_changelog_more': '(vēl +{n})',
+        'auto_changelog_bool_yes': 'Jā',
+        'auto_changelog_bool_no': 'Nē',
     },
     'nl': {
         'changelog_required': (
@@ -312,6 +357,11 @@ MESSAGES = {
         'action_create': 'aanmaken',
         'action_edit': 'wijzigen',
         'action_delete': 'verwijderen',
+        'auto_changelog_created_msg': '{verbose} aangemaakt: {name}',
+        'auto_changelog_deleted_msg': '{verbose} verwijderd: {name}',
+        'auto_changelog_more': '(+{n} meer)',
+        'auto_changelog_bool_yes': 'Ja',
+        'auto_changelog_bool_no': 'Nee',
     },
     'pl': {
         'changelog_required': (
@@ -343,6 +393,11 @@ MESSAGES = {
         'action_create': 'tworzenia',
         'action_edit': 'edycji',
         'action_delete': 'usuwania',
+        'auto_changelog_created_msg': '{verbose} utworzono: {name}',
+        'auto_changelog_deleted_msg': '{verbose} usunięto: {name}',
+        'auto_changelog_more': '(+{n} więcej)',
+        'auto_changelog_bool_yes': 'Tak',
+        'auto_changelog_bool_no': 'Nie',
     },
     'pt': {
         'changelog_required': (
@@ -374,6 +429,11 @@ MESSAGES = {
         'action_create': 'criar',
         'action_edit': 'modificar',
         'action_delete': 'eliminar',
+        'auto_changelog_created_msg': '{verbose} criado: {name}',
+        'auto_changelog_deleted_msg': '{verbose} eliminado: {name}',
+        'auto_changelog_more': '(+{n} mais)',
+        'auto_changelog_bool_yes': 'Sim',
+        'auto_changelog_bool_no': 'Não',
     },
     'ru': {
         'changelog_required': (
@@ -405,6 +465,11 @@ MESSAGES = {
         'action_create': 'создании',
         'action_edit': 'изменении',
         'action_delete': 'удалении',
+        'auto_changelog_created_msg': '{verbose} создан: {name}',
+        'auto_changelog_deleted_msg': '{verbose} удалён: {name}',
+        'auto_changelog_more': '(ещё {n})',
+        'auto_changelog_bool_yes': 'Да',
+        'auto_changelog_bool_no': 'Нет',
     },
     'tr': {
         'changelog_required': (
@@ -436,6 +501,11 @@ MESSAGES = {
         'action_create': 'oluşturma',
         'action_edit': 'düzenleme',
         'action_delete': 'silme',
+        'auto_changelog_created_msg': '{verbose} oluşturuldu: {name}',
+        'auto_changelog_deleted_msg': '{verbose} silindi: {name}',
+        'auto_changelog_more': '(+{n} daha)',
+        'auto_changelog_bool_yes': 'Evet',
+        'auto_changelog_bool_no': 'Hayır',
     },
     'uk': {
         'changelog_required': (
@@ -467,6 +537,11 @@ MESSAGES = {
         'action_create': 'створенні',
         'action_edit': 'зміні',
         'action_delete': 'видаленні',
+        'auto_changelog_created_msg': '{verbose} створено: {name}',
+        'auto_changelog_deleted_msg': '{verbose} видалено: {name}',
+        'auto_changelog_more': '(ще {n})',
+        'auto_changelog_bool_yes': 'Так',
+        'auto_changelog_bool_no': 'Ні',
     },
     'zh-hans': {
         'changelog_required': (
@@ -498,6 +573,11 @@ MESSAGES = {
         'action_create': '创建',
         'action_edit': '修改',
         'action_delete': '删除',
+        'auto_changelog_created_msg': '{verbose} 已创建：{name}',
+        'auto_changelog_deleted_msg': '{verbose} 已删除：{name}',
+        'auto_changelog_more': '(另+{n}项)',
+        'auto_changelog_bool_yes': '是',
+        'auto_changelog_bool_no': '否',
     },
 }
 

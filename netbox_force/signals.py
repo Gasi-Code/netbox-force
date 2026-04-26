@@ -577,7 +577,7 @@ _AUTO_CHANGELOG_SKIP_FIELDS = frozenset({
 })
 
 
-def _get_field_display(obj, field):
+def _get_field_display(obj, field, lang='de'):
     """Return a human-readable value for a single model field."""
     try:
         # Choice field (status, type, …)
@@ -600,14 +600,14 @@ def _get_field_display(obj, field):
         if val is None:
             return '—'
         if isinstance(val, bool):
-            return 'Yes' if val else 'No'
+            return get_message('auto_changelog_bool_yes', lang) if val else get_message('auto_changelog_bool_no', lang)
         s = str(val)
         return (s[:60] + '…') if len(s) > 60 else s
     except Exception:
         return '?'
 
 
-def _generate_changelog_comment(instance):
+def _generate_changelog_comment(instance, lang='de'):
     """
     Generate a human-readable changelog message by comparing the instance
     with its current database state (for updates) or summarising the object
@@ -620,13 +620,13 @@ def _generate_changelog_comment(instance):
 
         # New object — no DB state to compare
         if instance._state.adding or not instance.pk:
-            return f'{verbose} created: {instance}'
+            return get_message('auto_changelog_created_msg', lang, verbose=verbose, name=str(instance))
 
         # Existing object — fetch the original from DB
         try:
             original = model_class.objects.get(pk=instance.pk)
         except model_class.DoesNotExist:
-            return f'{verbose} created: {instance}'
+            return get_message('auto_changelog_created_msg', lang, verbose=verbose, name=str(instance))
 
         changes = []
         for field in model_class._meta.fields:
@@ -640,8 +640,8 @@ def _generate_changelog_comment(instance):
             if old_val == new_val:
                 continue
 
-            old_display = _get_field_display(original, field)
-            new_display = _get_field_display(instance, field)
+            old_display = _get_field_display(original, field, lang)
+            new_display = _get_field_display(instance, field, lang)
             label = (field.verbose_name or field.name).capitalize()
             changes.append(f"{label}: '{old_display}' → '{new_display}'")
 
@@ -651,7 +651,7 @@ def _generate_changelog_comment(instance):
         MAX_SHOWN = 8
         if len(changes) > MAX_SHOWN:
             shown = '; '.join(changes[:MAX_SHOWN])
-            return f'{shown} (+{len(changes) - MAX_SHOWN} more)'
+            return f'{shown} ' + get_message('auto_changelog_more', lang, n=len(changes) - MAX_SHOWN)
         return '; '.join(changes)
 
     except Exception:
@@ -682,7 +682,8 @@ def _try_inject_auto_changelog(request, instance):
     if raw:
         return False  # User already wrote something — leave it alone
 
-    auto = _generate_changelog_comment(instance)
+    lang = _get_setting('language', 'de')
+    auto = _generate_changelog_comment(instance, lang=lang)
     if not auto:
         return False
 
@@ -934,7 +935,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                 break
         if not raw:
             verbose = type(instance)._meta.verbose_name.capitalize()
-            auto = f'{verbose} deleted: {instance}'
+            lang = _get_setting('language', 'de')
+            auto = get_message('auto_changelog_deleted_msg', lang, verbose=verbose, name=str(instance))
             try:
                 post = request.POST.copy()
                 post['changelog_message'] = auto
