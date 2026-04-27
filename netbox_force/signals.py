@@ -795,6 +795,7 @@ def _try_inject_auto_changelog(request, instance):
         if not auto:
             return False
         combined = f"{ticket_prefix} — {auto}"
+        is_ticket_only = True
     else:
         # Case 1: empty field — only generate when auto_changelog is enabled
         if not auto_enabled:
@@ -803,6 +804,7 @@ def _try_inject_auto_changelog(request, instance):
         if not auto:
             return False
         combined = auto
+        is_ticket_only = False
 
     # Inject into request.POST (copy() makes it mutable)
     try:
@@ -817,10 +819,14 @@ def _try_inject_auto_changelog(request, instance):
         del request._netbox_force_changelog_comment
 
     # Also set directly on the instance so NetBox's to_objectchange() picks it up.
-    # NetBox 4.x reads self._changelog_message from the instance (not request.POST)
-    # in ChangeLoggingMixin.to_objectchange() when creating the ObjectChange record.
+    # NetBox 4.x reads self._changelog_message from the instance (not request.POST).
+    #
+    # Case 1 (empty field): only set if NetBox hasn't already written something.
+    # Case 2 (ticket-only): NetBox already wrote 'trakIT-1234' on the instance before
+    # pre_save fired — we MUST overwrite it with the combined message, otherwise the
+    # description is lost even though request.POST was correctly updated.
     try:
-        if not getattr(instance, '_changelog_message', None):
+        if is_ticket_only or not getattr(instance, '_changelog_message', None):
             instance._changelog_message = combined
     except Exception:
         pass  # Harmless — instance attribute is best-effort
@@ -1087,9 +1093,12 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                 request._auto_generated_changelog = True
             except Exception:
                 pass
-            # Also set directly on instance for NetBox's native change logging
+            # Also set directly on instance for NetBox's native change logging.
+            # When ticket_prefix is set, NetBox already wrote the bare ticket on the
+            # instance before pre_delete fired — overwrite unconditionally so the
+            # combined message reaches to_objectchange().
             try:
-                if not getattr(instance, '_changelog_message', None):
+                if ticket_prefix or not getattr(instance, '_changelog_message', None):
                     instance._changelog_message = combined
             except Exception:
                 pass
