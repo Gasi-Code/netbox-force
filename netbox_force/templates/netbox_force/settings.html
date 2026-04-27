@@ -120,7 +120,7 @@
                         <div class="mb-3">
                             <label for="id_ticket_pattern_hint" class="form-label">{{ ui.label_ticket_pattern_hint|default:"Ticket example (error message)" }}</label>
                             {{ form.ticket_pattern_hint }}
-                            <div class="form-text">{{ ui.help_ticket_pattern_hint|default:"Human-readable example shown in error messages. If empty, the raw regex is shown." }}</div>
+                            <div class="form-text">{{ ui.help_ticket_pattern_hint|default:"Human-readable example shown in error messages. If empty, the raw regex is shown." }} <strong>{{ ui.help_ticket_pattern_hint_note|default:"This field does not affect matching — it is display-only." }}</strong></div>
                         </div>
                     </div>
                 </div>
