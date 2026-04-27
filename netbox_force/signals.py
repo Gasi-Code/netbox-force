@@ -379,6 +379,40 @@ def _normalize_ticket_pattern(pattern):
     return re.escape(base) + r'\d+'
 
 
+def _get_ticket_only_prefix(raw):
+    """
+    Return the matched ticket string if *raw* contains ONLY a ticket reference
+    (nothing else meaningful), or ``None`` otherwise.
+
+    Used to detect "user typed just the ticket number" so the auto-changelog
+    can be generated and combined: ``"TICKET — description"``.
+
+    Returns ``None`` when:
+    * ticket enforcement is disabled
+    * no ticket_pattern is configured
+    * the regex does not match *raw*
+    * there is additional text beyond the ticket match
+    * the regex is invalid
+    """
+    if not _get_setting('ticket_enabled', True):
+        return None
+    pattern = (_get_setting('ticket_pattern', '') or '').strip()
+    if not pattern:
+        return None
+    try:
+        normalized = _normalize_ticket_pattern(pattern)
+        m = re.search(normalized, raw)
+        if not m:
+            return None
+        # Anything left outside the ticket match?
+        remaining = (raw[:m.start()] + raw[m.end():]).strip()
+        if remaining:
+            return None  # User wrote more than just the ticket number
+        return m.group(0)  # e.g. 'trakIT-1234'
+    except re.error:
+        return None
+
+
 def check_ticket_reference(comment, settings, instance, request):
     """
     Checks if the changelog comment contains a required ticket reference.
@@ -713,9 +747,16 @@ def _generate_changelog_comment(instance, lang='de'):
 
 def _try_inject_auto_changelog(request, instance):
     """
-    If auto_changelog_enabled is on and the comment field is currently empty,
-    generate a diff string and inject it into request.POST so that
-    get_changelog_comment() and NetBox's ObjectChangeMiddleware both pick it up.
+    If auto_changelog_enabled is on, generate a diff string and inject it into
+    request.POST so that get_changelog_comment() and NetBox's
+    ObjectChangeMiddleware both pick it up.
+
+    Three cases are handled:
+    1. Comment field is empty → generate auto-description, inject it.
+    2. Comment field contains ONLY a ticket reference → generate auto-description
+       and combine: "TICKET — description".  The ticket is preserved at the front.
+    3. Comment field has a real description (with or without a ticket) → leave
+       it completely unchanged (user knows what they want).
 
     Returns True if an auto-comment was injected, False otherwise.
     """
@@ -732,18 +773,29 @@ def _try_inject_auto_changelog(request, instance):
         if raw:
             break
 
-    if raw:
-        return False  # User already wrote something — leave it alone
-
     lang = _get_setting('language', 'de')
-    auto = _generate_changelog_comment(instance, lang=lang)
-    if not auto:
-        return False
+
+    if raw:
+        # Case 2: check whether raw is purely a ticket reference
+        ticket_prefix = _get_ticket_only_prefix(raw)
+        if ticket_prefix is None:
+            return False  # User wrote a real description — leave it alone
+        # Only a ticket number was entered — generate description and combine
+        auto = _generate_changelog_comment(instance, lang=lang)
+        if not auto:
+            return False
+        combined = f"{ticket_prefix} — {auto}"
+    else:
+        # Case 1: empty — generate description
+        auto = _generate_changelog_comment(instance, lang=lang)
+        if not auto:
+            return False
+        combined = auto
 
     # Inject into request.POST (copy() makes it mutable)
     try:
         post = request.POST.copy()
-        post['changelog_message'] = auto
+        post['changelog_message'] = combined
         request.POST = post
     except Exception:
         return False
@@ -757,14 +809,15 @@ def _try_inject_auto_changelog(request, instance):
     # in ChangeLoggingMixin.to_objectchange() when creating the ObjectChange record.
     try:
         if not getattr(instance, '_changelog_message', None):
-            instance._changelog_message = auto
+            instance._changelog_message = combined
     except Exception:
         pass  # Harmless — instance attribute is best-effort
 
-    # Flag so min_length / blacklist / ticket checks are skipped
+    # Flag so min_length / blacklist checks are skipped for auto-generated content.
+    # The ticket check still runs and will find the ticket in the combined message.
     request._auto_generated_changelog = True
     logger.debug("auto-changelog injected for %s: %s",
-                 get_model_label(instance), auto[:80])
+                 get_model_label(instance), combined[:80])
     return True
 
 
@@ -976,7 +1029,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                      model_label, username)
         _enforce('change_window', window_error)
 
-    # --- Auto-changelog: inject "deleted: Name" if field is empty ---
+    # --- Auto-changelog: inject "deleted: Name" if field is empty or ticket-only ---
     if _get_setting('auto_changelog_enabled', False):
         raw = ''
         for fname in ('changelog_message', 'comments', '_changelog_message'):
@@ -986,7 +1039,12 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                 raw = request.POST.get(fname, '').strip()
             if raw:
                 break
-        if not raw:
+
+        # Detect "ticket-only" input (same logic as the save flow)
+        ticket_prefix = _get_ticket_only_prefix(raw) if raw else None
+        should_generate = (not raw) or (ticket_prefix is not None)
+
+        if should_generate:
             lang = _get_setting('language', 'de')
             _DJANGO_LANG_MAP = {'pt': 'pt-br'}
             _old_lang = _get_active_lang()
@@ -1002,9 +1060,11 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                 except Exception:
                     pass
             auto = get_message('auto_changelog_deleted_msg', lang, verbose=verbose, name=str(instance))
+            # If user only entered a ticket number, prepend it: "TICKET — deleted: Name"
+            combined = f"{ticket_prefix} — {auto}" if ticket_prefix else auto
             try:
                 post = request.POST.copy()
-                post['changelog_message'] = auto
+                post['changelog_message'] = combined
                 request.POST = post
                 if hasattr(request, '_netbox_force_changelog_comment'):
                     del request._netbox_force_changelog_comment
@@ -1014,7 +1074,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             # Also set directly on instance for NetBox's native change logging
             try:
                 if not getattr(instance, '_changelog_message', None):
-                    instance._changelog_message = auto
+                    instance._changelog_message = combined
             except Exception:
                 pass
 
