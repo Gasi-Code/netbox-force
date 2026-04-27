@@ -350,6 +350,35 @@ def _build_change_window_message(settings):
                        start=start_str, end=end_str, weekdays=weekdays_str)
 
 
+# Characters that unambiguously indicate the user wrote a regex expression
+_TICKET_REGEX_METACHARACTERS = frozenset({'\\', '.', '^', '$', '*', '+', '?',
+                                          '{', '}', '[', ']', '|', '(', ')'})
+
+
+def _normalize_ticket_pattern(pattern):
+    """
+    Convert a simple ticket prefix into a searchable regex.
+
+    If *pattern* contains any regex metacharacter it is returned unchanged so
+    that power-users can write full expressions (e.g. ``JIRA-\\d+``).
+
+    Otherwise the value is treated as a literal prefix.  Any trailing example
+    digits are stripped and ``\\d+`` is appended automatically:
+
+    * ``'ACME-'``     →  ``r'ACME-\\d+'``
+    * ``'ACME-1234'`` →  ``r'ACME-\\d+'``   (example digits stripped)
+    * ``'#'``         →  ``r'#\\d+'``
+    * ``'JIRA-\\d+'`` →  unchanged           (already a regex)
+    """
+    if any(c in _TICKET_REGEX_METACHARACTERS for c in pattern):
+        return pattern  # Already a regex expression — leave untouched
+    # Simple prefix: strip trailing example digits, escape, then append \d+
+    base = pattern.rstrip('0123456789')
+    if not base:
+        return pattern  # Edge case: purely numeric input
+    return re.escape(base) + r'\d+'
+
+
 def check_ticket_reference(comment, settings, instance, request):
     """
     Checks if the changelog comment contains a required ticket reference.
@@ -362,14 +391,19 @@ def check_ticket_reference(comment, settings, instance, request):
     if not pattern or not pattern.strip():
         return None
 
+    raw_pattern = pattern.strip()
+    # Auto-convert simple prefixes (e.g. 'ACME-' or 'ACME-1234') to proper regex.
+    # Full regex expressions (containing metacharacters) are used unchanged.
+    normalized = _normalize_ticket_pattern(raw_pattern)
+
     if not comment:
-        return _build_ticket_message(settings, instance, request, pattern)
+        return _build_ticket_message(settings, instance, request, raw_pattern)
 
     try:
-        if not re.search(pattern.strip(), comment):
-            return _build_ticket_message(settings, instance, request, pattern)
+        if not re.search(normalized, comment):
+            return _build_ticket_message(settings, instance, request, raw_pattern)
     except re.error:
-        logger.warning("Invalid ticket pattern regex: %s — skipping check", pattern)
+        logger.warning("Invalid ticket pattern regex: %s — skipping check", raw_pattern)
         return None
 
     return None
@@ -871,8 +905,8 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
                          model_label, matched, username)
             _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check (skip for auto-generated comments) ---
-    if not auto_generated and _get_setting('ticket_enabled', True):
+    # --- Ticket reference check (always enforced when enabled) ---
+    if _get_setting('ticket_enabled', True):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
@@ -1011,8 +1045,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                          model_label, matched, username)
             _enforce('blacklisted', error_msg, comment)
 
-    # --- Ticket reference check (skip for auto-generated comments) ---
-    if not auto_generated and _get_setting('ticket_enabled', True):
+    # --- Ticket reference check (always enforced when enabled) ---
+    if _get_setting('ticket_enabled', True):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
