@@ -747,20 +747,28 @@ def _generate_changelog_comment(instance, lang='de'):
 
 def _try_inject_auto_changelog(request, instance):
     """
-    If auto_changelog_enabled is on, generate a diff string and inject it into
-    request.POST so that get_changelog_comment() and NetBox's
-    ObjectChangeMiddleware both pick it up.
+    Generate a diff string and inject it into request.POST so that
+    get_changelog_comment() and NetBox's ObjectChangeMiddleware both pick it up.
 
-    Three cases are handled:
-    1. Comment field is empty → generate auto-description, inject it.
-    2. Comment field contains ONLY a ticket reference → generate auto-description
-       and combine: "TICKET — description".  The ticket is preserved at the front.
-    3. Comment field has a real description (with or without a ticket) → leave
-       it completely unchanged (user knows what they want).
+    Three cases — each with its own activation condition:
+
+    1. Comment field is empty + auto_changelog_enabled=True
+       → generate description, inject it.
+
+    2. Comment field contains ONLY a ticket reference + ticket_enabled=True
+       → generate description, combine: "TICKET — description", inject it.
+       Works regardless of auto_changelog_enabled.
+
+    3. Comment field has real content (ticket + own text, or just own text)
+       → leave completely unchanged.
 
     Returns True if an auto-comment was injected, False otherwise.
     """
-    if not _get_setting('auto_changelog_enabled', False):
+    auto_enabled   = _get_setting('auto_changelog_enabled', False)
+    ticket_enabled = _get_setting('ticket_enabled', True)
+
+    # Nothing to do if neither feature is active
+    if not auto_enabled and not ticket_enabled:
         return False
 
     # Peek at the raw values without triggering the cache
@@ -776,7 +784,9 @@ def _try_inject_auto_changelog(request, instance):
     lang = _get_setting('language', 'de')
 
     if raw:
-        # Case 2: check whether raw is purely a ticket reference
+        # Case 2: only act when ticket enforcement is on and input is ticket-only
+        if not ticket_enabled:
+            return False
         ticket_prefix = _get_ticket_only_prefix(raw)
         if ticket_prefix is None:
             return False  # User wrote a real description — leave it alone
@@ -786,7 +796,9 @@ def _try_inject_auto_changelog(request, instance):
             return False
         combined = f"{ticket_prefix} — {auto}"
     else:
-        # Case 1: empty — generate description
+        # Case 1: empty field — only generate when auto_changelog is enabled
+        if not auto_enabled:
+            return False
         auto = _generate_changelog_comment(instance, lang=lang)
         if not auto:
             return False
@@ -1030,7 +1042,9 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         _enforce('change_window', window_error)
 
     # --- Auto-changelog: inject "deleted: Name" if field is empty or ticket-only ---
-    if _get_setting('auto_changelog_enabled', False):
+    _auto_enabled_del   = _get_setting('auto_changelog_enabled', False)
+    _ticket_enabled_del = _get_setting('ticket_enabled', True)
+    if _auto_enabled_del or _ticket_enabled_del:
         raw = ''
         for fname in ('changelog_message', 'comments', '_changelog_message'):
             if hasattr(request, 'data') and isinstance(request.data, dict):
@@ -1040,9 +1054,11 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             if raw:
                 break
 
-        # Detect "ticket-only" input (same logic as the save flow)
-        ticket_prefix = _get_ticket_only_prefix(raw) if raw else None
-        should_generate = (not raw) or (ticket_prefix is not None)
+        # Decide whether to generate:
+        # • empty field  → only when auto_changelog_enabled
+        # • ticket-only  → whenever ticket_enabled (regardless of auto_changelog)
+        ticket_prefix = _get_ticket_only_prefix(raw) if (raw and _ticket_enabled_del) else None
+        should_generate = (not raw and _auto_enabled_del) or (ticket_prefix is not None)
 
         if should_generate:
             lang = _get_setting('language', 'de')
