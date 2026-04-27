@@ -4,6 +4,7 @@ import re
 from django.db.models.signals import pre_save, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.translation import get_language as _get_active_lang, activate as _activate_lang
 
 from utilities.exceptions import AbortRequest
 from netbox.plugins import get_plugin_config
@@ -613,10 +614,20 @@ def _generate_changelog_comment(instance, lang='de'):
     with its current database state (for updates) or summarising the object
     name (for creates).  Returns None on any error so callers can fall back
     to normal enforcement.
+
+    Temporarily activates the plugin language via Django's translation layer
+    so that field.verbose_name and get_FIELD_display() return strings in the
+    configured plugin language (not in whatever Django's global locale is).
     """
+    # Map our codes → Django locale codes where they differ
+    _DJANGO_LANG_MAP = {'pt': 'pt-br'}
+    django_lang = _DJANGO_LANG_MAP.get(lang, lang)
+    old_lang = _get_active_lang()
     try:
+        _activate_lang(django_lang)
+
         model_class = type(instance)
-        verbose = model_class._meta.verbose_name.capitalize()
+        verbose = str(model_class._meta.verbose_name).capitalize()
 
         # New object — no DB state to compare
         if instance._state.adding or not instance.pk:
@@ -642,7 +653,7 @@ def _generate_changelog_comment(instance, lang='de'):
 
             old_display = _get_field_display(original, field, lang)
             new_display = _get_field_display(instance, field, lang)
-            label = (field.verbose_name or field.name).capitalize()
+            label = str(field.verbose_name or field.name).capitalize()
             changes.append(f"{label}: '{old_display}' → '{new_display}'")
 
         if not changes:
@@ -656,6 +667,14 @@ def _generate_changelog_comment(instance, lang='de'):
 
     except Exception:
         return None
+    finally:
+        # Always restore the previous Django language so the rest of the
+        # request is not affected by our temporary switch.
+        try:
+            if old_lang:
+                _activate_lang(old_lang)
+        except Exception:
+            pass
 
 
 def _try_inject_auto_changelog(request, instance):
@@ -934,8 +953,20 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             if raw:
                 break
         if not raw:
-            verbose = type(instance)._meta.verbose_name.capitalize()
             lang = _get_setting('language', 'de')
+            _DJANGO_LANG_MAP = {'pt': 'pt-br'}
+            _old_lang = _get_active_lang()
+            try:
+                _activate_lang(_DJANGO_LANG_MAP.get(lang, lang))
+                verbose = str(type(instance)._meta.verbose_name).capitalize()
+            except Exception:
+                verbose = str(type(instance)._meta.verbose_name).capitalize()
+            finally:
+                try:
+                    if _old_lang:
+                        _activate_lang(_old_lang)
+                except Exception:
+                    pass
             auto = get_message('auto_changelog_deleted_msg', lang, verbose=verbose, name=str(instance))
             try:
                 post = request.POST.copy()
