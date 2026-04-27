@@ -130,14 +130,9 @@ NAMING_PATTERN_SUGGESTIONS = [
 
 TICKET_PATTERN_SUGGESTIONS = [
     {
-        'pattern': 'trakIT-',
-        'label': 'Custom prefix (simple) — trakIT-1234',
-        'example': 'trakIT-1234',
-    },
-    {
-        'pattern': 'MYORG-',
-        'label': 'Custom prefix (simple) — MYORG-5678',
-        'example': 'MYORG-5678',
+        'pattern': 'ACME-',
+        'label': 'Custom prefix (simple) — ACME-1234',
+        'example': 'ACME-1234',
     },
     {
         'pattern': 'JIRA-\\d+',

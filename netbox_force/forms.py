@@ -75,7 +75,7 @@ class ForceSettingsForm(forms.ModelForm):
             }),
             'ticket_pattern': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': r'trakIT-  or  JIRA-\d+  or  #\d+',
+                'placeholder': r'ACME-  or  JIRA-\d+  or  #\d+',
             }),
             'ticket_pattern_hint': forms.TextInput(attrs={
                 'class': 'form-control',
