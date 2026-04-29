@@ -1,6 +1,6 @@
 {% extends 'base/layout.html' %}
 
-{% block title %}NetBox Force — VLAN anlegen{% endblock %}
+{% block title %}NetBox Force — {{ ui.wizard_vlan_title }}{% endblock %}
 
 {% block tabs %}
 {% include 'netbox_force/_tabs.html' %}
@@ -11,7 +11,7 @@
     <div class="col-md-8">
         <div class="card">
             <h5 class="card-header">
-                <i class="mdi mdi-switch"></i> VLAN anlegen
+                <i class="mdi mdi-switch"></i> {{ ui.wizard_vlan_title }}
             </h5>
             <div class="card-body">
                 <form method="post" novalidate>
@@ -69,15 +69,15 @@
                         <label class="form-label fw-semibold">{{ form.changelog_message.label }} <span class="text-danger">*</span></label>
                         {{ form.changelog_message }}
                         {% if form.changelog_message.errors %}<div class="invalid-feedback d-block">{{ form.changelog_message.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Pflichtfeld — wird im NetBox-Changelog gespeichert.</div>
+                        <div class="form-text">{{ ui.wizard_changelog_help }}</div>
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mt-4">
                         <a href="{% url 'plugins:netbox_force:wizard_list' %}" class="btn btn-outline-secondary">
-                            <i class="mdi mdi-arrow-left"></i> Zurück
+                            <i class="mdi mdi-arrow-left"></i> {{ ui.wizard_btn_back }}
                         </a>
                         <button type="submit" class="btn btn-info">
-                            <i class="mdi mdi-content-save"></i> VLAN anlegen
+                            <i class="mdi mdi-content-save"></i> {{ ui.wizard_vlan_btn }}
                         </button>
                     </div>
                 </form>
@@ -87,7 +87,7 @@
 
     <div class="col-md-4">
         <div class="card">
-            <h5 class="card-header"><i class="mdi mdi-help-circle"></i> Hinweise</h5>
+            <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
                 <p><strong>Duplikat-Check</strong><br>
                 VLAN-ID muss innerhalb der gewählten Gruppe eindeutig sein.</p>

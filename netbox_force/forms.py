@@ -1030,6 +1030,27 @@ class WizardConfigForm(forms.ModelForm):
         return instance
 
 
+def localize_wizard_form(form):
+    """
+    Translates form field labels to the current plugin language.
+    Keys follow the pattern wizard_field_<field_name> in ui_strings.py.
+    Call this after apply_wizard_config() in each wizard view.
+    """
+    try:
+        from .models import ForceSettings
+        from .ui_strings import get_all_ui_strings
+        s = ForceSettings.get_settings()
+        lang = getattr(s, 'language', 'de') if s else 'de'
+        ui = get_all_ui_strings(lang)
+        for field_name in list(form.fields.keys()):
+            key = f'wizard_field_{field_name}'
+            translated = ui.get(key)
+            if translated:
+                form.fields[field_name].label = translated
+    except Exception:
+        pass
+
+
 def apply_wizard_config(form, wizard_type):
     """
     Reads WizardConfig for wizard_type and adjusts form field required/hidden status.

@@ -20,7 +20,7 @@ from .forms import (
     GuidePageForm, WidgetImageUploadForm,
     WizardIPForm, WizardPrefixForm, WizardVLANForm,
     WizardSiteForm, WizardDeviceForm, WizardCircuitForm,
-    WizardConfigForm, apply_wizard_config,
+    WizardConfigForm, apply_wizard_config, localize_wizard_form,
 )
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate,
@@ -1383,6 +1383,7 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardIPForm()
         apply_wizard_config(form, 'ip')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_ip.html', ctx)
@@ -1393,6 +1394,7 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardIPForm(request.POST)
         apply_wizard_config(form, 'ip')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1430,6 +1432,7 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardPrefixForm()
         apply_wizard_config(form, 'prefix')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_prefix.html', ctx)
@@ -1440,6 +1443,7 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardPrefixForm(request.POST)
         apply_wizard_config(form, 'prefix')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1454,7 +1458,11 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
                 if cd.get('tenant'):
                     obj.tenant = cd['tenant']
                 if cd.get('site'):
-                    obj.site = cd['site']
+                    # NetBox 4.2+ replaced site FK with scope GenericFK on Prefix
+                    if hasattr(type(obj), 'scope_type'):
+                        obj.scope = cd['site']
+                    else:
+                        obj.site = cd['site']
                 if cd.get('vlan'):
                     obj.vlan = cd['vlan']
                 obj._changelog_message = cd['changelog_message']
@@ -1475,6 +1483,7 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardVLANForm()
         apply_wizard_config(form, 'vlan')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_vlan.html', ctx)
@@ -1485,6 +1494,7 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardVLANForm(request.POST)
         apply_wizard_config(form, 'vlan')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1521,6 +1531,7 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardSiteForm()
         apply_wizard_config(form, 'site')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_site.html', ctx)
@@ -1531,6 +1542,7 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardSiteForm(request.POST)
         apply_wizard_config(form, 'site')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1573,6 +1585,7 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardDeviceForm()
         apply_wizard_config(form, 'device')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_device.html', ctx)
@@ -1583,6 +1596,7 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardDeviceForm(request.POST)
         apply_wizard_config(form, 'device')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1620,6 +1634,7 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardCircuitForm()
         apply_wizard_config(form, 'circuit')
+        localize_wizard_form(form)
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_circuit.html', ctx)
@@ -1630,6 +1645,7 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
             return disabled
         form = WizardCircuitForm(request.POST)
         apply_wizard_config(form, 'circuit')
+        localize_wizard_form(form)
         if form.is_valid():
             cd = form.cleaned_data
             try:
