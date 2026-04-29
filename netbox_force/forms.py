@@ -6,7 +6,10 @@ from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 
-from .models import ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage, LANGUAGE_CHOICES
+from .models import (
+    ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage,
+    WizardConfig, LANGUAGE_CHOICES, WIZARD_CONFIGURABLE_FIELDS,
+)
 
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
@@ -947,5 +950,105 @@ class WizardCircuitForm(forms.Form):
             self.fields['site_termination_a'].queryset = Site.objects.all().order_by('name')
         except Exception:
             pass
+
+
+# =============================================================================
+# WIZARD CONFIGURATION FORM
+# =============================================================================
+
+_FIELD_VISIBILITY_CHOICES = [
+    ('optional', 'Optional'),
+    ('required', 'Pflichtfeld'),
+    ('hidden',   'Ausgeblendet'),
+]
+
+# Human-readable field names for the config UI
+_FIELD_LABELS = {
+    'dns_name':           'DNS-Name',
+    'description':        'Beschreibung',
+    'tenant':             'Mandant',
+    'role':               'Rolle',
+    'site':               'Standort',
+    'vlan':               'VLAN',
+    'region':             'Region',
+    'group':              'Gruppe / Standortgruppe',
+    'serial':             'Seriennummer',
+}
+
+
+class WizardConfigForm(forms.ModelForm):
+    """Form for editing a single WizardConfig entry."""
+
+    class Meta:
+        model = WizardConfig
+        fields = ['enabled', 'custom_label', 'custom_description', 'sort_order']
+        widgets = {
+            'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'custom_label': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Leer lassen für Standard-Label',
+            }),
+            'custom_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Leer lassen für Standard-Beschreibung',
+            }),
+            'sort_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'max': 9999,
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Dynamically add one ChoiceField per configurable field for this wizard type
+        if self.instance and self.instance.wizard_type:
+            configurable = WIZARD_CONFIGURABLE_FIELDS.get(self.instance.wizard_type, [])
+            current_config = self.instance.field_config or {}
+            for field_name in configurable:
+                self.fields[f'field_{field_name}'] = forms.ChoiceField(
+                    label=_FIELD_LABELS.get(field_name, field_name),
+                    choices=_FIELD_VISIBILITY_CHOICES,
+                    initial=current_config.get(field_name, 'optional'),
+                    widget=forms.Select(attrs={'class': 'form-select'}),
+                    required=False,
+                )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Collect field_config from dynamic fields
+        configurable = WIZARD_CONFIGURABLE_FIELDS.get(instance.wizard_type, [])
+        field_config = {}
+        for field_name in configurable:
+            value = self.cleaned_data.get(f'field_{field_name}', 'optional')
+            if value in ('required', 'optional', 'hidden'):
+                field_config[field_name] = value
+        instance.field_config = field_config
+        if commit:
+            instance.save()
+        return instance
+
+
+def apply_wizard_config(form, wizard_type):
+    """
+    Reads WizardConfig for wizard_type and adjusts form field required/hidden status.
+    Call this after form instantiation in both GET and POST handlers.
+    """
+    try:
+        config = WizardConfig.objects.filter(wizard_type=wizard_type).first()
+        if not config or not config.field_config:
+            return
+        for field_name, setting in config.field_config.items():
+            if field_name not in form.fields:
+                continue
+            if setting == 'required':
+                form.fields[field_name].required = True
+            elif setting == 'optional':
+                form.fields[field_name].required = False
+            elif setting == 'hidden':
+                del form.fields[field_name]
+    except Exception:
+        pass
 
 

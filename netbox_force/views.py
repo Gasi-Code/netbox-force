@@ -20,8 +20,12 @@ from .forms import (
     GuidePageForm, WidgetImageUploadForm,
     WizardIPForm, WizardPrefixForm, WizardVLANForm,
     WizardSiteForm, WizardDeviceForm, WizardCircuitForm,
+    WizardConfigForm, apply_wizard_config,
 )
-from .models import ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate, GuidePage, WidgetImage
+from .models import (
+    ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate,
+    GuidePage, WidgetImage, WizardConfig,
+)
 from .signals import check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
 
@@ -1368,6 +1372,7 @@ class WizardListView(AuthenticatedRequiredMixin, View):
             return disabled
         ctx = _base_context(s)
         ctx['active_tab'] = 'wizards'
+        ctx['wizard_configs'] = WizardConfig.get_enabled()
         return render(request, 'netbox_force/wizard_list.html', ctx)
 
 
@@ -1376,8 +1381,10 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardIPForm()
+        apply_wizard_config(form, 'ip')
         ctx = _base_context(s)
-        ctx.update({'form': WizardIPForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_ip.html', ctx)
 
     def post(self, request):
@@ -1385,6 +1392,7 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardIPForm(request.POST)
+        apply_wizard_config(form, 'ip')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1420,8 +1428,10 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardPrefixForm()
+        apply_wizard_config(form, 'prefix')
         ctx = _base_context(s)
-        ctx.update({'form': WizardPrefixForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_prefix.html', ctx)
 
     def post(self, request):
@@ -1429,6 +1439,7 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardPrefixForm(request.POST)
+        apply_wizard_config(form, 'prefix')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1462,8 +1473,10 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardVLANForm()
+        apply_wizard_config(form, 'vlan')
         ctx = _base_context(s)
-        ctx.update({'form': WizardVLANForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_vlan.html', ctx)
 
     def post(self, request):
@@ -1471,6 +1484,7 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardVLANForm(request.POST)
+        apply_wizard_config(form, 'vlan')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1505,8 +1519,10 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardSiteForm()
+        apply_wizard_config(form, 'site')
         ctx = _base_context(s)
-        ctx.update({'form': WizardSiteForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_site.html', ctx)
 
     def post(self, request):
@@ -1514,6 +1530,7 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardSiteForm(request.POST)
+        apply_wizard_config(form, 'site')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1554,8 +1571,10 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardDeviceForm()
+        apply_wizard_config(form, 'device')
         ctx = _base_context(s)
-        ctx.update({'form': WizardDeviceForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_device.html', ctx)
 
     def post(self, request):
@@ -1563,6 +1582,7 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardDeviceForm(request.POST)
+        apply_wizard_config(form, 'device')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1598,8 +1618,10 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
         s, disabled = _wizard_gate(request)
         if disabled:
             return disabled
+        form = WizardCircuitForm()
+        apply_wizard_config(form, 'circuit')
         ctx = _base_context(s)
-        ctx.update({'form': WizardCircuitForm(), 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_circuit.html', ctx)
 
     def post(self, request):
@@ -1607,6 +1629,7 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
         if disabled:
             return disabled
         form = WizardCircuitForm(request.POST)
+        apply_wizard_config(form, 'circuit')
         if form.is_valid():
             cd = form.cleaned_data
             try:
@@ -1639,3 +1662,81 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_circuit.html', ctx)
+
+
+# =============================================================================
+# WIZARD CONFIG VIEWS (superuser only)
+# =============================================================================
+
+class WizardConfigListView(SuperuserRequiredMixin, View):
+    """Overview of all wizard configs — enable/disable and link to edit."""
+
+    def get(self, request):
+        configs = WizardConfig.get_all()
+        ctx = _base_context()
+        ctx.update({
+            'configs': configs,
+            'active_tab': 'wizards',
+        })
+        return render(request, 'netbox_force/wizard_config_list.html', ctx)
+
+
+class WizardConfigToggleView(SuperuserRequiredMixin, View):
+    """Toggle enabled state of a wizard config (POST only)."""
+
+    def post(self, request, wizard_type):
+        from .models import WIZARD_TYPE_CHOICES
+        valid_types = [wt for wt, _ in WIZARD_TYPE_CHOICES]
+        if wizard_type not in valid_types:
+            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            return redirect('plugins:netbox_force:wizard_config_list')
+        obj, _ = WizardConfig.objects.get_or_create(wizard_type=wizard_type)
+        obj.enabled = not obj.enabled
+        obj.save()
+        state = 'aktiviert' if obj.enabled else 'deaktiviert'
+        messages.success(request, f"Wizard '{obj.label}' {state}.")
+        return redirect('plugins:netbox_force:wizard_config_list')
+
+
+class WizardConfigEditView(SuperuserRequiredMixin, View):
+    """Edit a single wizard config (label, description, sort order, field visibility)."""
+
+    def _get_or_create(self, wizard_type):
+        from .models import WIZARD_TYPE_CHOICES
+        valid_types = [wt for wt, _ in WIZARD_TYPE_CHOICES]
+        if wizard_type not in valid_types:
+            return None
+        obj, _ = WizardConfig.objects.get_or_create(wizard_type=wizard_type)
+        return obj
+
+    def get(self, request, wizard_type):
+        obj = self._get_or_create(wizard_type)
+        if obj is None:
+            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            return redirect('plugins:netbox_force:wizard_config_list')
+        form = WizardConfigForm(instance=obj)
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'config': obj,
+            'active_tab': 'wizards',
+        })
+        return render(request, 'netbox_force/wizard_config_edit.html', ctx)
+
+    def post(self, request, wizard_type):
+        obj = self._get_or_create(wizard_type)
+        if obj is None:
+            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            return redirect('plugins:netbox_force:wizard_config_list')
+        form = WizardConfigForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Wizard-Konfiguration für '{obj.label}' gespeichert.")
+            return redirect('plugins:netbox_force:wizard_config_list')
+        ctx = _base_context()
+        ctx.update({
+            'form': form,
+            'config': obj,
+            'active_tab': 'wizards',
+        })
+        return render(request, 'netbox_force/wizard_config_edit.html', ctx)

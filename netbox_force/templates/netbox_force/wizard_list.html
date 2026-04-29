@@ -15,117 +15,43 @@
         </h4>
         <p class="text-muted mt-1 mb-0">Geführte Erstellung von NetBox-Objekten mit Validierung und Duplikat-Prüfung.</p>
     </div>
+    {% if request.user.is_superuser %}
+    <div class="col-auto d-flex align-items-center">
+        <a href="{% url 'plugins:netbox_force:wizard_config_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="mdi mdi-cog"></i> Konfigurieren
+        </a>
+    </div>
+    {% endif %}
 </div>
 
+{% if wizard_configs %}
 <div class="row g-4">
-
-    {# IP-Adresse #}
+    {% for cfg in wizard_configs %}
     <div class="col-md-4">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-body d-flex flex-column">
                 <div class="mb-3">
-                    <span class="fs-1 text-primary"><i class="mdi mdi-ip-network"></i></span>
+                    <span class="fs-1 text-{{ cfg.color }}"><i class="mdi {{ cfg.icon }}"></i></span>
                 </div>
-                <h5 class="card-title">IP-Adresse anlegen</h5>
+                <h5 class="card-title">{{ cfg.label }}</h5>
                 <p class="card-text text-muted flex-grow-1">
-                    Legt eine neue IP-Adresse mit CIDR-Validierung, Duplikat-Check und optionalem DNS-Namen an.
+                    {{ cfg.description }}
                 </p>
-                <a href="{% url 'plugins:netbox_force:wizard_ip' %}" class="btn btn-primary mt-2">
+                <a href="{% url 'plugins:netbox_force:'|add:cfg.url_name %}" class="btn btn-{{ cfg.color }} mt-2">
                     <i class="mdi mdi-arrow-right-circle"></i> Starten
                 </a>
             </div>
         </div>
     </div>
-
-    {# Prefix #}
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="fs-1 text-success"><i class="mdi mdi-lan"></i></span>
-                </div>
-                <h5 class="card-title">Prefix anlegen</h5>
-                <p class="card-text text-muted flex-grow-1">
-                    Legt ein neues IP-Prefix mit Rolle, Standort und optionaler VLAN-Verknüpfung an.
-                </p>
-                <a href="{% url 'plugins:netbox_force:wizard_prefix' %}" class="btn btn-success mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
-                </a>
-            </div>
-        </div>
-    </div>
-
-    {# VLAN #}
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="fs-1 text-info"><i class="mdi mdi-switch"></i></span>
-                </div>
-                <h5 class="card-title">VLAN anlegen</h5>
-                <p class="card-text text-muted flex-grow-1">
-                    Legt ein neues VLAN mit Duplikat-Check innerhalb der gewählten Gruppe an.
-                </p>
-                <a href="{% url 'plugins:netbox_force:wizard_vlan' %}" class="btn btn-info mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
-                </a>
-            </div>
-        </div>
-    </div>
-
-    {# Standort #}
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="fs-1 text-warning"><i class="mdi mdi-map-marker"></i></span>
-                </div>
-                <h5 class="card-title">Standort anlegen</h5>
-                <p class="card-text text-muted flex-grow-1">
-                    Legt einen neuen Standort mit automatischem Slug, Region und Mandant an.
-                </p>
-                <a href="{% url 'plugins:netbox_force:wizard_site' %}" class="btn btn-warning mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
-                </a>
-            </div>
-        </div>
-    </div>
-
-    {# Gerät #}
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="fs-1 text-danger"><i class="mdi mdi-server"></i></span>
-                </div>
-                <h5 class="card-title">Gerät anlegen</h5>
-                <p class="card-text text-muted flex-grow-1">
-                    Legt ein neues Gerät mit Namensprüfung (keine Unterstriche/Leerzeichen), Rolle und Gerätetyp an.
-                </p>
-                <a href="{% url 'plugins:netbox_force:wizard_device' %}" class="btn btn-danger mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
-                </a>
-            </div>
-        </div>
-    </div>
-
-    {# Circuit #}
-    <div class="col-md-4">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="fs-1 text-secondary"><i class="mdi mdi-cable-data"></i></span>
-                </div>
-                <h5 class="card-title">Circuit anlegen</h5>
-                <p class="card-text text-muted flex-grow-1">
-                    Legt eine neue WAN-Leitung mit Provider, Typ und automatischer Terminierung (Seite A) an.
-                </p>
-                <a href="{% url 'plugins:netbox_force:wizard_circuit' %}" class="btn btn-secondary mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
-                </a>
-            </div>
-        </div>
-    </div>
-
+    {% endfor %}
 </div>
+{% else %}
+<div class="alert alert-info">
+    <i class="mdi mdi-information-outline"></i>
+    Keine Wizards aktiviert.
+    {% if request.user.is_superuser %}
+    <a href="{% url 'plugins:netbox_force:wizard_config_list' %}">Jetzt konfigurieren &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock content %}

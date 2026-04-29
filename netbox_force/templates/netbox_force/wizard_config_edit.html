@@ -1,0 +1,160 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — Wizard bearbeiten: {{ config.label }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h4 class="mb-0">
+            <span class="text-{{ config.color }}"><i class="mdi {{ config.icon }}"></i></span>
+            Wizard konfigurieren: {{ config.label }}
+        </h4>
+        <p class="text-muted mt-1 mb-0">
+            Passe Label, Beschreibung, Reihenfolge und Feldsichtbarkeit an.
+        </p>
+    </div>
+    <div class="col-auto d-flex align-items-center">
+        <a href="{% url 'plugins:netbox_force:wizard_config_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="mdi mdi-arrow-left"></i> Zurück zur Übersicht
+        </a>
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">
+    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="row g-4">
+
+        {# ── Basic settings ── #}
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <strong><i class="mdi mdi-tune"></i> Grundeinstellungen</strong>
+                </div>
+                <div class="card-body">
+
+                    {# Enabled #}
+                    <div class="mb-3 form-check">
+                        {{ form.enabled }}
+                        <label class="form-check-label" for="{{ form.enabled.id_for_label }}">
+                            {{ form.enabled.label }}
+                        </label>
+                        {% if form.enabled.help_text %}
+                        <div class="form-text">{{ form.enabled.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.enabled.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    {# Sort order #}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.sort_order.id_for_label }}">
+                            {{ form.sort_order.label }}
+                        </label>
+                        {{ form.sort_order }}
+                        {% if form.sort_order.help_text %}
+                        <div class="form-text">{{ form.sort_order.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.sort_order.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    {# Custom label #}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.custom_label.id_for_label }}">
+                            {{ form.custom_label.label }}
+                        </label>
+                        {{ form.custom_label }}
+                        {% if form.custom_label.help_text %}
+                        <div class="form-text">{{ form.custom_label.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.custom_label.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    {# Custom description #}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.custom_description.id_for_label }}">
+                            {{ form.custom_description.label }}
+                        </label>
+                        {{ form.custom_description }}
+                        {% if form.custom_description.help_text %}
+                        <div class="form-text">{{ form.custom_description.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.custom_description.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        {# ── Field visibility ── #}
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <strong><i class="mdi mdi-eye"></i> Feldsichtbarkeit</strong>
+                </div>
+                <div class="card-body">
+                    {% with field_fields=form|dictsort:"name" %}
+                    {% for field in form %}
+                        {% if field.name|slice:":6" == "field_" %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                            </label>
+                            {{ field }}
+                            {% for error in field.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+
+                    {% comment %}
+                    Fallback: no configurable fields for this wizard type
+                    {% endcomment %}
+                    {% with has_fields=False %}
+                    {% for field in form %}
+                        {% if field.name|slice:":6" == "field_" %}
+                            {# fields exist #}
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+
+                    <div class="text-muted small mt-2">
+                        <i class="mdi mdi-information-outline"></i>
+                        Pflicht-Felder (z.B. Adresse, Name, VLAN-ID) sind nicht konfigurierbar — sie sind immer sichtbar.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>{# /row #}
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="mdi mdi-content-save"></i> Speichern
+        </button>
+        <a href="{% url 'plugins:netbox_force:wizard_config_list' %}" class="btn btn-outline-secondary ms-2">
+            <i class="mdi mdi-cancel"></i> Abbrechen
+        </a>
+    </div>
+
+</form>
+{% endblock content %}

@@ -431,6 +431,128 @@ class QuickLinksWidget(DashboardWidget):
         )
 
 
+# =============================================================================
+# Wizards Widget
+# =============================================================================
+
+@register_widget
+class WizardWidget(DashboardWidget):
+    default_title = 'Wizards'
+    description = 'Schnellzugriff auf die Netzwerk-Wizards'
+    width = 6
+    height = 4
+
+    class ConfigForm(WidgetConfigForm):
+        num_columns = forms.ChoiceField(
+            label='Columns',
+            choices=[('2', '2 columns'), ('3', '3 columns')],
+            initial='3',
+            widget=forms.Select(attrs={'style': 'width:8rem;'}),
+        )
+        show_descriptions = forms.BooleanField(
+            label='Show descriptions',
+            required=False,
+            initial=True,
+        )
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            try:
+                ui, _ = _get_widget_strings()
+                self.fields['num_columns'].label = ui.get(
+                    'widget_wizards_columns_label', 'Columns')
+                self.fields['show_descriptions'].label = ui.get(
+                    'widget_wizards_show_desc_label', 'Show descriptions')
+            except Exception:
+                pass
+
+    def render(self, request):
+        ui, settings = _get_widget_strings()
+        wizards_enabled = getattr(settings, 'wizards_enabled', False) if settings else False
+
+        disabled_msg = ui.get('widget_wizards_disabled', 'Wizards sind deaktiviert.')
+        empty_msg = ui.get('widget_wizards_empty', 'Keine Wizards konfiguriert.')
+
+        if not wizards_enabled:
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<p class="mb-2"><i class="mdi mdi-lock-outline" '
+                'style="font-size: 2rem;"></i></p>'
+                '<p class="small mb-0">{}</p>'
+                '</div>',
+                disabled_msg,
+            )
+
+        try:
+            from .models import WizardConfig
+            configs = WizardConfig.get_enabled()
+        except Exception:
+            configs = []
+
+        if not configs:
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<p class="mb-2"><i class="mdi mdi-auto-fix" '
+                'style="font-size: 2rem;"></i></p>'
+                '<p class="small mb-0">{}</p>'
+                '</div>',
+                empty_msg,
+            )
+
+        try:
+            num_cols = int(self.config.get('num_columns') or 3)
+            if num_cols not in (2, 3):
+                num_cols = 3
+        except (TypeError, ValueError):
+            num_cols = 3
+
+        show_descriptions = self.config.get('show_descriptions', True)
+        col_class = 'col-6' if num_cols == 2 else 'col-4'
+
+        cards = []
+        for cfg in configs:
+            try:
+                url = reverse(f'plugins:netbox_force:{cfg.url_name}')
+            except Exception:
+                url = '#'
+
+            desc_html = mark_safe('')
+            if show_descriptions and cfg.description:
+                desc = cfg.description[:80] + '…' if len(cfg.description) > 80 else cfg.description
+                desc_html = format_html(
+                    '<p class="small text-muted mb-2" style="line-height:1.3;">{}</p>',
+                    desc,
+                )
+
+            cards.append(format_html(
+                '<div class="{col_class} mb-3">'
+                '<div class="card h-100 border-0 shadow-sm">'
+                '<div class="card-body d-flex flex-column p-3">'
+                '<div class="mb-2">'
+                '<span class="fs-3 text-{color}">'
+                '<i class="mdi {icon}"></i></span>'
+                '</div>'
+                '<h6 class="card-title mb-1" style="font-size:.85rem;line-height:1.2;">'
+                '{label}</h6>'
+                '{desc}'
+                '<a href="{url}" class="btn btn-sm btn-{color} mt-auto">'
+                '<i class="mdi mdi-arrow-right-circle"></i> Starten</a>'
+                '</div></div></div>',
+                col_class=col_class,
+                color=cfg.color,
+                icon=cfg.icon,
+                label=cfg.label,
+                desc=desc_html,
+                url=url,
+            ))
+
+        rows_html = mark_safe(''.join(str(c) for c in cards))
+        return format_html(
+            '<div class="row g-2">{}</div>',
+            rows_html,
+        )
+
+
 # Backwards-compatibility shim.
 #
 # NOT decorated with @register_widget — that would add a second "Quick Links"

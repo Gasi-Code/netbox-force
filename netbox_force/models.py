@@ -726,6 +726,175 @@ class GuidePage(models.Model):
 
 
 # =============================================================================
+# WIZARD CONFIG
+# =============================================================================
+
+WIZARD_TYPE_CHOICES = [
+    ('ip',      'IP-Adresse anlegen'),
+    ('prefix',  'Prefix anlegen'),
+    ('vlan',    'VLAN anlegen'),
+    ('site',    'Standort anlegen'),
+    ('device',  'Gerät anlegen'),
+    ('circuit', 'Circuit anlegen'),
+]
+
+# Default labels / descriptions / icons shown when no custom value is set
+WIZARD_DEFAULTS = {
+    'ip': {
+        'label':       'IP-Adresse anlegen',
+        'description': 'Neue IP mit CIDR-Validierung und Duplikat-Check anlegen.',
+        'icon':        'mdi-ip-network',
+        'color':       'primary',
+        'url_name':    'wizard_ip',
+    },
+    'prefix': {
+        'label':       'Prefix anlegen',
+        'description': 'Neues IP-Prefix mit Rolle und Standort anlegen.',
+        'icon':        'mdi-lan',
+        'color':       'success',
+        'url_name':    'wizard_prefix',
+    },
+    'vlan': {
+        'label':       'VLAN anlegen',
+        'description': 'Neues VLAN mit Duplikat-Check innerhalb der Gruppe anlegen.',
+        'icon':        'mdi-switch',
+        'color':       'info',
+        'url_name':    'wizard_vlan',
+    },
+    'site': {
+        'label':       'Standort anlegen',
+        'description': 'Neuen Standort mit automatischem Slug und Mandant anlegen.',
+        'icon':        'mdi-map-marker',
+        'color':       'warning',
+        'url_name':    'wizard_site',
+    },
+    'device': {
+        'label':       'Gerät anlegen',
+        'description': 'Neues Gerät mit Namensprüfung, Rolle und Gerätetyp anlegen.',
+        'icon':        'mdi-server',
+        'color':       'danger',
+        'url_name':    'wizard_device',
+    },
+    'circuit': {
+        'label':       'Circuit anlegen',
+        'description': 'Neue WAN-Leitung mit Provider und Terminierung A anlegen.',
+        'icon':        'mdi-cable-data',
+        'color':       'secondary',
+        'url_name':    'wizard_circuit',
+    },
+}
+
+# Fields that CAN be configured (required/optional/hidden) per wizard type.
+# Core identity fields (address, vid, cid, name etc.) are always required.
+WIZARD_CONFIGURABLE_FIELDS = {
+    'ip':      ['dns_name', 'description', 'tenant', 'role'],
+    'prefix':  ['role', 'tenant', 'site', 'vlan', 'description'],
+    'vlan':    ['tenant'],
+    'site':    ['tenant', 'region', 'group', 'description'],
+    'device':  ['tenant', 'serial'],
+    'circuit': ['description'],
+}
+
+
+class WizardConfig(models.Model):
+    """
+    Per-wizard-type configuration.
+    One row per wizard type (auto-created on first access).
+    Controls: enabled, label, description, sort order, field visibility.
+    """
+    wizard_type = models.CharField(
+        max_length=20,
+        choices=WIZARD_TYPE_CHOICES,
+        unique=True,
+        verbose_name='Wizard type',
+    )
+    enabled = models.BooleanField(
+        default=True,
+        verbose_name='Enabled',
+        help_text='If disabled, this wizard is hidden from the landing page and widget.',
+    )
+    custom_label = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Custom label',
+        help_text='Leave empty to use the default label.',
+    )
+    custom_description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Custom description',
+        help_text='Leave empty to use the default description.',
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Sort order',
+        help_text='Lower numbers appear first.',
+    )
+    field_config = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Field configuration',
+        help_text=(
+            'Per-field visibility: "required", "optional", or "hidden". '
+            'Only optional fields can be configured. Core fields are always required.'
+        ),
+    )
+
+    class Meta:
+        verbose_name = 'Wizard Configuration'
+        verbose_name_plural = 'Wizard Configurations'
+        ordering = ['sort_order', 'wizard_type']
+
+    def __str__(self):
+        return f"WizardConfig: {self.get_wizard_type_display()}"
+
+    @property
+    def label(self):
+        return self.custom_label or WIZARD_DEFAULTS.get(self.wizard_type, {}).get('label', self.wizard_type)
+
+    @property
+    def description(self):
+        return self.custom_description or WIZARD_DEFAULTS.get(self.wizard_type, {}).get('description', '')
+
+    @property
+    def icon(self):
+        return WIZARD_DEFAULTS.get(self.wizard_type, {}).get('icon', 'mdi-wizard-hat')
+
+    @property
+    def color(self):
+        return WIZARD_DEFAULTS.get(self.wizard_type, {}).get('color', 'primary')
+
+    @property
+    def url_name(self):
+        return WIZARD_DEFAULTS.get(self.wizard_type, {}).get('url_name', '')
+
+    @classmethod
+    def get_all(cls):
+        """Returns all 6 wizard configs, auto-creating missing ones."""
+        existing = {c.wizard_type: c for c in cls.objects.all()}
+        result = []
+        for wtype, _ in WIZARD_TYPE_CHOICES:
+            if wtype not in existing:
+                try:
+                    obj = cls.objects.create(
+                        wizard_type=wtype,
+                        sort_order=list(dict(WIZARD_TYPE_CHOICES).keys()).index(wtype) * 10,
+                    )
+                    existing[wtype] = obj
+                except Exception:
+                    pass
+            if wtype in existing:
+                result.append(existing[wtype])
+        return sorted(result, key=lambda c: (c.sort_order, c.wizard_type))
+
+    @classmethod
+    def get_enabled(cls):
+        """Returns enabled wizard configs in sort order."""
+        return [c for c in cls.get_all() if c.enabled]
+
+
+# =============================================================================
 # WIDGET IMAGES
 # =============================================================================
 

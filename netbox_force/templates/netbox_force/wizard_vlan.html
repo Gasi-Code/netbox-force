@@ -55,11 +55,13 @@
                         {% if form.role.errors %}<div class="invalid-feedback d-block">{{ form.role.errors.0 }}</div>{% endif %}
                     </div>
 
+                    {% if form.tenant %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.tenant.label }}</label>
+                        <label class="form-label">{{ form.tenant.label }}{% if form.tenant.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.tenant }}
                         {% if form.tenant.errors %}<div class="invalid-feedback d-block">{{ form.tenant.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
                     <hr>
 

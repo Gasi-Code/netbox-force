@@ -55,11 +55,13 @@
                         <div class="form-text">Die Terminierung Seite A wird automatisch angelegt.</div>
                     </div>
 
+                    {% if form.description %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.description.label }}</label>
+                        <label class="form-label">{{ form.description.label }}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.description }}
                         {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
                     <hr>
 

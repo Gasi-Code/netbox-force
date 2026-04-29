@@ -56,6 +56,11 @@ urlpatterns = [
     path('wizards/device/', views.WizardDeviceView.as_view(), name='wizard_device'),
     path('wizards/circuit/', views.WizardCircuitView.as_view(), name='wizard_circuit'),
 
+    # Wizard Config (superuser only)
+    path('wizards/config/', views.WizardConfigListView.as_view(), name='wizard_config_list'),
+    path('wizards/config/<str:wizard_type>/toggle/', views.WizardConfigToggleView.as_view(), name='wizard_config_toggle'),
+    path('wizards/config/<str:wizard_type>/edit/', views.WizardConfigEditView.as_view(), name='wizard_config_edit'),
+
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',

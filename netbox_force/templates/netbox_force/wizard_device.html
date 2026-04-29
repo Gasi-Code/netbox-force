@@ -54,17 +54,21 @@
                         {% if form.status.errors %}<div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>{% endif %}
                     </div>
 
+                    {% if form.tenant %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.tenant.label }}</label>
+                        <label class="form-label">{{ form.tenant.label }}{% if form.tenant.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.tenant }}
                         {% if form.tenant.errors %}<div class="invalid-feedback d-block">{{ form.tenant.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
+                    {% if form.serial %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.serial.label }}</label>
+                        <label class="form-label">{{ form.serial.label }}{% if form.serial.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.serial }}
                         {% if form.serial.errors %}<div class="invalid-feedback d-block">{{ form.serial.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
                     <hr>
 

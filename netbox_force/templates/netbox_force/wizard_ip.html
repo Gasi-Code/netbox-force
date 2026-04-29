@@ -36,29 +36,37 @@
                         {% if form.status.errors %}<div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>{% endif %}
                     </div>
 
+                    {% if form.dns_name %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.dns_name.label }}</label>
+                        <label class="form-label">{{ form.dns_name.label }}{% if form.dns_name.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.dns_name }}
                         {% if form.dns_name.errors %}<div class="invalid-feedback d-block">{{ form.dns_name.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
+                    {% if form.description %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.description.label }}</label>
+                        <label class="form-label">{{ form.description.label }}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.description }}
                         {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
+                    {% if form.tenant %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.tenant.label }}</label>
+                        <label class="form-label">{{ form.tenant.label }}{% if form.tenant.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.tenant }}
                         {% if form.tenant.errors %}<div class="invalid-feedback d-block">{{ form.tenant.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
+                    {% if form.role %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.role.label }}</label>
+                        <label class="form-label">{{ form.role.label }}{% if form.role.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.role }}
                         {% if form.role.errors %}<div class="invalid-feedback d-block">{{ form.role.errors.0 }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
                     <hr>
 
