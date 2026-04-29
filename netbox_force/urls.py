@@ -52,8 +52,14 @@ urlpatterns = [
     path('wizards/ip/', views.WizardIPView.as_view(), name='wizard_ip'),
     path('wizards/prefix/', views.WizardPrefixView.as_view(), name='wizard_prefix'),
     path('wizards/vlan/', views.WizardVLANView.as_view(), name='wizard_vlan'),
+    path('wizards/vrf/', views.WizardVRFView.as_view(), name='wizard_vrf'),
+    path('wizards/iprange/', views.WizardIPRangeView.as_view(), name='wizard_iprange'),
     path('wizards/site/', views.WizardSiteView.as_view(), name='wizard_site'),
+    path('wizards/location/', views.WizardLocationView.as_view(), name='wizard_location'),
+    path('wizards/rack/', views.WizardRackView.as_view(), name='wizard_rack'),
     path('wizards/device/', views.WizardDeviceView.as_view(), name='wizard_device'),
+    path('wizards/vm/', views.WizardVMView.as_view(), name='wizard_vm'),
+    path('wizards/tenant/', views.WizardTenantView.as_view(), name='wizard_tenant'),
     path('wizards/circuit/', views.WizardCircuitView.as_view(), name='wizard_circuit'),
 
     # Wizard Config (superuser only)

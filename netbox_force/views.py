@@ -20,6 +20,8 @@ from .forms import (
     GuidePageForm, WidgetImageUploadForm,
     WizardIPForm, WizardPrefixForm, WizardVLANForm,
     WizardSiteForm, WizardDeviceForm, WizardCircuitForm,
+    WizardVRFForm, WizardIPRangeForm, WizardRackForm,
+    WizardVMForm, WizardTenantForm, WizardLocationForm,
     WizardConfigForm, apply_wizard_config, localize_wizard_form,
 )
 from .models import (
@@ -1357,12 +1359,19 @@ def _wizard_gate(request, settings_obj=None):
     return s, None
 
 
-def _wizard_save_error(exc):
-    """Converts a save exception into a user-readable string."""
+def _wizard_save_error(exc, settings_obj=None):
+    """Converts a save exception into a localized user-readable string."""
+    ui = _get_ui_context(settings_obj)
     msg = str(exc)
     if 'unique' in msg.lower() or 'duplicate' in msg.lower():
-        return 'Ein Objekt mit diesen Daten existiert bereits in NetBox.'
-    return f'Fehler beim Speichern: {msg}'
+        return ui.get('wizard_error_duplicate', 'An object with this data already exists in NetBox.')
+    return ui.get('wizard_error_save', 'Save error: {msg}').format(msg=msg)
+
+
+def _wizard_created_msg(obj, settings_obj=None):
+    """Returns a localized 'created' success message."""
+    ui = _get_ui_context(settings_obj)
+    return ui.get('wizard_object_created', 'Created: {name}').format(name=str(obj))
 
 
 class WizardListView(AuthenticatedRequiredMixin, View):
@@ -1401,8 +1410,11 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
                 from ipam.models import IPAddress
                 existing = IPAddress.objects.filter(address=cd['address']).first()
                 if existing:
-                    form.add_error('address',
-                        f"IP-Adresse '{cd['address']}' existiert bereits in NetBox.")
+                    ui = _get_ui_context(s)
+                    form.add_error('address', ui.get(
+                        'wizard_error_duplicate',
+                        'An object with this data already exists in NetBox.'
+                    ))
                 else:
                     obj = IPAddress(
                         address=cd['address'],
@@ -1416,10 +1428,10 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
                         obj.role = cd['role']
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
-                    messages.success(request, f"IP-Adresse {obj} erfolgreich angelegt.")
+                    messages.success(request, _wizard_created_msg(obj, s))
                     return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_ip.html', ctx)
@@ -1467,10 +1479,10 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
                     obj.vlan = cd['vlan']
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
-                messages.success(request, f"Prefix {obj} erfolgreich angelegt.")
+                messages.success(request, _wizard_created_msg(obj, s))
                 return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_prefix.html', ctx)
@@ -1514,11 +1526,10 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
                         obj.tenant = cd['tenant']
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
-                    messages.success(request,
-                        f"VLAN {obj.vid} – {obj.name} erfolgreich angelegt.")
+                    messages.success(request, _wizard_created_msg(obj, s))
                     return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_vlan.html', ctx)
@@ -1569,10 +1580,10 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
                         obj.group = cd['group']
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
-                    messages.success(request, f"Standort '{obj.name}' erfolgreich angelegt.")
+                    messages.success(request, _wizard_created_msg(obj, s))
                     return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_site.html', ctx)
@@ -1618,10 +1629,10 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
                     obj.serial = cd['serial'].strip()
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
-                messages.success(request, f"Gerät '{obj.name}' erfolgreich angelegt.")
+                messages.success(request, _wizard_created_msg(obj, s))
                 return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_device.html', ctx)
@@ -1671,13 +1682,282 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
                             term_side='A',
                             site=site_a,
                         ).save()
-                    messages.success(request, f"Circuit '{obj.cid}' erfolgreich angelegt.")
+                    messages.success(request, _wizard_created_msg(obj, s))
                     return redirect(obj.get_absolute_url())
             except Exception as exc:
-                form.add_error(None, _wizard_save_error(exc))
+                form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_circuit.html', ctx)
+
+
+class WizardVRFView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardVRFForm()
+        apply_wizard_config(form, 'vrf')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vrf.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardVRFForm(request.POST)
+        apply_wizard_config(form, 'vrf')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from ipam.models import VRF
+                obj = VRF(
+                    name=cd['name'],
+                    rd=cd.get('rd') or None,
+                    description=cd.get('description') or '',
+                )
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vrf.html', ctx)
+
+
+class WizardIPRangeView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardIPRangeForm()
+        apply_wizard_config(form, 'iprange')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_iprange.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardIPRangeForm(request.POST)
+        apply_wizard_config(form, 'iprange')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from ipam.models import IPRange
+                obj = IPRange(
+                    start_address=cd['start_address'],
+                    end_address=cd['end_address'],
+                    status=cd['status'],
+                    description=cd.get('description') or '',
+                )
+                if cd.get('role'):
+                    obj.role = cd['role']
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_iprange.html', ctx)
+
+
+class WizardRackView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardRackForm()
+        apply_wizard_config(form, 'rack')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_rack.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardRackForm(request.POST)
+        apply_wizard_config(form, 'rack')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from dcim.models import Rack
+                obj = Rack(
+                    name=cd['name'],
+                    site=cd['site'],
+                    status=cd['status'],
+                )
+                if cd.get('u_height'):
+                    obj.u_height = cd['u_height']
+                if cd.get('location'):
+                    obj.location = cd['location']
+                if cd.get('role'):
+                    obj.role = cd['role']
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_rack.html', ctx)
+
+
+class WizardVMView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardVMForm()
+        apply_wizard_config(form, 'vm')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vm.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardVMForm(request.POST)
+        apply_wizard_config(form, 'vm')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from virtualization.models import VirtualMachine
+                obj = VirtualMachine(
+                    name=cd['name'],
+                    status=cd['status'],
+                    cluster=cd['cluster'],
+                )
+                if cd.get('role'):
+                    obj.role = cd['role']
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                if cd.get('platform'):
+                    obj.platform = cd['platform']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vm.html', ctx)
+
+
+class WizardTenantView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardTenantForm()
+        apply_wizard_config(form, 'tenant')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_tenant.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardTenantForm(request.POST)
+        apply_wizard_config(form, 'tenant')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from tenancy.models import Tenant
+                import re as _re
+                slug = _re.sub(r'[^a-z0-9-]', '-', cd['name'].lower()).strip('-')
+                slug = _re.sub(r'-+', '-', slug)
+                obj = Tenant(
+                    name=cd['name'],
+                    slug=slug,
+                    description=cd.get('description') or '',
+                )
+                if cd.get('group'):
+                    obj.group = cd['group']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_tenant.html', ctx)
+
+
+class WizardLocationView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardLocationForm()
+        apply_wizard_config(form, 'location')
+        localize_wizard_form(form)
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_location.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardLocationForm(request.POST)
+        apply_wizard_config(form, 'location')
+        localize_wizard_form(form)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from dcim.models import Location
+                import re as _re
+                slug = _re.sub(r'[^a-z0-9-]', '-', cd['name'].lower()).strip('-')
+                slug = _re.sub(r'-+', '-', slug)
+                obj = Location(
+                    name=cd['name'],
+                    slug=slug,
+                    site=cd['site'],
+                    status=cd['status'],
+                    description=cd.get('description') or '',
+                )
+                if cd.get('parent'):
+                    obj.parent = cd['parent']
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, _wizard_created_msg(obj, s))
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc, s))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_location.html', ctx)
 
 
 # =============================================================================

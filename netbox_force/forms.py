@@ -952,27 +952,379 @@ class WizardCircuitForm(forms.Form):
             pass
 
 
+class WizardVRFForm(forms.Form):
+    name = forms.CharField(
+        label='VRF Name',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'VRF-Produktion'}),
+    )
+    rd = forms.CharField(
+        label='Route Distinguisher',
+        required=False,
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': '65000:100'}),
+    )
+    tenant = forms.ModelChoiceField(
+        label='Tenant',
+        queryset=None,
+        required=False,
+        empty_label='— no tenant —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    description = forms.CharField(
+        label='Description',
+        required=False,
+        widget=forms.TextInput(attrs={'class': _FC}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. Production VRF created'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from tenancy.models import Tenant
+            self.fields['tenant'].queryset = Tenant.objects.all().order_by('name')
+        except Exception:
+            pass
+
+
+class WizardIPRangeForm(forms.Form):
+    start_address = forms.CharField(
+        label='Start Address',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': '10.0.0.1/24'}),
+    )
+    end_address = forms.CharField(
+        label='End Address',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': '10.0.0.254/24'}),
+    )
+    status = forms.ChoiceField(
+        label='Status',
+        choices=STATUS_IP,
+        initial='active',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    role = forms.ModelChoiceField(
+        label='Role',
+        queryset=None,
+        required=False,
+        empty_label='— no role —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    tenant = forms.ModelChoiceField(
+        label='Tenant',
+        queryset=None,
+        required=False,
+        empty_label='— no tenant —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    description = forms.CharField(
+        label='Description',
+        required=False,
+        widget=forms.TextInput(attrs={'class': _FC}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. DHCP pool range created'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from ipam.models import Role
+            from tenancy.models import Tenant
+            self.fields['role'].queryset = Role.objects.all().order_by('name')
+            self.fields['tenant'].queryset = Tenant.objects.all().order_by('name')
+        except Exception:
+            pass
+
+    def clean_start_address(self):
+        value = self.cleaned_data.get('start_address', '').strip()
+        try:
+            ipaddress.ip_interface(value)
+        except ValueError:
+            raise ValidationError('Invalid IP address / CIDR notation (e.g. 10.0.0.1/24).')
+        if '/' not in value:
+            raise ValidationError('Please include prefix length (e.g. 10.0.0.1/24).')
+        return value
+
+    def clean_end_address(self):
+        value = self.cleaned_data.get('end_address', '').strip()
+        try:
+            ipaddress.ip_interface(value)
+        except ValueError:
+            raise ValidationError('Invalid IP address / CIDR notation (e.g. 10.0.0.254/24).')
+        if '/' not in value:
+            raise ValidationError('Please include prefix length (e.g. 10.0.0.254/24).')
+        return value
+
+
+STATUS_RACK = [
+    ('active',           'Active'),
+    ('planned',          'Planned'),
+    ('staged',           'Staged'),
+    ('failed',           'Failed'),
+    ('decommissioning',  'Decommissioning'),
+]
+
+STATUS_VM = [
+    ('active',           'Active'),
+    ('offline',          'Offline'),
+    ('planned',          'Planned'),
+    ('staged',           'Staged'),
+    ('failed',           'Failed'),
+    ('decommissioning',  'Decommissioning'),
+]
+
+STATUS_LOCATION = [
+    ('active',           'Active'),
+    ('planned',          'Planned'),
+    ('staged',           'Staged'),
+    ('decommissioning',  'Decommissioning'),
+]
+
+
+class WizardRackForm(forms.Form):
+    name = forms.CharField(
+        label='Rack Name',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'Rack-01'}),
+    )
+    site = forms.ModelChoiceField(
+        label='Site',
+        queryset=None,
+        required=True,
+        empty_label='— select site —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    location = forms.ModelChoiceField(
+        label='Location',
+        queryset=None,
+        required=False,
+        empty_label='— no location —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    status = forms.ChoiceField(
+        label='Status',
+        choices=STATUS_RACK,
+        initial='active',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    u_height = forms.IntegerField(
+        label='Height (U)',
+        required=False,
+        initial=42,
+        min_value=1,
+        max_value=100,
+        widget=forms.NumberInput(attrs={'class': _FC}),
+    )
+    role = forms.ModelChoiceField(
+        label='Role',
+        queryset=None,
+        required=False,
+        empty_label='— no role —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    tenant = forms.ModelChoiceField(
+        label='Tenant',
+        queryset=None,
+        required=False,
+        empty_label='— no tenant —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. New rack in server room A'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from dcim.models import Site, Location, RackRole
+            from tenancy.models import Tenant
+            self.fields['site'].queryset = Site.objects.all().order_by('name')
+            self.fields['location'].queryset = Location.objects.all().order_by('site__name', 'name')
+            self.fields['role'].queryset = RackRole.objects.all().order_by('name')
+            self.fields['tenant'].queryset = Tenant.objects.all().order_by('name')
+        except Exception:
+            pass
+
+
+class WizardVMForm(forms.Form):
+    name = forms.CharField(
+        label='VM Name',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'vm-web-01'}),
+    )
+    status = forms.ChoiceField(
+        label='Status',
+        choices=STATUS_VM,
+        initial='active',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    cluster = forms.ModelChoiceField(
+        label='Cluster',
+        queryset=None,
+        required=True,
+        empty_label='— select cluster —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    role = forms.ModelChoiceField(
+        label='Role',
+        queryset=None,
+        required=False,
+        empty_label='— no role —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    tenant = forms.ModelChoiceField(
+        label='Tenant',
+        queryset=None,
+        required=False,
+        empty_label='— no tenant —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    platform = forms.ModelChoiceField(
+        label='Platform',
+        queryset=None,
+        required=False,
+        empty_label='— no platform —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. New web server VM created'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from virtualization.models import Cluster
+            from dcim.models import DeviceRole, Platform
+            from tenancy.models import Tenant
+            self.fields['cluster'].queryset = Cluster.objects.all().order_by('name')
+            self.fields['role'].queryset = DeviceRole.objects.all().order_by('name')
+            self.fields['tenant'].queryset = Tenant.objects.all().order_by('name')
+            self.fields['platform'].queryset = Platform.objects.all().order_by('name')
+        except Exception:
+            pass
+
+    def clean_name(self):
+        value = (self.cleaned_data.get('name') or '').strip()
+        if '_' in value:
+            raise ValidationError('VM name must not contain underscores.')
+        if ' ' in value:
+            raise ValidationError('VM name must not contain spaces.')
+        return value
+
+
+class WizardTenantForm(forms.Form):
+    name = forms.CharField(
+        label='Tenant Name',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'ACME Corp'}),
+    )
+    group = forms.ModelChoiceField(
+        label='Tenant Group',
+        queryset=None,
+        required=False,
+        empty_label='— no group —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    description = forms.CharField(
+        label='Description',
+        required=False,
+        widget=forms.TextInput(attrs={'class': _FC}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. New customer tenant created'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from tenancy.models import TenantGroup
+            self.fields['group'].queryset = TenantGroup.objects.all().order_by('name')
+        except Exception:
+            pass
+
+
+class WizardLocationForm(forms.Form):
+    name = forms.CharField(
+        label='Location Name',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'Server Room A'}),
+    )
+    site = forms.ModelChoiceField(
+        label='Site',
+        queryset=None,
+        required=True,
+        empty_label='— select site —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    status = forms.ChoiceField(
+        label='Status',
+        choices=STATUS_LOCATION,
+        initial='active',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    parent = forms.ModelChoiceField(
+        label='Parent Location',
+        queryset=None,
+        required=False,
+        empty_label='— no parent —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    tenant = forms.ModelChoiceField(
+        label='Tenant',
+        queryset=None,
+        required=False,
+        empty_label='— no tenant —',
+        widget=forms.Select(attrs={'class': _FS}),
+    )
+    description = forms.CharField(
+        label='Description',
+        required=False,
+        widget=forms.TextInput(attrs={'class': _FC}),
+    )
+    changelog_message = forms.CharField(
+        label='Changelog Message',
+        widget=forms.TextInput(attrs={'class': _FC, 'placeholder': 'e.g. New server room location created'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            from dcim.models import Site, Location
+            from tenancy.models import Tenant
+            self.fields['site'].queryset = Site.objects.all().order_by('name')
+            self.fields['parent'].queryset = Location.objects.all().order_by('site__name', 'name')
+            self.fields['tenant'].queryset = Tenant.objects.all().order_by('name')
+        except Exception:
+            pass
+
+
 # =============================================================================
 # WIZARD CONFIGURATION FORM
 # =============================================================================
 
 _FIELD_VISIBILITY_CHOICES = [
     ('optional', 'Optional'),
-    ('required', 'Pflichtfeld'),
-    ('hidden',   'Ausgeblendet'),
+    ('required', 'Required'),
+    ('hidden',   'Hidden'),
 ]
 
 # Human-readable field names for the config UI
 _FIELD_LABELS = {
-    'dns_name':           'DNS-Name',
-    'description':        'Beschreibung',
-    'tenant':             'Mandant',
-    'role':               'Rolle',
-    'site':               'Standort',
+    'dns_name':           'DNS Name',
+    'description':        'Description',
+    'tenant':             'Tenant',
+    'role':               'Role',
+    'site':               'Site',
     'vlan':               'VLAN',
     'region':             'Region',
-    'group':              'Gruppe / Standortgruppe',
-    'serial':             'Seriennummer',
+    'group':              'Group / Site Group / Tenant Group',
+    'serial':             'Serial Number',
+    'rd':                 'Route Distinguisher',
+    'u_height':           'Height (U)',
+    'location':           'Location',
+    'platform':           'Platform',
+    'parent':             'Parent Location',
 }
 
 

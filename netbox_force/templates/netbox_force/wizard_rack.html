@@ -1,0 +1,112 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.wizard_rack_title }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-server-network"></i> {{ ui.wizard_rack_title }}
+            </h5>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}<p class="mb-0">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.site.label }} <span class="text-danger">*</span></label>
+                        {{ form.site }}
+                        {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    {% if form.location %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.location.label }}{% if form.location.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.location }}
+                        {% if form.location.errors %}<div class="invalid-feedback d-block">{{ form.location.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.status.label }} <span class="text-danger">*</span></label>
+                        {{ form.status }}
+                        {% if form.status.errors %}<div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    {% if form.u_height %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.u_height.label }}{% if form.u_height.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.u_height }}
+                        {% if form.u_height.errors %}<div class="invalid-feedback d-block">{{ form.u_height.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if form.role %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.role.label }}{% if form.role.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.role }}
+                        {% if form.role.errors %}<div class="invalid-feedback d-block">{{ form.role.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if form.tenant %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.tenant.label }}{% if form.tenant.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.tenant }}
+                        {% if form.tenant.errors %}<div class="invalid-feedback d-block">{{ form.tenant.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.changelog_message.label }} <span class="text-danger">*</span></label>
+                        {{ form.changelog_message }}
+                        {% if form.changelog_message.errors %}<div class="invalid-feedback d-block">{{ form.changelog_message.errors.0 }}</div>{% endif %}
+                        <div class="form-text">{{ ui.wizard_changelog_help }}</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{% url 'plugins:netbox_force:wizard_list' %}" class="btn btn-outline-secondary">
+                            <i class="mdi mdi-arrow-left"></i> {{ ui.wizard_btn_back }}
+                        </a>
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.wizard_rack_btn }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
+            <div class="card-body small">
+                <p><strong>Height (U)</strong><br>
+                Standard rack height is 42U. Adjust to match the physical rack.</p>
+                <p><strong>Location</strong><br>
+                Optional — assign to a building, floor or room within the site.</p>
+                <p><strong>Next steps</strong><br>
+                Mount devices in the rack using the rack elevation view.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

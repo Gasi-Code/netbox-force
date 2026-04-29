@@ -438,7 +438,10 @@ class QuickLinksWidget(DashboardWidget):
 @register_widget
 class WizardWidget(DashboardWidget):
     default_title = 'Wizards'
-    description = 'Schnellzugriff auf die Netzwerk-Wizards'
+    description = _LocalizedAttr(
+        'widget_wizards_description',
+        'Quick access to NetBox wizards',
+    )
     width = 6
     height = 4
 
@@ -470,8 +473,8 @@ class WizardWidget(DashboardWidget):
         ui, settings = _get_widget_strings()
         wizards_enabled = getattr(settings, 'wizards_enabled', False) if settings else False
 
-        disabled_msg = ui.get('widget_wizards_disabled', 'Wizards sind deaktiviert.')
-        empty_msg = ui.get('widget_wizards_empty', 'Keine Wizards konfiguriert.')
+        disabled_msg = ui.get('widget_wizards_disabled', 'Wizards are disabled.')
+        empty_msg = ui.get('widget_wizards_empty', 'No wizards configured.')
 
         if not wizards_enabled:
             return format_html(
@@ -517,13 +520,16 @@ class WizardWidget(DashboardWidget):
                 url = '#'
 
             desc_html = mark_safe('')
-            if show_descriptions and cfg.description:
-                desc = cfg.description[:80] + '…' if len(cfg.description) > 80 else cfg.description
+            cfg_desc = ui.get(f'wizard_{cfg.wizard_type}_description') or cfg.description
+            if show_descriptions and cfg_desc:
+                desc = cfg_desc[:80] + '…' if len(cfg_desc) > 80 else cfg_desc
                 desc_html = format_html(
                     '<p class="small text-muted mb-2" style="line-height:1.3;">{}</p>',
                     desc,
                 )
 
+            btn_start = ui.get('wizard_btn_start', 'Start')
+            card_label = ui.get(f'wizard_{cfg.wizard_type}_title') or cfg.label
             cards.append(format_html(
                 '<div class="{col_class} mb-3">'
                 '<div class="card h-100 border-0 shadow-sm">'
@@ -536,14 +542,15 @@ class WizardWidget(DashboardWidget):
                 '{label}</h6>'
                 '{desc}'
                 '<a href="{url}" class="btn btn-sm btn-{color} mt-auto">'
-                '<i class="mdi mdi-arrow-right-circle"></i> Starten</a>'
+                '<i class="mdi mdi-arrow-right-circle"></i> {btn}</a>'
                 '</div></div></div>',
                 col_class=col_class,
                 color=cfg.color,
                 icon=cfg.icon,
-                label=cfg.label,
+                label=card_label,
                 desc=desc_html,
                 url=url,
+                btn=btn_start,
             ))
 
         rows_html = mark_safe(''.join(str(c) for c in cards))

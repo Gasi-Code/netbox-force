@@ -730,54 +730,102 @@ class GuidePage(models.Model):
 # =============================================================================
 
 WIZARD_TYPE_CHOICES = [
-    ('ip',      'IP-Adresse anlegen'),
-    ('prefix',  'Prefix anlegen'),
-    ('vlan',    'VLAN anlegen'),
-    ('site',    'Standort anlegen'),
-    ('device',  'Gerät anlegen'),
-    ('circuit', 'Circuit anlegen'),
+    ('ip',       'IP Address'),
+    ('prefix',   'Prefix'),
+    ('vlan',     'VLAN'),
+    ('vrf',      'VRF'),
+    ('iprange',  'IP Range'),
+    ('site',     'Site'),
+    ('location', 'Location'),
+    ('rack',     'Rack'),
+    ('device',   'Device'),
+    ('vm',       'Virtual Machine'),
+    ('tenant',   'Tenant'),
+    ('circuit',  'Circuit'),
 ]
 
-# Default labels / descriptions / icons shown when no custom value is set
+# Default labels / descriptions / icons (English fallback when ui_strings key is absent)
 WIZARD_DEFAULTS = {
     'ip': {
-        'label':       'IP-Adresse anlegen',
-        'description': 'Neue IP mit CIDR-Validierung und Duplikat-Check anlegen.',
+        'label':       'Create IP Address',
+        'description': 'Create a new IP address with CIDR validation and duplicate check.',
         'icon':        'mdi-ip-network',
         'color':       'primary',
         'url_name':    'wizard_ip',
     },
     'prefix': {
-        'label':       'Prefix anlegen',
-        'description': 'Neues IP-Prefix mit Rolle und Standort anlegen.',
+        'label':       'Create Prefix',
+        'description': 'Create a new IP prefix with role and site assignment.',
         'icon':        'mdi-lan',
         'color':       'success',
         'url_name':    'wizard_prefix',
     },
     'vlan': {
-        'label':       'VLAN anlegen',
-        'description': 'Neues VLAN mit Duplikat-Check innerhalb der Gruppe anlegen.',
+        'label':       'Create VLAN',
+        'description': 'Create a new VLAN with duplicate check within the VLAN group.',
         'icon':        'mdi-switch',
         'color':       'info',
         'url_name':    'wizard_vlan',
     },
+    'vrf': {
+        'label':       'Create VRF',
+        'description': 'Create a new VRF with route distinguisher and tenant.',
+        'icon':        'mdi-directions-fork',
+        'color':       'primary',
+        'url_name':    'wizard_vrf',
+    },
+    'iprange': {
+        'label':       'Create IP Range',
+        'description': 'Create a new IP range with start and end address.',
+        'icon':        'mdi-arrow-expand-horizontal',
+        'color':       'info',
+        'url_name':    'wizard_iprange',
+    },
     'site': {
-        'label':       'Standort anlegen',
-        'description': 'Neuen Standort mit automatischem Slug und Mandant anlegen.',
+        'label':       'Create Site',
+        'description': 'Create a new site with automatic slug generation.',
         'icon':        'mdi-map-marker',
         'color':       'warning',
         'url_name':    'wizard_site',
     },
+    'location': {
+        'label':       'Create Location',
+        'description': 'Create a building, floor, or room within a site.',
+        'icon':        'mdi-map-marker-outline',
+        'color':       'warning',
+        'url_name':    'wizard_location',
+    },
+    'rack': {
+        'label':       'Create Rack',
+        'description': 'Create a new rack with site assignment and height.',
+        'icon':        'mdi-server-network',
+        'color':       'secondary',
+        'url_name':    'wizard_rack',
+    },
     'device': {
-        'label':       'Gerät anlegen',
-        'description': 'Neues Gerät mit Namensprüfung, Rolle und Gerätetyp anlegen.',
+        'label':       'Create Device',
+        'description': 'Create a new device with name validation, role and device type.',
         'icon':        'mdi-server',
         'color':       'danger',
         'url_name':    'wizard_device',
     },
+    'vm': {
+        'label':       'Create Virtual Machine',
+        'description': 'Create a new virtual machine within a cluster.',
+        'icon':        'mdi-desktop-classic',
+        'color':       'success',
+        'url_name':    'wizard_vm',
+    },
+    'tenant': {
+        'label':       'Create Tenant',
+        'description': 'Create a new tenant for organizational grouping.',
+        'icon':        'mdi-domain',
+        'color':       'secondary',
+        'url_name':    'wizard_tenant',
+    },
     'circuit': {
-        'label':       'Circuit anlegen',
-        'description': 'Neue WAN-Leitung mit Provider und Terminierung A anlegen.',
+        'label':       'Create Circuit',
+        'description': 'Create a new WAN circuit with provider and termination A.',
         'icon':        'mdi-cable-data',
         'color':       'secondary',
         'url_name':    'wizard_circuit',
@@ -787,12 +835,18 @@ WIZARD_DEFAULTS = {
 # Fields that CAN be configured (required/optional/hidden) per wizard type.
 # Core identity fields (address, vid, cid, name etc.) are always required.
 WIZARD_CONFIGURABLE_FIELDS = {
-    'ip':      ['dns_name', 'description', 'tenant', 'role'],
-    'prefix':  ['role', 'tenant', 'site', 'vlan', 'description'],
-    'vlan':    ['tenant'],
-    'site':    ['tenant', 'region', 'group', 'description'],
-    'device':  ['tenant', 'serial'],
-    'circuit': ['description'],
+    'ip':       ['dns_name', 'description', 'tenant', 'role'],
+    'prefix':   ['role', 'tenant', 'site', 'vlan', 'description'],
+    'vlan':     ['tenant'],
+    'vrf':      ['rd', 'tenant', 'description'],
+    'iprange':  ['role', 'tenant', 'description'],
+    'site':     ['tenant', 'region', 'group', 'description'],
+    'location': ['parent', 'tenant', 'description'],
+    'rack':     ['u_height', 'role', 'tenant', 'location'],
+    'device':   ['tenant', 'serial'],
+    'vm':       ['role', 'tenant', 'platform'],
+    'tenant':   ['group', 'description'],
+    'circuit':  ['description'],
 }
 
 
@@ -851,11 +905,37 @@ class WizardConfig(models.Model):
 
     @property
     def label(self):
-        return self.custom_label or WIZARD_DEFAULTS.get(self.wizard_type, {}).get('label', self.wizard_type)
+        if self.custom_label:
+            return self.custom_label
+        try:
+            from .ui_strings import get_all_ui_strings
+            s = ForceSettings.get_settings()
+            lang = getattr(s, 'language', 'en') if s else 'en'
+            ui = get_all_ui_strings(lang)
+            key = f'wizard_{self.wizard_type}_title'
+            localized = ui.get(key)
+            if localized:
+                return localized
+        except Exception:
+            pass
+        return WIZARD_DEFAULTS.get(self.wizard_type, {}).get('label', self.wizard_type)
 
     @property
     def description(self):
-        return self.custom_description or WIZARD_DEFAULTS.get(self.wizard_type, {}).get('description', '')
+        if self.custom_description:
+            return self.custom_description
+        try:
+            from .ui_strings import get_all_ui_strings
+            s = ForceSettings.get_settings()
+            lang = getattr(s, 'language', 'en') if s else 'en'
+            ui = get_all_ui_strings(lang)
+            key = f'wizard_{self.wizard_type}_description'
+            localized = ui.get(key)
+            if localized:
+                return localized
+        except Exception:
+            pass
+        return WIZARD_DEFAULTS.get(self.wizard_type, {}).get('description', '')
 
     @property
     def icon(self):

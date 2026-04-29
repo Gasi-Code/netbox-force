@@ -1,0 +1,85 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.wizard_tenant_title }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-domain"></i> {{ ui.wizard_tenant_title }}
+            </h5>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}<p class="mb-0">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
+                        <div class="form-text">The slug is generated automatically from the name.</div>
+                    </div>
+
+                    {% if form.group %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.group.label }}{% if form.group.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.group }}
+                        {% if form.group.errors %}<div class="invalid-feedback d-block">{{ form.group.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if form.description %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.changelog_message.label }} <span class="text-danger">*</span></label>
+                        {{ form.changelog_message }}
+                        {% if form.changelog_message.errors %}<div class="invalid-feedback d-block">{{ form.changelog_message.errors.0 }}</div>{% endif %}
+                        <div class="form-text">{{ ui.wizard_changelog_help }}</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{% url 'plugins:netbox_force:wizard_list' %}" class="btn btn-outline-secondary">
+                            <i class="mdi mdi-arrow-left"></i> {{ ui.wizard_btn_back }}
+                        </a>
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.wizard_tenant_btn }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
+            <div class="card-body small">
+                <p><strong>Slug</strong><br>
+                Generated automatically from the tenant name (lowercase, hyphens).</p>
+                <p><strong>Duplicate check</strong><br>
+                If the name already exists, creation will be blocked.</p>
+                <p><strong>Next steps</strong><br>
+                Assign sites, devices, prefixes, and VMs to this tenant.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
