@@ -2,7 +2,6 @@
 # deploy_wizards.sh
 # Deployment-Skript für NetBox Wizard-Scripts
 # Organisation: Meine Organisation
-# Zielverzeichnis: /opt/netbox/netbox/scripts/
 #
 # Verwendung:
 #   chmod +x deploy_wizards.sh
@@ -12,6 +11,32 @@
 # Voraussetzungen:
 #   - Script wird auf dem NetBox-Server ausgeführt (oder script_path ist per NFS/SSHFS gemountet)
 #   - Ausführungsrechte als root oder mit sudo
+#
+# ── NetBox-Version und Zielverzeichnis ────────────────────────────────────────
+#
+#   NetBox < 4.0 (klassisch / Bare-Metal):
+#     TARGET_DIR="/opt/netbox/netbox/scripts"
+#     Scripts werden automatisch aus SCRIPTS_ROOT geladen → restart reicht.
+#
+#   NetBox 4.x (Docker / LinuxServer.io Image):
+#     TARGET_DIR="/config/scripts"   (Pfad im Container)
+#     SCRIPTS_ROOT wird automatisch gesetzt, aber NetBox 4.x lädt Scripts
+#     NICHT mehr automatisch — Data Source muss registriert werden!
+#
+#     Nach dem Kopieren einmalig ausführen (im Container oder per exec):
+#       docker exec -it Netbox python /app/netbox/manage.py shell << 'EOF'
+#       from core.models import DataSource
+#       ds, created = DataSource.objects.get_or_create(
+#           name="Wizard Scripts",
+#           defaults={"type": "local", "source_url": "file:///config/scripts"}
+#       )
+#       ds.sync()
+#       print(f"Synced {ds.datafiles.count()} files.")
+#       EOF
+#
+#     Oder im Browser (Admin-Login erforderlich):
+#       https://<netbox-url>/core/data-sources/add/
+#       → Type: Local directory, Source URL: file:///config/scripts → Save → Sync
 
 set -euo pipefail
 

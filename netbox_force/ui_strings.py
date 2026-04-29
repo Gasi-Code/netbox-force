@@ -10,6 +10,7 @@ UI_STRINGS = {
         'tab_rules': 'Validierungsregeln',
         'tab_violations': 'Verstöße',
         'tab_dashboard': 'Dashboard',
+        'tab_wizards': 'Wizards',
 
         # Section headers
         'section_language': 'Sprache',
@@ -339,6 +340,7 @@ UI_STRINGS = {
         # Tabs
         'tab_settings': 'Settings',
         'tab_rules': 'Validation Rules',
+        'tab_wizards': 'Wizards',
         'tab_violations': 'Violations',
         'tab_dashboard': 'Dashboard',
 

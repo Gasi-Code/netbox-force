@@ -43,6 +43,11 @@ _menu = PluginMenu(
                 link_text='Widget Images',
                 permissions=['netbox_force.view_widgetimage'],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_force:wizard_list',
+                link_text='Wizards',
+                permissions=[],
+            ),
         )),
     ),
     icon_class='mdi mdi-shield-check',
@@ -107,6 +112,11 @@ def _localize_menu():
                         link='plugins:netbox_force:widget_image_list',
                         link_text=ui.get('tab_widget_images', 'Widget Images'),
                         permissions=['netbox_force.view_widgetimage'],
+                    ),
+                    PluginMenuItem(
+                        link='plugins:netbox_force:wizard_list',
+                        link_text=ui.get('tab_wizards', 'Wizards'),
+                        permissions=[],
                     ),
                 )),
             ),

@@ -59,4 +59,12 @@
         </a>
     </li>
     {% endif %}
+    {% if force_settings.wizards_enabled %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'wizards' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:wizard_list' %}">
+            <i class="mdi mdi-auto-fix"></i> {{ ui.tab_wizards|default:"Wizards" }}
+        </a>
+    </li>
+    {% endif %}
 </ul>

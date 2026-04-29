@@ -47,6 +47,15 @@ urlpatterns = [
     path('widget/images/<int:pk>/delete/', views.WidgetImageDeleteView.as_view(), name='widget_image_delete'),
     path('widget/images/<str:filename>', views.WidgetImageServeView.as_view(), name='widget_image_serve'),
 
+    # Wizards
+    path('wizards/', views.WizardListView.as_view(), name='wizard_list'),
+    path('wizards/ip/', views.WizardIPView.as_view(), name='wizard_ip'),
+    path('wizards/prefix/', views.WizardPrefixView.as_view(), name='wizard_prefix'),
+    path('wizards/vlan/', views.WizardVLANView.as_view(), name='wizard_vlan'),
+    path('wizards/site/', views.WizardSiteView.as_view(), name='wizard_site'),
+    path('wizards/device/', views.WizardDeviceView.as_view(), name='wizard_device'),
+    path('wizards/circuit/', views.WizardCircuitView.as_view(), name='wizard_circuit'),
+
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',

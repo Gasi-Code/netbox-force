@@ -148,6 +148,11 @@ class ForceSettings(models.Model):
         default=False,
         verbose_name='Enable user guide',
     )
+    wizards_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable wizards',
+        help_text='Enable guided creation wizards for IP addresses, prefixes, VLANs, sites, devices, and circuits.',
+    )
 
     # --- Global Enforcement Toggle ---
     enforcement_enabled = models.BooleanField(

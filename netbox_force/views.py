@@ -15,7 +15,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from .forms import ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm, GuidePageForm, WidgetImageUploadForm
+from .forms import (
+    ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm,
+    GuidePageForm, WidgetImageUploadForm,
+    WizardIPForm, WizardPrefixForm, WizardVLANForm,
+    WizardSiteForm, WizardDeviceForm, WizardCircuitForm,
+)
 from .models import ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate, GuidePage, WidgetImage
 from .signals import check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
@@ -1334,3 +1339,303 @@ class WidgetImageServeView(AuthenticatedRequiredMixin, View):
             return response
         except (FileNotFoundError, OSError):
             raise Http404('Image file not found on disk.')
+
+
+# =============================================================================
+# WIZARD VIEWS
+# =============================================================================
+
+def _wizard_gate(request, settings_obj=None):
+    """Returns (settings, disabled_response_or_None)."""
+    s = settings_obj or ForceSettings.get_settings()
+    if not getattr(s, 'wizards_enabled', False):
+        return s, _feature_disabled_response(request, s)
+    return s, None
+
+
+def _wizard_save_error(exc):
+    """Converts a save exception into a user-readable string."""
+    msg = str(exc)
+    if 'unique' in msg.lower() or 'duplicate' in msg.lower():
+        return 'Ein Objekt mit diesen Daten existiert bereits in NetBox.'
+    return f'Fehler beim Speichern: {msg}'
+
+
+class WizardListView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx['active_tab'] = 'wizards'
+        return render(request, 'netbox_force/wizard_list.html', ctx)
+
+
+class WizardIPView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardIPForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_ip.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardIPForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from ipam.models import IPAddress
+                existing = IPAddress.objects.filter(address=cd['address']).first()
+                if existing:
+                    form.add_error('address',
+                        f"IP-Adresse '{cd['address']}' existiert bereits in NetBox.")
+                else:
+                    obj = IPAddress(
+                        address=cd['address'],
+                        status=cd['status'],
+                        dns_name=cd.get('dns_name') or '',
+                        description=cd.get('description') or '',
+                    )
+                    if cd.get('tenant'):
+                        obj.tenant = cd['tenant']
+                    if cd.get('role'):
+                        obj.role = cd['role']
+                    obj._changelog_message = cd['changelog_message']
+                    obj.save()
+                    messages.success(request, f"IP-Adresse {obj} erfolgreich angelegt.")
+                    return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_ip.html', ctx)
+
+
+class WizardPrefixView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardPrefixForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_prefix.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardPrefixForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from ipam.models import Prefix
+                obj = Prefix(
+                    prefix=cd['prefix'],
+                    status=cd['status'],
+                    description=cd.get('description') or '',
+                )
+                if cd.get('role'):
+                    obj.role = cd['role']
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                if cd.get('site'):
+                    obj.site = cd['site']
+                if cd.get('vlan'):
+                    obj.vlan = cd['vlan']
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, f"Prefix {obj} erfolgreich angelegt.")
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_prefix.html', ctx)
+
+
+class WizardVLANView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardVLANForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vlan.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardVLANForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from ipam.models import VLAN
+                if VLAN.objects.filter(vid=cd['vid'], group=cd['group']).exists():
+                    form.add_error('vid',
+                        f"VLAN {cd['vid']} existiert bereits in der Gruppe '{cd['group']}'.")
+                else:
+                    obj = VLAN(
+                        vid=cd['vid'],
+                        name=cd['name'],
+                        group=cd['group'],
+                        status=cd['status'],
+                        role=cd['role'],
+                    )
+                    if cd.get('tenant'):
+                        obj.tenant = cd['tenant']
+                    obj._changelog_message = cd['changelog_message']
+                    obj.save()
+                    messages.success(request,
+                        f"VLAN {obj.vid} – {obj.name} erfolgreich angelegt.")
+                    return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_vlan.html', ctx)
+
+
+class WizardSiteView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardSiteForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_site.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardSiteForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from dcim.models import Site
+                from django.utils.text import slugify
+                site_name = cd['name'].strip()
+                if Site.objects.filter(name=site_name).exists():
+                    form.add_error('name',
+                        f"Ein Standort mit dem Namen '{site_name}' existiert bereits.")
+                else:
+                    slug = slugify(site_name)
+                    if Site.objects.filter(slug=slug).exists():
+                        slug = slug + '-2'
+                    obj = Site(
+                        name=site_name,
+                        slug=slug,
+                        status=cd['status'],
+                        tenant=cd.get('tenant'),
+                        description=cd.get('description') or '',
+                    )
+                    if cd.get('region'):
+                        obj.region = cd['region']
+                    if cd.get('group'):
+                        obj.group = cd['group']
+                    obj._changelog_message = cd['changelog_message']
+                    obj.save()
+                    messages.success(request, f"Standort '{obj.name}' erfolgreich angelegt.")
+                    return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_site.html', ctx)
+
+
+class WizardDeviceView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardDeviceForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_device.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardDeviceForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from dcim.models import Device
+                device_name = cd['name']
+                if Device.objects.filter(name=device_name).exists():
+                    messages.warning(request,
+                        f"Hinweis: Ein Gerät mit dem Namen '{device_name}' existiert bereits.")
+                obj = Device(
+                    name=device_name,
+                    device_role=cd['device_role'],
+                    device_type=cd['device_type'],
+                    site=cd['site'],
+                    status=cd['status'],
+                )
+                if cd.get('tenant'):
+                    obj.tenant = cd['tenant']
+                if (cd.get('serial') or '').strip():
+                    obj.serial = cd['serial'].strip()
+                obj._changelog_message = cd['changelog_message']
+                obj.save()
+                messages.success(request, f"Gerät '{obj.name}' erfolgreich angelegt.")
+                return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_device.html', ctx)
+
+
+class WizardCircuitView(AuthenticatedRequiredMixin, View):
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        ctx = _base_context(s)
+        ctx.update({'form': WizardCircuitForm(), 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_circuit.html', ctx)
+
+    def post(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        form = WizardCircuitForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            try:
+                from circuits.models import Circuit, CircuitTermination
+                cid = cd['cid'].strip()
+                if Circuit.objects.filter(cid=cid).exists():
+                    form.add_error('cid',
+                        f"Circuit-ID '{cid}' existiert bereits in NetBox.")
+                else:
+                    obj = Circuit(
+                        cid=cid,
+                        provider=cd['provider'],
+                        type=cd['circuit_type'],
+                        status=cd['status'],
+                        description=cd.get('description') or '',
+                    )
+                    obj._changelog_message = cd['changelog_message']
+                    obj.save()
+                    site_a = cd.get('site_termination_a')
+                    if site_a:
+                        CircuitTermination(
+                            circuit=obj,
+                            term_side='A',
+                            site=site_a,
+                        ).save()
+                    messages.success(request, f"Circuit '{obj.cid}' erfolgreich angelegt.")
+                    return redirect(obj.get_absolute_url())
+            except Exception as exc:
+                form.add_error(None, _wizard_save_error(exc))
+        ctx = _base_context(s)
+        ctx.update({'form': form, 'active_tab': 'wizards'})
+        return render(request, 'netbox_force/wizard_circuit.html', ctx)
