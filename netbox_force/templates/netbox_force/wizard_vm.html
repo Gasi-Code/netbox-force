@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
                         {{ form.name }}
                         {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-                        <div class="form-text">No underscores or spaces. Recommended: lowercase with hyphens, e.g. <code>vm-web-01</code></div>
+                        <div class="form-text">{{ ui.wizard_vm_help_name }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -40,6 +40,12 @@
                         <label class="form-label fw-semibold">{{ form.cluster.label }} <span class="text-danger">*</span></label>
                         {{ form.cluster }}
                         {% if form.cluster.errors %}<div class="invalid-feedback d-block">{{ form.cluster.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.cluster == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="/virtualization/clusters/add/" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     {% if form.role %}
@@ -92,12 +98,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Cluster</strong><br>
-                The cluster must exist in NetBox before creating a VM. Create it under Virtualization → Clusters.</p>
-                <p><strong>Naming</strong><br>
-                No underscores or spaces. Recommended: <code>vm-web-01</code></p>
-                <p><strong>Next steps</strong><br>
-                Add interfaces → assign IP addresses → configure resources (vCPUs, RAM, disk).</p>
+                <p><strong>{{ ui.wizard_vm_hint_1_title }}</strong><br>{{ ui.wizard_vm_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_vm_hint_2_title }}</strong><br>{{ ui.wizard_vm_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_vm_hint_next }}</p>
             </div>
         </div>
     </div>

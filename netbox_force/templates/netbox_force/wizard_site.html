@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
                         {{ form.name }}
                         {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Der Slug wird automatisch aus dem Namen generiert.</div>
+                        <div class="form-text">{{ ui.wizard_site_help_name }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -94,12 +94,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Slug</strong><br>
-                Wird automatisch aus dem Standortnamen generiert (Kleinbuchstaben, Bindestriche).</p>
-                <p><strong>Duplikat-Check</strong><br>
-                Existiert der Name bereits, wird das Anlegen abgebrochen.</p>
-                <p><strong>Nächste Schritte</strong><br>
-                Racks, Geräte und Prefixes dem Standort zuweisen.</p>
+                <p><strong>{{ ui.wizard_site_hint_1_title }}</strong><br>{{ ui.wizard_site_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_site_hint_2_title }}</strong><br>{{ ui.wizard_site_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_site_hint_next }}</p>
             </div>
         </div>
     </div>

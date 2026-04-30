@@ -27,14 +27,14 @@
                         <label class="form-label fw-semibold">{{ form.start_address.label }} <span class="text-danger">*</span></label>
                         {{ form.start_address }}
                         {% if form.start_address.errors %}<div class="invalid-feedback d-block">{{ form.start_address.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Format: <code>10.0.0.1/24</code></div>
+                        <div class="form-text">{{ ui.wizard_iprange_help_start }}</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.end_address.label }} <span class="text-danger">*</span></label>
                         {{ form.end_address }}
                         {% if form.end_address.errors %}<div class="invalid-feedback d-block">{{ form.end_address.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Format: <code>10.0.0.254/24</code></div>
+                        <div class="form-text">{{ ui.wizard_iprange_help_end }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -61,7 +61,7 @@
 
                     {% if form.description %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.description.label %}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        <label class="form-label">{{ form.description.label }}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.description }}
                         {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
                     </div>
@@ -93,12 +93,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Start / End Address</strong><br>
-                Both addresses must include the prefix length (CIDR notation).</p>
-                <p><strong>Use cases</strong><br>
-                DHCP pools, NAT address pools, reserved address ranges.</p>
-                <p><strong>Next steps</strong><br>
-                Assign the range to a VRF or link to a prefix.</p>
+                <p><strong>{{ ui.wizard_iprange_hint_1_title }}</strong><br>{{ ui.wizard_iprange_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_iprange_hint_2_title }}</strong><br>{{ ui.wizard_iprange_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_iprange_hint_next }}</p>
             </div>
         </div>
     </div>

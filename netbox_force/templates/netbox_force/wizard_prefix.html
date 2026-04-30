@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.prefix.label }} <span class="text-danger">*</span></label>
                         {{ form.prefix }}
                         {% if form.prefix.errors %}<div class="invalid-feedback d-block">{{ form.prefix.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Format: <code>10.0.0.0/24</code> oder <code>2001:db8::/48</code></div>
+                        <div class="form-text">{{ ui.wizard_prefix_help_prefix }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -102,13 +102,10 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Container vs. Aktiv</strong><br>
-                <em>Container</em>: Übergeordnetes Aggregat.<br>
-                <em>Aktiv</em>: Tatsächlich genutztes Netz.</p>
-                <p><strong>Überlappungen</strong><br>
-                NetBox erlaubt überlappende Prefixes — prüfe Hierarchie manuell.</p>
-                <p><strong>VLAN-Verknüpfung</strong><br>
-                Optional — verbindet das Layer-3-Netz mit dem VLAN.</p>
+                <p><strong>{{ ui.wizard_prefix_hint_1_title }}</strong><br>{{ ui.wizard_prefix_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_prefix_hint_2_title }}</strong><br>{{ ui.wizard_prefix_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_prefix_hint_3_title }}</strong><br>{{ ui.wizard_prefix_hint_3_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_prefix_hint_next }}</p>
             </div>
         </div>
     </div>

@@ -12,6 +12,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -1374,6 +1375,59 @@ def _wizard_created_msg(obj, settings_obj=None):
     return ui.get('wizard_object_created', 'Created: {name}').format(name=str(obj))
 
 
+# Maps each wizard type to related wizard types shown on the success page
+WIZARD_NEXT_STEPS = {
+    'ip':       ['prefix', 'vlan'],
+    'prefix':   ['ip', 'vlan'],
+    'vlan':     ['ip', 'prefix'],
+    'vrf':      ['prefix', 'ip'],
+    'iprange':  ['prefix', 'vrf'],
+    'site':     ['location', 'rack', 'device'],
+    'location': ['rack', 'device'],
+    'rack':     ['device'],
+    'device':   ['ip', 'vm'],
+    'vm':       ['ip'],
+    'tenant':   ['site', 'device'],
+    'circuit':  ['ip'],
+}
+
+# Prerequisite model counts shown inline in wizard forms
+WIZARD_PREREQUISITES = {
+    'device': {
+        'device_type': 'dcim.DeviceType',
+        'device_role': 'dcim.DeviceRole',
+        'site': 'dcim.Site',
+    },
+    'vm': {
+        'cluster': 'virtualization.Cluster',
+    },
+    'rack': {
+        'site': 'dcim.Site',
+    },
+    'circuit': {
+        'provider': 'circuits.Provider',
+        'circuit_type': 'circuits.CircuitType',
+    },
+    'location': {
+        'site': 'dcim.Site',
+    },
+}
+
+
+def _get_prerequisite_counts(wizard_type):
+    """Returns {field_name: count} for prerequisite objects of a wizard type."""
+    prereqs = WIZARD_PREREQUISITES.get(wizard_type, {})
+    counts = {}
+    for field_name, model_path in prereqs.items():
+        try:
+            app_label, model_name = model_path.split('.')
+            model = apps.get_model(app_label, model_name)
+            counts[field_name] = model.objects.count()
+        except Exception:
+            counts[field_name] = 1  # assume available on error
+    return counts
+
+
 class WizardListView(AuthenticatedRequiredMixin, View):
     def get(self, request):
         s, disabled = _wizard_gate(request)
@@ -1429,7 +1483,10 @@ class WizardIPView(AuthenticatedRequiredMixin, View):
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
                     messages.success(request, _wizard_created_msg(obj, s))
-                    return redirect(obj.get_absolute_url())
+                    return redirect(
+                        reverse('plugins:netbox_force:wizard_success')
+                        + f'?type=ip&pk={obj.pk}'
+                    )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1480,7 +1537,10 @@ class WizardPrefixView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=prefix&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1512,8 +1572,11 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
             try:
                 from ipam.models import VLAN
                 if VLAN.objects.filter(vid=cd['vid'], group=cd['group']).exists():
-                    form.add_error('vid',
-                        f"VLAN {cd['vid']} existiert bereits in der Gruppe '{cd['group']}'.")
+                    ui = _get_ui_context(s)
+                    form.add_error('vid', ui.get(
+                        'wizard_vlan_error_duplicate',
+                        'VLAN {vid} already exists in group "{group}".'
+                    ).format(vid=cd['vid'], group=cd['group']))
                 else:
                     obj = VLAN(
                         vid=cd['vid'],
@@ -1527,7 +1590,10 @@ class WizardVLANView(AuthenticatedRequiredMixin, View):
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
                     messages.success(request, _wizard_created_msg(obj, s))
-                    return redirect(obj.get_absolute_url())
+                    return redirect(
+                        reverse('plugins:netbox_force:wizard_success')
+                        + f'?type=vlan&pk={obj.pk}'
+                    )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1561,8 +1627,11 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
                 from django.utils.text import slugify
                 site_name = cd['name'].strip()
                 if Site.objects.filter(name=site_name).exists():
-                    form.add_error('name',
-                        f"Ein Standort mit dem Namen '{site_name}' existiert bereits.")
+                    ui = _get_ui_context(s)
+                    form.add_error('name', ui.get(
+                        'wizard_site_error_duplicate',
+                        'A site with the name "{name}" already exists.'
+                    ).format(name=site_name))
                 else:
                     slug = slugify(site_name)
                     if Site.objects.filter(slug=slug).exists():
@@ -1581,7 +1650,10 @@ class WizardSiteView(AuthenticatedRequiredMixin, View):
                     obj._changelog_message = cd['changelog_message']
                     obj.save()
                     messages.success(request, _wizard_created_msg(obj, s))
-                    return redirect(obj.get_absolute_url())
+                    return redirect(
+                        reverse('plugins:netbox_force:wizard_success')
+                        + f'?type=site&pk={obj.pk}'
+                    )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1598,7 +1670,8 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
         apply_wizard_config(form, 'device')
         localize_wizard_form(form)
         ctx = _base_context(s)
-        ctx.update({'form': form, 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards',
+                    'prereq_counts': _get_prerequisite_counts('device')})
         return render(request, 'netbox_force/wizard_device.html', ctx)
 
     def post(self, request):
@@ -1614,23 +1687,30 @@ class WizardDeviceView(AuthenticatedRequiredMixin, View):
                 from dcim.models import Device
                 device_name = cd['name']
                 if Device.objects.filter(name=device_name).exists():
-                    messages.warning(request,
-                        f"Hinweis: Ein Gerät mit dem Namen '{device_name}' existiert bereits.")
-                obj = Device(
-                    name=device_name,
-                    device_role=cd['device_role'],
-                    device_type=cd['device_type'],
-                    site=cd['site'],
-                    status=cd['status'],
-                )
-                if cd.get('tenant'):
-                    obj.tenant = cd['tenant']
-                if (cd.get('serial') or '').strip():
-                    obj.serial = cd['serial'].strip()
-                obj._changelog_message = cd['changelog_message']
-                obj.save()
-                messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                    ui = _get_ui_context(s)
+                    form.add_error('name', ui.get(
+                        'wizard_device_duplicate_warning',
+                        'A device with this name already exists.'
+                    ).format(name=device_name))
+                else:
+                    obj = Device(
+                        name=device_name,
+                        device_role=cd['device_role'],
+                        device_type=cd['device_type'],
+                        site=cd['site'],
+                        status=cd['status'],
+                    )
+                    if cd.get('tenant'):
+                        obj.tenant = cd['tenant']
+                    if (cd.get('serial') or '').strip():
+                        obj.serial = cd['serial'].strip()
+                    obj._changelog_message = cd['changelog_message']
+                    obj.save()
+                    messages.success(request, _wizard_created_msg(obj, s))
+                    return redirect(
+                        reverse('plugins:netbox_force:wizard_success')
+                        + f'?type=device&pk={obj.pk}'
+                    )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1647,7 +1727,8 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
         apply_wizard_config(form, 'circuit')
         localize_wizard_form(form)
         ctx = _base_context(s)
-        ctx.update({'form': form, 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards',
+                    'prereq_counts': _get_prerequisite_counts('circuit')})
         return render(request, 'netbox_force/wizard_circuit.html', ctx)
 
     def post(self, request):
@@ -1663,8 +1744,11 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
                 from circuits.models import Circuit, CircuitTermination
                 cid = cd['cid'].strip()
                 if Circuit.objects.filter(cid=cid).exists():
-                    form.add_error('cid',
-                        f"Circuit-ID '{cid}' existiert bereits in NetBox.")
+                    ui = _get_ui_context(s)
+                    form.add_error('cid', ui.get(
+                        'wizard_circuit_error_duplicate_cid',
+                        'Circuit ID "{cid}" already exists in NetBox.'
+                    ).format(cid=cid))
                 else:
                     obj = Circuit(
                         cid=cid,
@@ -1683,7 +1767,10 @@ class WizardCircuitView(AuthenticatedRequiredMixin, View):
                             site=site_a,
                         ).save()
                     messages.success(request, _wizard_created_msg(obj, s))
-                    return redirect(obj.get_absolute_url())
+                    return redirect(
+                        reverse('plugins:netbox_force:wizard_success')
+                        + f'?type=circuit&pk={obj.pk}'
+                    )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1724,7 +1811,10 @@ class WizardVRFView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=vrf&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1768,7 +1858,10 @@ class WizardIPRangeView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=iprange&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1785,7 +1878,8 @@ class WizardRackView(AuthenticatedRequiredMixin, View):
         apply_wizard_config(form, 'rack')
         localize_wizard_form(form)
         ctx = _base_context(s)
-        ctx.update({'form': form, 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards',
+                    'prereq_counts': _get_prerequisite_counts('rack')})
         return render(request, 'netbox_force/wizard_rack.html', ctx)
 
     def post(self, request):
@@ -1815,7 +1909,10 @@ class WizardRackView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=rack&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1832,7 +1929,8 @@ class WizardVMView(AuthenticatedRequiredMixin, View):
         apply_wizard_config(form, 'vm')
         localize_wizard_form(form)
         ctx = _base_context(s)
-        ctx.update({'form': form, 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards',
+                    'prereq_counts': _get_prerequisite_counts('vm')})
         return render(request, 'netbox_force/wizard_vm.html', ctx)
 
     def post(self, request):
@@ -1860,7 +1958,10 @@ class WizardVMView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=vm&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1904,7 +2005,10 @@ class WizardTenantView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=tenant&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
@@ -1921,7 +2025,8 @@ class WizardLocationView(AuthenticatedRequiredMixin, View):
         apply_wizard_config(form, 'location')
         localize_wizard_form(form)
         ctx = _base_context(s)
-        ctx.update({'form': form, 'active_tab': 'wizards'})
+        ctx.update({'form': form, 'active_tab': 'wizards',
+                    'prereq_counts': _get_prerequisite_counts('location')})
         return render(request, 'netbox_force/wizard_location.html', ctx)
 
     def post(self, request):
@@ -1952,12 +2057,70 @@ class WizardLocationView(AuthenticatedRequiredMixin, View):
                 obj._changelog_message = cd['changelog_message']
                 obj.save()
                 messages.success(request, _wizard_created_msg(obj, s))
-                return redirect(obj.get_absolute_url())
+                return redirect(
+                    reverse('plugins:netbox_force:wizard_success')
+                    + f'?type=location&pk={obj.pk}'
+                )
             except Exception as exc:
                 form.add_error(None, _wizard_save_error(exc, s))
         ctx = _base_context(s)
         ctx.update({'form': form, 'active_tab': 'wizards'})
         return render(request, 'netbox_force/wizard_location.html', ctx)
+
+
+# Wizard type → (app_label, model_name) for loading the created object
+_WIZARD_TYPE_MODELS = {
+    'ip':       ('ipam', 'IPAddress'),
+    'prefix':   ('ipam', 'Prefix'),
+    'vlan':     ('ipam', 'VLAN'),
+    'vrf':      ('ipam', 'VRF'),
+    'iprange':  ('ipam', 'IPRange'),
+    'site':     ('dcim', 'Site'),
+    'location': ('dcim', 'Location'),
+    'rack':     ('dcim', 'Rack'),
+    'device':   ('dcim', 'Device'),
+    'vm':       ('virtualization', 'VirtualMachine'),
+    'tenant':   ('tenancy', 'Tenant'),
+    'circuit':  ('circuits', 'Circuit'),
+}
+
+
+class WizardSuccessView(AuthenticatedRequiredMixin, View):
+    """Completion page shown after a wizard creates an object."""
+
+    def get(self, request):
+        s, disabled = _wizard_gate(request)
+        if disabled:
+            return disabled
+        wizard_type = request.GET.get('type', '')
+        pk = request.GET.get('pk', '')
+
+        obj = None
+        obj_url = None
+        if wizard_type and pk:
+            try:
+                if wizard_type in _WIZARD_TYPE_MODELS:
+                    app_label, model_name = _WIZARD_TYPE_MODELS[wizard_type]
+                    model = apps.get_model(app_label, model_name)
+                    obj = model.objects.get(pk=pk)
+                    obj_url = obj.get_absolute_url()
+            except Exception:
+                pass  # object may have been deleted; show page without link
+
+        # Build next-step suggestions from enabled wizard configs
+        next_step_types = WIZARD_NEXT_STEPS.get(wizard_type, [])
+        enabled_map = {cfg.wizard_type: cfg for cfg in WizardConfig.get_enabled()}
+        next_steps = [enabled_map[wt] for wt in next_step_types if wt in enabled_map]
+
+        ctx = _base_context(s)
+        ctx.update({
+            'active_tab': 'wizards',
+            'wizard_type': wizard_type,
+            'created_obj': obj,
+            'obj_url': obj_url,
+            'next_steps': next_steps,
+        })
+        return render(request, 'netbox_force/wizard_success.html', ctx)
 
 
 # =============================================================================
@@ -1983,14 +2146,15 @@ class WizardConfigToggleView(SuperuserRequiredMixin, View):
     def post(self, request, wizard_type):
         from .models import WIZARD_TYPE_CHOICES
         valid_types = [wt for wt, _ in WIZARD_TYPE_CHOICES]
+        ui = _get_ui_context()
         if wizard_type not in valid_types:
-            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            messages.error(request, ui.get('wizard_error_unknown_type', 'Unknown wizard type.'))
             return redirect('plugins:netbox_force:wizard_config_list')
         obj, _ = WizardConfig.objects.get_or_create(wizard_type=wizard_type)
         obj.enabled = not obj.enabled
         obj.save()
-        state = 'aktiviert' if obj.enabled else 'deaktiviert'
-        messages.success(request, f"Wizard '{obj.label}' {state}.")
+        msg_key = 'wizard_toggle_enabled' if obj.enabled else 'wizard_toggle_disabled'
+        messages.success(request, ui.get(msg_key, '').format(label=obj.label))
         return redirect('plugins:netbox_force:wizard_config_list')
 
 
@@ -2008,7 +2172,7 @@ class WizardConfigEditView(SuperuserRequiredMixin, View):
     def get(self, request, wizard_type):
         obj = self._get_or_create(wizard_type)
         if obj is None:
-            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            messages.error(request, _get_ui_context().get('wizard_error_unknown_type', 'Unknown wizard type.'))
             return redirect('plugins:netbox_force:wizard_config_list')
         form = WizardConfigForm(instance=obj)
         ctx = _base_context()
@@ -2021,13 +2185,14 @@ class WizardConfigEditView(SuperuserRequiredMixin, View):
 
     def post(self, request, wizard_type):
         obj = self._get_or_create(wizard_type)
+        ui = _get_ui_context()
         if obj is None:
-            messages.error(request, f"Unbekannter Wizard-Typ: {wizard_type}")
+            messages.error(request, ui.get('wizard_error_unknown_type', 'Unknown wizard type.'))
             return redirect('plugins:netbox_force:wizard_config_list')
         form = WizardConfigForm(request.POST, instance=obj)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Wizard-Konfiguration für '{obj.label}' gespeichert.")
+            messages.success(request, ui.get('wizard_config_saved', '').format(label=obj.label))
             return redirect('plugins:netbox_force:wizard_config_list')
         ctx = _base_context()
         ctx.update({

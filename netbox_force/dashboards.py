@@ -446,11 +446,25 @@ class WizardWidget(DashboardWidget):
     height = 4
 
     class ConfigForm(WidgetConfigForm):
+        header_style = forms.ChoiceField(
+            label='Header style',
+            choices=[('prominent', 'Prominent (colored banner)'), ('minimal', 'Minimal (no header)')],
+            initial='prominent',
+            widget=forms.Select(attrs={'style': 'width:16rem;'}),
+        )
         num_columns = forms.ChoiceField(
             label='Columns',
-            choices=[('2', '2 columns'), ('3', '3 columns')],
+            choices=[('2', '2 columns'), ('3', '3 columns'), ('4', '4 columns')],
             initial='3',
             widget=forms.Select(attrs={'style': 'width:8rem;'}),
+        )
+        max_wizards = forms.IntegerField(
+            label='Max wizards shown (0 = all)',
+            required=False,
+            initial=0,
+            min_value=0,
+            max_value=50,
+            widget=forms.NumberInput(attrs={'style': 'width:5rem;'}),
         )
         show_descriptions = forms.BooleanField(
             label='Show descriptions',
@@ -462,8 +476,12 @@ class WizardWidget(DashboardWidget):
             super().__init__(*args, **kwargs)
             try:
                 ui, _ = _get_widget_strings()
+                self.fields['header_style'].label = ui.get(
+                    'widget_wizards_header_style_label', 'Header style')
                 self.fields['num_columns'].label = ui.get(
                     'widget_wizards_columns_label', 'Columns')
+                self.fields['max_wizards'].label = ui.get(
+                    'widget_wizards_max_label', 'Max wizards shown (0 = all)')
                 self.fields['show_descriptions'].label = ui.get(
                     'widget_wizards_show_desc_label', 'Show descriptions')
             except Exception:
@@ -488,7 +506,7 @@ class WizardWidget(DashboardWidget):
 
         try:
             from .models import WizardConfig
-            configs = WizardConfig.get_enabled()
+            configs = list(WizardConfig.get_enabled())
         except Exception:
             configs = []
 
@@ -502,16 +520,45 @@ class WizardWidget(DashboardWidget):
                 empty_msg,
             )
 
+        # Config: header style
+        header_style = self.config.get('header_style', 'prominent')
+
+        # Config: max wizards
+        try:
+            max_wiz = int(self.config.get('max_wizards') or 0)
+        except (TypeError, ValueError):
+            max_wiz = 0
+        if max_wiz > 0:
+            configs = configs[:max_wiz]
+
+        # Config: columns
         try:
             num_cols = int(self.config.get('num_columns') or 3)
-            if num_cols not in (2, 3):
+            if num_cols not in (2, 3, 4):
                 num_cols = 3
         except (TypeError, ValueError):
             num_cols = 3
 
         show_descriptions = self.config.get('show_descriptions', True)
-        col_class = 'col-6' if num_cols == 2 else 'col-4'
+        col_class = {2: 'col-6', 3: 'col-4', 4: 'col-3'}.get(num_cols, 'col-4')
 
+        # Prominent header block
+        header_html = mark_safe('')
+        if header_style == 'prominent':
+            header_html = format_html(
+                '<div class="bg-primary text-white px-3 py-2 rounded mb-2 '
+                'd-flex align-items-center gap-2">'
+                '<i class="mdi mdi-plus-circle" style="font-size:1.4rem;"></i>'
+                '<div>'
+                '<div class="fw-bold" style="font-size:.9rem;letter-spacing:.04em;">'
+                '{header}</div>'
+                '<div class="small opacity-75">{subheader}</div>'
+                '</div></div>',
+                header=ui.get('widget_wizards_header', '+ QUICK CREATE'),
+                subheader=ui.get('widget_wizards_subheader', 'Create a new NetBox object'),
+            )
+
+        # Wizard tiles — entire card is the link
         cards = []
         for cfg in configs:
             try:
@@ -519,45 +566,54 @@ class WizardWidget(DashboardWidget):
             except Exception:
                 url = '#'
 
-            desc_html = mark_safe('')
-            cfg_desc = ui.get(f'wizard_{cfg.wizard_type}_description') or cfg.description
-            if show_descriptions and cfg_desc:
-                desc = cfg_desc[:80] + '…' if len(cfg_desc) > 80 else cfg_desc
-                desc_html = format_html(
-                    '<p class="small text-muted mb-2" style="line-height:1.3;">{}</p>',
-                    desc,
-                )
-
-            btn_start = ui.get('wizard_btn_start', 'Start')
             card_label = ui.get(f'wizard_{cfg.wizard_type}_title') or cfg.label
+
+            if show_descriptions:
+                cfg_desc = ui.get(f'wizard_{cfg.wizard_type}_description') or cfg.description
+                if cfg_desc:
+                    desc = cfg_desc[:70] + '…' if len(cfg_desc) > 70 else cfg_desc
+                    desc_html = format_html(
+                        '<div class="small text-muted" '
+                        'style="font-size:.72rem;line-height:1.3;">{}</div>',
+                        desc,
+                    )
+                else:
+                    desc_html = mark_safe('')
+            else:
+                desc_html = mark_safe('')
+
             cards.append(format_html(
-                '<div class="{col_class} mb-3">'
-                '<div class="card h-100 border-0 shadow-sm">'
-                '<div class="card-body d-flex flex-column p-3">'
-                '<div class="mb-2">'
-                '<span class="fs-3 text-{color}">'
-                '<i class="mdi {icon}"></i></span>'
-                '</div>'
-                '<h6 class="card-title mb-1" style="font-size:.85rem;line-height:1.2;">'
-                '{label}</h6>'
+                '<div class="{col_class} mb-2">'
+                '<a href="{url}" class="text-decoration-none d-block h-100">'
+                '<div class="card h-100 border-0 shadow-sm text-center p-2 '
+                'wizard-tile" style="transition:.15s;cursor:pointer;">'
+                '<div class="text-{color}" style="font-size:1.7rem;line-height:1;">'
+                '<i class="mdi {icon}"></i></div>'
+                '<div class="fw-semibold mt-1" style="font-size:.78rem;">{label}</div>'
                 '{desc}'
-                '<a href="{url}" class="btn btn-sm btn-{color} mt-auto">'
-                '<i class="mdi mdi-arrow-right-circle"></i> {btn}</a>'
-                '</div></div></div>',
+                '</div></a></div>',
                 col_class=col_class,
+                url=url,
                 color=cfg.color,
                 icon=cfg.icon,
                 label=card_label,
                 desc=desc_html,
-                url=url,
-                btn=btn_start,
             ))
 
         rows_html = mark_safe(''.join(str(c) for c in cards))
-        return format_html(
-            '<div class="row g-2">{}</div>',
-            rows_html,
+        grid_html = format_html('<div class="row g-2">{}</div>', rows_html)
+
+        # Hover-style via inline CSS (no external stylesheet needed)
+        style_html = mark_safe(
+            '<style>.wizard-tile:hover{background:var(--nbx-body-bg,#f8f9fa)!important;'
+            'box-shadow:0 .25rem .75rem rgba(0,0,0,.12)!important;'
+            'transform:translateY(-1px);}</style>'
         )
+
+        return format_html('{style}{header}{grid}',
+                           style=style_html,
+                           header=header_html,
+                           grid=grid_html)
 
 
 # Backwards-compatibility shim.

@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.address.label }} <span class="text-danger">*</span></label>
                         {{ form.address }}
                         {% if form.address.errors %}<div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Format: <code>10.0.1.100/24</code> oder <code>2001:db8::1/64</code></div>
+                        <div class="form-text">{{ ui.wizard_ip_help_address }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -94,14 +94,10 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>CIDR-Notation erforderlich</strong><br>
-                Immer mit Präfixlänge angeben: <code>10.0.1.100/24</code></p>
-                <p><strong>Duplikat-Prüfung</strong><br>
-                Existiert die IP bereits, wird das Anlegen abgebrochen.</p>
-                <p><strong>DNS-Name</strong><br>
-                Keine Unterstriche oder Leerzeichen erlaubt.</p>
-                <p><strong>Nächste Schritte</strong><br>
-                Nach dem Anlegen: Interface zuweisen, VRF setzen.</p>
+                <p><strong>{{ ui.wizard_ip_hint_1_title }}</strong><br>{{ ui.wizard_ip_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_ip_hint_2_title }}</strong><br>{{ ui.wizard_ip_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_ip_hint_3_title }}</strong><br>{{ ui.wizard_ip_hint_3_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_ip_hint_next }}</p>
             </div>
         </div>
     </div>

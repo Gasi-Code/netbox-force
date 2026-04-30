@@ -27,25 +27,43 @@
                         <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
                         {{ form.name }}
                         {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Keine Unterstriche oder Leerzeichen. Empfehlung: Kleinbuchstaben mit Bindestrichen, z.B. <code>sw-berlin-01</code></div>
+                        <div class="form-text">{{ ui.wizard_device_help_name }}</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.device_role.label }} <span class="text-danger">*</span></label>
                         {{ form.device_role }}
                         {% if form.device_role.errors %}<div class="invalid-feedback d-block">{{ form.device_role.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.device_role == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="/dcim/device-roles/add/" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.device_type.label }} <span class="text-danger">*</span></label>
                         {{ form.device_type }}
                         {% if form.device_type.errors %}<div class="invalid-feedback d-block">{{ form.device_type.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.device_type == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="/dcim/device-types/add/" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.site.label }} <span class="text-danger">*</span></label>
                         {{ form.site }}
                         {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.site == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="{% url 'plugins:netbox_force:wizard_site' %}" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
@@ -96,14 +114,10 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Namenskonvention</strong><br>
-                Keine Unterstriche oder Leerzeichen. Empfehlung: <code>sw-berlin-01</code></p>
-                <p><strong>Duplikat-Check</strong><br>
-                Bei doppeltem Namen wird eine Warnung angezeigt — das Anlegen wird nicht blockiert.</p>
-                <p><strong>Gerätetyp</strong><br>
-                Hersteller und Modell müssen vorab in NetBox angelegt sein.</p>
-                <p><strong>Nächste Schritte</strong><br>
-                Interfaces → IP-Adressen zuweisen.</p>
+                <p><strong>{{ ui.wizard_device_hint_1_title }}</strong><br>{{ ui.wizard_device_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_device_hint_2_title }}</strong><br>{{ ui.wizard_device_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_device_hint_3_title }}</strong><br>{{ ui.wizard_device_hint_3_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_device_hint_next }}</p>
             </div>
         </div>
     </div>

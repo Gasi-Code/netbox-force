@@ -13,12 +13,12 @@
             <i class="mdi mdi-auto-fix"></i>
             {{ ui.tab_wizards|default:"Wizards" }}
         </h4>
-        <p class="text-muted mt-1 mb-0">Geführte Erstellung von NetBox-Objekten mit Validierung und Duplikat-Prüfung.</p>
+        <p class="text-muted mt-1 mb-0">{{ ui.wizard_list_intro }}</p>
     </div>
     {% if request.user.is_superuser %}
     <div class="col-auto d-flex align-items-center">
         <a href="{% url 'plugins:netbox_force:wizard_config_list' %}" class="btn btn-sm btn-outline-secondary">
-            <i class="mdi mdi-cog"></i> Konfigurieren
+            <i class="mdi mdi-cog"></i> {{ ui.wizard_btn_configure }}
         </a>
     </div>
     {% endif %}
@@ -38,7 +38,7 @@
                     {{ cfg.description }}
                 </p>
                 <a href="{% url 'plugins:netbox_force:'|add:cfg.url_name %}" class="btn btn-{{ cfg.color }} mt-2">
-                    <i class="mdi mdi-arrow-right-circle"></i> Starten
+                    <i class="mdi mdi-arrow-right-circle"></i> {{ ui.wizard_btn_start }}
                 </a>
             </div>
         </div>
@@ -48,9 +48,9 @@
 {% else %}
 <div class="alert alert-info">
     <i class="mdi mdi-information-outline"></i>
-    Keine Wizards aktiviert.
+    {{ ui.wizard_list_empty }}
     {% if request.user.is_superuser %}
-    <a href="{% url 'plugins:netbox_force:wizard_config_list' %}">Jetzt konfigurieren &rarr;</a>
+    <a href="{% url 'plugins:netbox_force:wizard_config_list' %}">{{ ui.wizard_list_configure_link }}</a>
     {% endif %}
 </div>
 {% endif %}

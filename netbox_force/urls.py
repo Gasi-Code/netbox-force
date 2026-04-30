@@ -49,6 +49,7 @@ urlpatterns = [
 
     # Wizards
     path('wizards/', views.WizardListView.as_view(), name='wizard_list'),
+    path('wizards/success/', views.WizardSuccessView.as_view(), name='wizard_success'),
     path('wizards/ip/', views.WizardIPView.as_view(), name='wizard_ip'),
     path('wizards/prefix/', views.WizardPrefixView.as_view(), name='wizard_prefix'),
     path('wizards/vlan/', views.WizardVLANView.as_view(), name='wizard_vlan'),

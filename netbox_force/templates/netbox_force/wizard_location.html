@@ -27,13 +27,19 @@
                         <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
                         {{ form.name }}
                         {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-                        <div class="form-text">The slug is generated automatically from the name.</div>
+                        <div class="form-text">{{ ui.wizard_location_help_name }}</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.site.label }} <span class="text-danger">*</span></label>
                         {{ form.site }}
                         {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.site == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="{% url 'plugins:netbox_force:wizard_site' %}" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
@@ -60,7 +66,7 @@
 
                     {% if form.description %}
                     <div class="mb-3">
-                        <label class="form-label">{{ form.description.label %}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+                        <label class="form-label">{{ form.description.label }}{% if form.description.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.description }}
                         {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
                     </div>
@@ -92,12 +98,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Hierarchy</strong><br>
-                Locations can be nested: Building → Floor → Room. Use the Parent field to nest locations.</p>
-                <p><strong>Slug</strong><br>
-                Generated automatically (lowercase, hyphens).</p>
-                <p><strong>Next steps</strong><br>
-                Assign racks and devices to this location.</p>
+                <p><strong>{{ ui.wizard_location_hint_1_title }}</strong><br>{{ ui.wizard_location_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_location_hint_2_title }}</strong><br>{{ ui.wizard_location_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_location_hint_next }}</p>
             </div>
         </div>
     </div>

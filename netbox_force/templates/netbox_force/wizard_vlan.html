@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.vid.label }} <span class="text-danger">*</span></label>
                         {{ form.vid }}
                         {% if form.vid.errors %}<div class="invalid-feedback d-block">{{ form.vid.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Wertebereich: 1–4094</div>
+                        <div class="form-text">{{ ui.wizard_vlan_help_vid }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -40,7 +40,7 @@
                         <label class="form-label fw-semibold">{{ form.group.label }} <span class="text-danger">*</span></label>
                         {{ form.group }}
                         {% if form.group.errors %}<div class="invalid-feedback d-block">{{ form.group.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Die VLAN-ID muss innerhalb der Gruppe eindeutig sein.</div>
+                        <div class="form-text">{{ ui.wizard_vlan_help_vid_unique }}</div>
                     </div>
 
                     <div class="mb-3">
@@ -89,12 +89,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Duplikat-Check</strong><br>
-                VLAN-ID muss innerhalb der gewählten Gruppe eindeutig sein.</p>
-                <p><strong>VLAN-Gruppe</strong><br>
-                Muss vorab in NetBox angelegt sein.</p>
-                <p><strong>Nächste Schritte</strong><br>
-                Prefix mit dem VLAN verknüpfen → Interfaces zuweisen.</p>
+                <p><strong>{{ ui.wizard_vlan_hint_1_title }}</strong><br>{{ ui.wizard_vlan_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_vlan_hint_2_title }}</strong><br>{{ ui.wizard_vlan_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_vlan_hint_next }}</p>
             </div>
         </div>
     </div>

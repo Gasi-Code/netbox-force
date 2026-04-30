@@ -34,7 +34,7 @@
                         <label class="form-label">{{ form.rd.label }}{% if form.rd.field.required %} <span class="text-danger">*</span>{% endif %}</label>
                         {{ form.rd }}
                         {% if form.rd.errors %}<div class="invalid-feedback d-block">{{ form.rd.errors.0 }}</div>{% endif %}
-                        <div class="form-text">e.g. 65000:100</div>
+                        <div class="form-text">{{ ui.wizard_vrf_help_rd }}</div>
                     </div>
                     {% endif %}
 
@@ -80,12 +80,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>VRF Name</strong><br>
-                Must be unique in NetBox.</p>
-                <p><strong>Route Distinguisher</strong><br>
-                Optional — e.g. <code>65000:100</code> or <code>1.2.3.4:100</code>.</p>
-                <p><strong>Next steps</strong><br>
-                Assign prefixes and IP addresses to the VRF.</p>
+                <p><strong>{{ ui.wizard_vrf_hint_1_title }}</strong><br>{{ ui.wizard_vrf_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_vrf_hint_2_title }}</strong><br>{{ ui.wizard_vrf_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_vrf_hint_next }}</p>
             </div>
         </div>
     </div>

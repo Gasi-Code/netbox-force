@@ -27,7 +27,7 @@
                         <label class="form-label fw-semibold">{{ form.name.label }} <span class="text-danger">*</span></label>
                         {{ form.name }}
                         {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-                        <div class="form-text">The slug is generated automatically from the name.</div>
+                        <div class="form-text">{{ ui.wizard_tenant_help_name }}</div>
                     </div>
 
                     {% if form.group %}
@@ -72,12 +72,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Slug</strong><br>
-                Generated automatically from the tenant name (lowercase, hyphens).</p>
-                <p><strong>Duplicate check</strong><br>
-                If the name already exists, creation will be blocked.</p>
-                <p><strong>Next steps</strong><br>
-                Assign sites, devices, prefixes, and VMs to this tenant.</p>
+                <p><strong>{{ ui.wizard_tenant_hint_1_title }}</strong><br>{{ ui.wizard_tenant_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_tenant_hint_2_title }}</strong><br>{{ ui.wizard_tenant_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_tenant_hint_next }}</p>
             </div>
         </div>
     </div>

@@ -1,0 +1,88 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.wizard_success_title }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+
+        {# Success banner #}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body bg-success text-white rounded d-flex align-items-center gap-3 py-4">
+                <span class="fs-1"><i class="mdi mdi-check-circle-outline"></i></span>
+                <div>
+                    <h4 class="mb-1">
+                        {% if created_obj %}
+                            {{ ui.wizard_success_title|default:"Object created" }}:
+                            <strong>{{ created_obj }}</strong>
+                        {% else %}
+                            {{ ui.wizard_success_title|default:"Object created" }}
+                        {% endif %}
+                    </h4>
+                    <p class="mb-0 opacity-75">{{ ui.wizard_success_subtitle|default:"The object was successfully added to NetBox." }}</p>
+                </div>
+            </div>
+        </div>
+
+        {# Action buttons #}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex flex-wrap gap-2">
+                {% if obj_url %}
+                <a href="{{ obj_url }}" class="btn btn-outline-primary">
+                    <i class="mdi mdi-open-in-new"></i> {{ ui.wizard_success_view_netbox|default:"View in NetBox" }}
+                </a>
+                {% endif %}
+                {% if wizard_type %}
+                <a href="{% url 'plugins:netbox_force:'|add:'wizard_'|add:wizard_type %}" class="btn btn-outline-secondary">
+                    <i class="mdi mdi-plus-circle-outline"></i> {{ ui.wizard_success_create_another|default:"Create another" }}
+                </a>
+                {% endif %}
+                <a href="{% url 'plugins:netbox_force:wizard_list' %}" class="btn btn-outline-secondary">
+                    <i class="mdi mdi-arrow-left"></i> {{ ui.wizard_success_back|default:"Back to Wizards" }}
+                </a>
+            </div>
+        </div>
+
+        {# Next steps #}
+        {% if next_steps %}
+        <div class="card border-0 shadow-sm">
+            <h5 class="card-header">
+                <i class="mdi mdi-arrow-right-circle-outline"></i> {{ ui.wizard_success_next|default:"What's next?" }}
+            </h5>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% for cfg in next_steps %}
+                    <div class="col-md-4">
+                        <a href="{% url 'plugins:netbox_force:'|add:cfg.url_name %}"
+                           class="text-decoration-none">
+                            <div class="card h-100 border-0 shadow-sm text-center p-3">
+                                <span class="fs-2 text-{{ cfg.color }}">
+                                    <i class="mdi {{ cfg.icon }}"></i>
+                                </span>
+                                <div class="fw-semibold mt-1">{{ cfg.label }}</div>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
+            <div class="card-body small">
+                <p><i class="mdi mdi-check text-success"></i> {{ ui.wizard_success_hint_changelog }}</p>
+                <p><i class="mdi mdi-information-outline text-info"></i> {{ ui.wizard_success_hint_netbox }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

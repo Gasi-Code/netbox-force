@@ -27,19 +27,31 @@
                         <label class="form-label fw-semibold">{{ form.cid.label }} <span class="text-danger">*</span></label>
                         {{ form.cid }}
                         {% if form.cid.errors %}<div class="invalid-feedback d-block">{{ form.cid.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Eindeutige Leitungsbezeichnung des Providers.</div>
+                        <div class="form-text">{{ ui.wizard_circuit_help_cid }}</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.provider.label }} <span class="text-danger">*</span></label>
                         {{ form.provider }}
                         {% if form.provider.errors %}<div class="invalid-feedback d-block">{{ form.provider.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.provider == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="/circuits/providers/add/" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">{{ form.circuit_type.label }} <span class="text-danger">*</span></label>
                         {{ form.circuit_type }}
                         {% if form.circuit_type.errors %}<div class="invalid-feedback d-block">{{ form.circuit_type.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.circuit_type == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="/circuits/circuit-types/add/" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
@@ -52,7 +64,7 @@
                         <label class="form-label fw-semibold">{{ form.site_termination_a.label }} <span class="text-danger">*</span></label>
                         {{ form.site_termination_a }}
                         {% if form.site_termination_a.errors %}<div class="invalid-feedback d-block">{{ form.site_termination_a.errors.0 }}</div>{% endif %}
-                        <div class="form-text">Die Terminierung Seite A wird automatisch angelegt.</div>
+                        <div class="form-text">{{ ui.wizard_circuit_help_site_a }}</div>
                     </div>
 
                     {% if form.description %}
@@ -89,14 +101,10 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Circuit-ID</strong><br>
-                Muss eindeutig in NetBox sein — Duplikate werden blockiert.</p>
-                <p><strong>Terminierung Seite A</strong><br>
-                Wird automatisch für den gewählten Standort angelegt.</p>
-                <p><strong>Provider &amp; Circuit-Typ</strong><br>
-                Müssen vorab in NetBox angelegt sein.</p>
-                <p><strong>Nächste Schritte</strong><br>
-                Terminierung Seite Z ergänzen, Bandbreite eintragen.</p>
+                <p><strong>{{ ui.wizard_circuit_hint_1_title }}</strong><br>{{ ui.wizard_circuit_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_circuit_hint_2_title }}</strong><br>{{ ui.wizard_circuit_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_circuit_hint_3_title }}</strong><br>{{ ui.wizard_circuit_hint_3_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_circuit_hint_next }}</p>
             </div>
         </div>
     </div>

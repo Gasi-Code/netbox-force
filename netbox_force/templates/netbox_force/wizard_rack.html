@@ -33,6 +33,12 @@
                         <label class="form-label fw-semibold">{{ form.site.label }} <span class="text-danger">*</span></label>
                         {{ form.site }}
                         {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors.0 }}</div>{% endif %}
+                        {% if prereq_counts.site == 0 %}
+                        <div class="form-text text-warning">
+                            <i class="mdi mdi-alert-outline"></i> {{ ui.wizard_prereq_none_prefix }}
+                            <a href="{% url 'plugins:netbox_force:wizard_site' %}" target="_blank">{{ ui.wizard_prereq_create_link }}</a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     {% if form.location %}
@@ -99,12 +105,9 @@
         <div class="card">
             <h5 class="card-header"><i class="mdi mdi-help-circle"></i> {{ ui.wizard_hints_title }}</h5>
             <div class="card-body small">
-                <p><strong>Height (U)</strong><br>
-                Standard rack height is 42U. Adjust to match the physical rack.</p>
-                <p><strong>Location</strong><br>
-                Optional — assign to a building, floor or room within the site.</p>
-                <p><strong>Next steps</strong><br>
-                Mount devices in the rack using the rack elevation view.</p>
+                <p><strong>{{ ui.wizard_rack_hint_1_title }}</strong><br>{{ ui.wizard_rack_hint_1_body }}</p>
+                <p><strong>{{ ui.wizard_rack_hint_2_title }}</strong><br>{{ ui.wizard_rack_hint_2_body }}</p>
+                <p><strong>{{ ui.wizard_hints_title }}</strong><br>{{ ui.wizard_rack_hint_next }}</p>
             </div>
         </div>
     </div>
