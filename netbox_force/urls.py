@@ -47,27 +47,6 @@ urlpatterns = [
     path('widget/images/<int:pk>/delete/', views.WidgetImageDeleteView.as_view(), name='widget_image_delete'),
     path('widget/images/<str:filename>', views.WidgetImageServeView.as_view(), name='widget_image_serve'),
 
-    # Wizards
-    path('wizards/', views.WizardListView.as_view(), name='wizard_list'),
-    path('wizards/success/', views.WizardSuccessView.as_view(), name='wizard_success'),
-    path('wizards/ip/', views.WizardIPView.as_view(), name='wizard_ip'),
-    path('wizards/prefix/', views.WizardPrefixView.as_view(), name='wizard_prefix'),
-    path('wizards/vlan/', views.WizardVLANView.as_view(), name='wizard_vlan'),
-    path('wizards/vrf/', views.WizardVRFView.as_view(), name='wizard_vrf'),
-    path('wizards/iprange/', views.WizardIPRangeView.as_view(), name='wizard_iprange'),
-    path('wizards/site/', views.WizardSiteView.as_view(), name='wizard_site'),
-    path('wizards/location/', views.WizardLocationView.as_view(), name='wizard_location'),
-    path('wizards/rack/', views.WizardRackView.as_view(), name='wizard_rack'),
-    path('wizards/device/', views.WizardDeviceView.as_view(), name='wizard_device'),
-    path('wizards/vm/', views.WizardVMView.as_view(), name='wizard_vm'),
-    path('wizards/tenant/', views.WizardTenantView.as_view(), name='wizard_tenant'),
-    path('wizards/circuit/', views.WizardCircuitView.as_view(), name='wizard_circuit'),
-
-    # Wizard Config (superuser only)
-    path('wizards/config/', views.WizardConfigListView.as_view(), name='wizard_config_list'),
-    path('wizards/config/<str:wizard_type>/toggle/', views.WizardConfigToggleView.as_view(), name='wizard_config_toggle'),
-    path('wizards/config/<str:wizard_type>/edit/', views.WizardConfigEditView.as_view(), name='wizard_config_edit'),
-
     # JSON helper endpoints for dynamic dropdowns
     path('helpers/models/', views.ModelListAPIView.as_view(), name='api_models'),
     path('helpers/fields/<str:app_label>/<str:model_name>/',
