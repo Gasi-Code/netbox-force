@@ -444,3 +444,30 @@ class BookmarksWidget(QuickLinksWidget):
     """Not registered — only here so import_string can resolve existing
     per-user dashboard configs saved under the old class name."""
     pass
+
+
+class WizardWidget(DashboardWidget):
+    """
+    Backwards-compatibility shim — WizardWidget was removed in v4.6.x.
+    NOT registered (@register_widget omitted) so it does not appear in the
+    Add-widget picker.  NetBox resolves saved dashboard configs via
+    import_string('netbox_force.dashboards.WizardWidget'); without this stub
+    the dashboard fails to load entirely.
+    Users who still have this widget on their dashboard will see a
+    'disabled' notice instead of a crash.
+    """
+    default_title = 'Wizards (removed)'
+
+    class ConfigForm(WidgetConfigForm):
+        pass
+
+    def render(self, request):
+        from django.utils.html import format_html
+        return format_html(
+            '<div class="text-center py-3 text-muted">'
+            '<p class="mb-2"><i class="mdi mdi-auto-fix" '
+            'style="font-size: 2rem;"></i></p>'
+            '<p class="small mb-0">Das Wizard-Feature wurde entfernt. '
+            'Bitte dieses Widget vom Dashboard löschen.</p>'
+            '</div>'
+        )
