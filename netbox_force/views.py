@@ -1594,6 +1594,120 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
 
 
+class PatchVMImportView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        if not _patch_enabled():
+            return redirect('plugins:netbox_force:settings')
+        from django.apps import apps
+        try:
+            VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+            existing_vm_ids = set(PatchVM.objects.filter(vm__isnull=False).values_list('vm_id', flat=True))
+            available_vms = list(
+                VirtualMachine.objects.exclude(pk__in=existing_vm_ids)
+                .select_related('site', 'cluster')
+                .order_by('name')
+            )
+        except Exception:
+            available_vms = []
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['available_vms'] = available_vms
+        return render(request, 'netbox_force/patch_vm_import.html', ctx)
+
+    def post(self, request):
+        if not _patch_enabled():
+            return redirect('plugins:netbox_force:settings')
+        vm_pks = request.POST.getlist('vm_ids')
+        if not vm_pks:
+            messages.warning(request, 'No VMs selected.')
+            return redirect('plugins:netbox_force:patch_vm_import')
+        from django.apps import apps
+        VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+        count = 0
+        for pk_str in vm_pks:
+            try:
+                vm = VirtualMachine.objects.get(pk=int(pk_str))
+                if not PatchVM.objects.filter(vm=vm).exists():
+                    PatchVM.objects.create(vm=vm, fqdn=vm.name, patch_status='green')
+                    count += 1
+            except Exception:
+                continue
+        messages.success(request, f'{count} VM(s) imported successfully.')
+        return redirect('plugins:netbox_force:patch_list')
+
+
+class PatchContactSyncView(SuperuserRequiredMixin, View):
+    def _get_contact_roles(self):
+        from django.apps import apps
+        try:
+            return list(apps.get_model('tenancy', 'ContactRole').objects.order_by('name'))
+        except Exception:
+            return []
+
+    def get(self, request):
+        if not _patch_enabled():
+            return redirect('plugins:netbox_force:settings')
+        roles = self._get_contact_roles()
+        patch_vms = list(
+            PatchVM.objects.filter(vm__isnull=False).prefetch_related('vm_contacts')
+        )
+        preview_count = sum(1 for pvm in patch_vms if pvm.vm_contacts.exists())
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['contact_roles'] = roles
+        ctx['preview_count'] = preview_count
+        return render(request, 'netbox_force/patch_contact_sync.html', ctx)
+
+    def post(self, request):
+        if not _patch_enabled():
+            return redirect('plugins:netbox_force:settings')
+        admin_role_id = request.POST.get('admin_role_id')
+        vb_role_id = request.POST.get('vb_role_id')
+        if not admin_role_id or not vb_role_id:
+            messages.error(request, 'Both ContactRoles must be selected.')
+            return redirect('plugins:netbox_force:patch_contact_sync')
+        from django.apps import apps
+        from django.contrib.contenttypes.models import ContentType
+        try:
+            ContactRole = apps.get_model('tenancy', 'ContactRole')
+            Contact = apps.get_model('tenancy', 'Contact')
+            ContactAssignment = apps.get_model('tenancy', 'ContactAssignment')
+            VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+            admin_role = ContactRole.objects.get(pk=int(admin_role_id))
+            vb_role = ContactRole.objects.get(pk=int(vb_role_id))
+            vm_ct = ContentType.objects.get_for_model(VirtualMachine)
+        except Exception as e:
+            messages.error(request, f'Error loading NetBox models: {e}')
+            return redirect('plugins:netbox_force:patch_contact_sync')
+        patch_vms = list(
+            PatchVM.objects.filter(vm__isnull=False).prefetch_related('vm_contacts')
+        )
+        all_contact_ids = {vc.contact_id for pvm in patch_vms for vc in pvm.vm_contacts.all()}
+        contacts_map = {c.pk: c for c in Contact.objects.filter(pk__in=all_contact_ids)}
+        created = skipped = 0
+        for pvm in patch_vms:
+            for vc in pvm.vm_contacts.all():
+                contact = contacts_map.get(vc.contact_id)
+                if not contact:
+                    continue
+                role = admin_role if vc.role == 'admin' else vb_role
+                _, was_created = ContactAssignment.objects.get_or_create(
+                    content_type=vm_ct,
+                    object_id=pvm.vm.pk,
+                    contact=contact,
+                    role=role,
+                )
+                if was_created:
+                    created += 1
+                else:
+                    skipped += 1
+        if created:
+            messages.success(request, f'{created} contact assignment(s) created.')
+        if skipped:
+            messages.info(request, f'{skipped} already existed, skipped.')
+        return redirect('plugins:netbox_force:patch_list')
+
+
 class PatchIPSuggestView(LoginRequiredMixin, View):
     """Returns IP address suggestions from NetBox IPAM (JSON)."""
 

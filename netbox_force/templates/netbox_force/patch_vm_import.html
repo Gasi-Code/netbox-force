@@ -1,0 +1,98 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.import_vms_title|default:"Import VMs from NetBox" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="mdi mdi-database-import"></i> {{ ui.import_vms_title|default:"Import VMs from NetBox" }}</span>
+                <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                </a>
+            </h5>
+            <div class="card-body">
+                {% if available_vms %}
+                <p class="text-muted">{{ ui.import_vms_desc|default:"The following VMs exist in NetBox but are not yet in patch management." }}</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="select-all">
+                            <label class="form-check-label fw-bold" for="select-all">
+                                {{ ui.import_vms_select_all|default:"Select all" }} ({{ available_vms|length }})
+                            </label>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px"></th>
+                                    <th>{{ ui.import_vms_col_name|default:"VM Name" }}</th>
+                                    <th>{{ ui.import_vms_col_site|default:"Site" }}</th>
+                                    <th>{{ ui.import_vms_col_cluster|default:"Cluster" }}</th>
+                                    <th>{{ ui.import_vms_col_status|default:"Status" }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vm in available_vms %}
+                                <tr>
+                                    <td>
+                                        <input class="form-check-input vm-checkbox" type="checkbox"
+                                               name="vm_ids" value="{{ vm.pk }}">
+                                    </td>
+                                    <td>
+                                        <a href="{{ vm.get_absolute_url }}" target="_blank">{{ vm.name }}</a>
+                                    </td>
+                                    <td>{{ vm.site|default:"—" }}</td>
+                                    <td>{{ vm.cluster|default:"—" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ vm.status }}">{{ vm.get_status_display }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-database-import"></i> {{ ui.btn_import_vms|default:"Import VMs" }}
+                        </button>
+                        <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                            <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="mdi mdi-check-circle mdi-48px text-success"></i>
+                    <p class="mt-3">{{ ui.import_vms_empty|default:"All NetBox VMs are already in patch management." }}</p>
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                        <i class="mdi mdi-arrow-left"></i> {{ ui.btn_back|default:"Back" }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function() {
+    document.querySelectorAll('.vm-checkbox').forEach(cb => cb.checked = this.checked);
+});
+document.querySelectorAll('.vm-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const all = document.querySelectorAll('.vm-checkbox');
+        const checked = document.querySelectorAll('.vm-checkbox:checked');
+        document.getElementById('select-all').checked = all.length === checked.length;
+    });
+});
+</script>
+{% endblock content %}

@@ -1,0 +1,83 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.sync_contacts_title|default:"Sync Contacts to NetBox" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="mdi mdi-account-sync"></i> {{ ui.sync_contacts_title|default:"Sync Contacts to NetBox" }}</span>
+                <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                </a>
+            </h5>
+            <div class="card-body">
+                {% if contact_roles %}
+                <p class="text-muted">{{ ui.sync_contacts_desc|default:"Select ContactRoles for administrators and process owners. Existing assignments are skipped." }}</p>
+
+                <div class="alert alert-info d-flex align-items-center gap-2">
+                    <i class="mdi mdi-information-outline"></i>
+                    <div>
+                        {{ ui.sync_contacts_preview|default:"VMs with contacts and linked NetBox VM" }}:
+                        <strong>{{ preview_count }}</strong>
+                        <br>
+                        <small>{{ ui.sync_contacts_no_vm_hint|default:"PatchVMs without a linked NetBox VM will be skipped." }}</small>
+                    </div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-shield-account"></i>
+                                {{ ui.sync_contacts_role_admin|default:"ContactRole for Administrators" }}
+                            </label>
+                            <select name="admin_role_id" class="form-select" required>
+                                <option value="">— {{ ui.btn_save|default:"Select" }} —</option>
+                                {% for role in contact_roles %}
+                                <option value="{{ role.pk }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-account-tie"></i>
+                                {{ ui.sync_contacts_role_vb|default:"ContactRole for Process Owners" }}
+                            </label>
+                            <select name="vb_role_id" class="form-select" required>
+                                <option value="">— {{ ui.btn_save|default:"Select" }} —</option>
+                                {% for role in contact_roles %}
+                                <option value="{{ role.pk }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-info text-white">
+                            <i class="mdi mdi-account-sync"></i> {{ ui.btn_sync_contacts|default:"Sync Contacts" }}
+                        </button>
+                        <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                            <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="mdi mdi-alert"></i>
+                    {{ ui.sync_contacts_no_roles|default:"No ContactRoles found in NetBox. Please create them under Tenancy → Contact Roles first." }}
+                </div>
+                <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                    <i class="mdi mdi-arrow-left"></i> {{ ui.btn_back|default:"Back" }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

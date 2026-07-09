@@ -15,9 +15,17 @@
                     <i class="mdi mdi-wrench-clock"></i> {{ ui.patch_list_title|default:"Patch Management VMs" }}
                 </span>
                 {% if request.user.is_superuser %}
-                <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-sm btn-primary">
-                    <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'plugins:netbox_force:patch_vm_import' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="mdi mdi-database-import"></i> {{ ui.btn_import_vms|default:"Import VMs" }}
+                    </a>
+                    <a href="{% url 'plugins:netbox_force:patch_contact_sync' %}" class="btn btn-sm btn-outline-info">
+                        <i class="mdi mdi-account-sync"></i> {{ ui.btn_sync_contacts|default:"Sync Contacts" }}
+                    </a>
+                    <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-sm btn-primary">
+                        <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
+                    </a>
+                </div>
                 {% endif %}
             </h5>
             <div class="card-body">
