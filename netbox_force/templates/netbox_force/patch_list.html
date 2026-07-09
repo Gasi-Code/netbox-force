@@ -55,18 +55,18 @@
                                 </td>
                                 <td>{{ pvm.os_info|default:"—" }}</td>
                                 <td>
-                                    {% if pvm._admin_contacts %}
+                                    {% if pvm.admin_contacts_resolved %}
                                     <ul class="list-unstyled mb-0 small">
-                                        {% for c in pvm._admin_contacts %}
+                                        {% for c in pvm.admin_contacts_resolved %}
                                         <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
                                         {% endfor %}
                                     </ul>
                                     {% else %}<span class="text-muted">—</span>{% endif %}
                                 </td>
                                 <td>
-                                    {% if pvm._vb_contacts %}
+                                    {% if pvm.vb_contacts_resolved %}
                                     <ul class="list-unstyled mb-0 small">
-                                        {% for c in pvm._vb_contacts %}
+                                        {% for c in pvm.vb_contacts_resolved %}
                                         <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
                                         {% endfor %}
                                     </ul>

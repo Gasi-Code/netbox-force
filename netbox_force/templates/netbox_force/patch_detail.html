@@ -51,9 +51,9 @@
                         <tr>
                             <th class="text-muted">{{ ui.label_admins|default:"Administrators" }}</th>
                             <td>
-                                {% if patch_vm._admin_contacts %}
+                                {% if patch_vm.admin_contacts_resolved %}
                                 <ul class="list-unstyled mb-0 small">
-                                    {% for c in patch_vm._admin_contacts %}
+                                    {% for c in patch_vm.admin_contacts_resolved %}
                                     <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
                                     {% endfor %}
                                 </ul>
@@ -63,9 +63,9 @@
                         <tr>
                             <th class="text-muted">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</th>
                             <td>
-                                {% if patch_vm._vb_contacts %}
+                                {% if patch_vm.vb_contacts_resolved %}
                                 <ul class="list-unstyled mb-0 small">
-                                    {% for c in patch_vm._vb_contacts %}
+                                    {% for c in patch_vm.vb_contacts_resolved %}
                                     <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
                                     {% endfor %}
                                 </ul>
@@ -157,8 +157,8 @@
                             <tr>
                                 <td class="text-nowrap">{{ entry.date }}</td>
                                 <td>
-                                    {% if entry._updated_by_contact %}
-                                    <a href="{{ entry._updated_by_contact.get_absolute_url }}" target="_blank">{{ entry._updated_by_contact.name }}</a>
+                                    {% if entry.updated_by_contact_resolved %}
+                                    <a href="{{ entry.updated_by_contact_resolved.get_absolute_url }}" target="_blank">{{ entry.updated_by_contact_resolved.name }}</a>
                                     {% else %}—{% endif %}
                                 </td>
                                 <td class="text-nowrap small text-muted">{{ entry.version_before|default:"—" }}</td>

@@ -1362,11 +1362,10 @@ def _patch_enabled():
 
 def _resolve_vm_contacts(patch_vms):
     """
-    Annotates each PatchVM in the list with _admin_contacts and _vb_contacts
+    Annotates each PatchVM with admin_contacts_resolved and vb_contacts_resolved
     (lists of tenancy.Contact objects). Uses two queries total, not N.
     """
     from django.apps import apps
-    # Collect all unique contact IDs referenced by this batch
     all_ids = set()
     for pvm in patch_vms:
         for vc in pvm.vm_contacts.all():
@@ -1377,12 +1376,12 @@ def _resolve_vm_contacts(patch_vms):
     except Exception:
         contacts = {}
     for pvm in patch_vms:
-        pvm._admin_contacts = [
+        pvm.admin_contacts_resolved = [
             contacts[vc.contact_id]
             for vc in pvm.vm_contacts.all()
             if vc.role == 'admin' and vc.contact_id in contacts
         ]
-        pvm._vb_contacts = [
+        pvm.vb_contacts_resolved = [
             contacts[vc.contact_id]
             for vc in pvm.vm_contacts.all()
             if vc.role == 'vb' and vc.contact_id in contacts
@@ -1424,7 +1423,7 @@ class PatchVMDetailView(LoginRequiredMixin, View):
         except Exception:
             entry_contacts = {}
         for e in entries:
-            e._updated_by_contact = entry_contacts.get(e.updated_by_contact_id)
+            e.updated_by_contact_resolved = entry_contacts.get(e.updated_by_contact_id)
 
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
@@ -1576,11 +1575,11 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
         if entry.updated_by_contact_id:
             try:
                 Contact = apps.get_model('tenancy', 'Contact')
-                entry._updated_by_contact = Contact.objects.filter(pk=entry.updated_by_contact_id).first()
+                entry.updated_by_contact_resolved = Contact.objects.filter(pk=entry.updated_by_contact_id).first()
             except Exception:
-                entry._updated_by_contact = None
+                entry.updated_by_contact_resolved = None
         else:
-            entry._updated_by_contact = None
+            entry.updated_by_contact_resolved = None
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['entry'] = entry
