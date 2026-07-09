@@ -1172,11 +1172,78 @@ def _auto_add_vm_to_patch(sender, instance, created, **kwargs):
         logger.exception("auto_add_vm_to_patch: failed for pk=%s: %s", instance.pk, exc)
 
 
+_PATCH_ADMIN_ROLE_SLUG = 'netbox-force-admin'
+_PATCH_VB_ROLE_SLUG = 'netbox-force-vb'
+
+
+def _sync_contact_assignment_to_patch(sender, instance, created, **kwargs):
+    """Mirror a NetBox ContactAssignment to PatchVMContact when plugin role is used on a VM."""
+    if not created:
+        return
+    try:
+        from django.apps import apps
+        from django.contrib.contenttypes.models import ContentType
+        VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+        vm_ct = ContentType.objects.get_for_model(VirtualMachine)
+        if instance.object_type_id != vm_ct.pk:
+            return
+        role_slug = getattr(getattr(instance, 'role', None), 'slug', '')
+        if role_slug == _PATCH_ADMIN_ROLE_SLUG:
+            pm_role = 'admin'
+        elif role_slug == _PATCH_VB_ROLE_SLUG:
+            pm_role = 'vb'
+        else:
+            return
+        from .models import PatchVM, PatchVMContact
+        try:
+            patch_vm = PatchVM.objects.get(vm_id=instance.object_id)
+        except PatchVM.DoesNotExist:
+            return
+        contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
+        if contact_id:
+            PatchVMContact.objects.get_or_create(patch_vm=patch_vm, contact_id=contact_id, role=pm_role)
+            logger.info("contact_sync: added contact %s as %s to PatchVM pk=%s", contact_id, pm_role, patch_vm.pk)
+    except Exception as exc:
+        logger.exception("_sync_contact_assignment_to_patch failed: %s", exc)
+
+
+def _remove_contact_assignment_from_patch(sender, instance, **kwargs):
+    """Remove PatchVMContact when a NetBox ContactAssignment using plugin role is deleted from a VM."""
+    try:
+        from django.apps import apps
+        from django.contrib.contenttypes.models import ContentType
+        VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+        vm_ct = ContentType.objects.get_for_model(VirtualMachine)
+        if instance.object_type_id != vm_ct.pk:
+            return
+        role_slug = getattr(getattr(instance, 'role', None), 'slug', '')
+        if role_slug == _PATCH_ADMIN_ROLE_SLUG:
+            pm_role = 'admin'
+        elif role_slug == _PATCH_VB_ROLE_SLUG:
+            pm_role = 'vb'
+        else:
+            return
+        from .models import PatchVM, PatchVMContact
+        try:
+            patch_vm = PatchVM.objects.get(vm_id=instance.object_id)
+        except PatchVM.DoesNotExist:
+            return
+        contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
+        if contact_id:
+            PatchVMContact.objects.filter(patch_vm=patch_vm, contact_id=contact_id, role=pm_role).delete()
+    except Exception as exc:
+        logger.exception("_remove_contact_assignment_from_patch failed: %s", exc)
+
+
 # Connect after all apps are loaded (signals.py is imported from ready())
 try:
     from django.apps import apps as _django_apps
     _VirtualMachine = _django_apps.get_model('virtualization', 'VirtualMachine')
     from django.db.models.signals import post_save as _post_save
     _post_save.connect(_auto_add_vm_to_patch, sender=_VirtualMachine, weak=False)
+    _ContactAssignment = _django_apps.get_model('tenancy', 'ContactAssignment')
+    _post_save.connect(_sync_contact_assignment_to_patch, sender=_ContactAssignment, weak=False)
+    from django.db.models.signals import post_delete as _post_delete
+    _post_delete.connect(_remove_contact_assignment_from_patch, sender=_ContactAssignment, weak=False)
 except Exception:
     pass

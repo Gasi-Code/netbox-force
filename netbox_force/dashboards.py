@@ -492,6 +492,12 @@ class PatchStatusWidget(DashboardWidget):
         green = counts.get('green', 0)
         yellow = counts.get('yellow', 0)
         red = counts.get('red', 0)
+
+        lbl_green = ui.get('patch_status_green', 'OK')
+        lbl_yellow = ui.get('patch_status_yellow', 'Warning')
+        lbl_red = ui.get('patch_status_red', 'Critical')
+        lbl_all = ui.get('widget_patch_all', 'All VMs')
+
         overdue_days = getattr(settings, 'patch_overdue_days', 0) if settings else 0
         overdue_html = mark_safe('')
         if overdue_days > 0:
@@ -500,16 +506,16 @@ class PatchStatusWidget(DashboardWidget):
                 from django.db.models import Max
                 from .models import PatchUpdateEntry
                 threshold = date.today() - timedelta(days=overdue_days)
-                patched_vms = set(
+                patched_ids = set(
                     PatchUpdateEntry.objects.values('vm_id').annotate(latest=Max('date'))
                     .filter(latest__gte=threshold).values_list('vm_id', flat=True)
                 )
-                all_vm_ids = set(PatchVM.objects.values_list('pk', flat=True))
-                overdue_count = len(all_vm_ids - patched_vms)
+                all_ids = set(PatchVM.objects.values_list('pk', flat=True))
+                overdue_count = len(all_ids - patched_ids)
                 if overdue_count > 0:
                     overdue_html = format_html(
-                        '<div class="text-center mt-1">'
-                        '<span class="badge bg-warning text-dark">'
+                        '<div class="text-center mt-2">'
+                        '<span class="badge bg-warning text-dark px-2 py-1">'
                         '<i class="mdi mdi-alert"></i> {} {}</span></div>',
                         overdue_count,
                         ui.get('widget_patch_overdue', 'overdue'),
@@ -517,27 +523,44 @@ class PatchStatusWidget(DashboardWidget):
             except Exception:
                 pass
 
+        # Build clickable status tiles
+        tiles = []
+        if green:
+            tiles.append(format_html(
+                '<a href="{}?status=green" class="text-decoration-none">'
+                '<div class="text-center">'
+                '<div class="badge bg-success text-white px-3 py-2" style="font-size:1.2rem;">{}</div>'
+                '<div class="small mt-1">{}</div></div></a>',
+                list_url, green, lbl_green,
+            ))
+        if yellow:
+            tiles.append(format_html(
+                '<a href="{}?status=yellow" class="text-decoration-none">'
+                '<div class="text-center">'
+                '<div class="badge bg-warning text-dark px-3 py-2" style="font-size:1.2rem;">{}</div>'
+                '<div class="small mt-1">{}</div></div></a>',
+                list_url, yellow, lbl_yellow,
+            ))
+        if red:
+            tiles.append(format_html(
+                '<a href="{}?status=red" class="text-decoration-none">'
+                '<div class="text-center">'
+                '<div class="badge bg-danger text-white px-3 py-2" style="font-size:1.2rem;">{}</div>'
+                '<div class="small mt-1">{}</div></div></a>',
+                list_url, red, lbl_red,
+            ))
+
         return format_html(
             '<div class="d-flex flex-column gap-1 p-2">'
-            '<div class="d-flex justify-content-around text-center">'
-            '<div><div class="badge bg-success px-3" style="font-size:1.1rem;">{green}</div>'
-            '<div class="small mt-1 text-muted">{lbl_green}</div></div>'
-            '<div><div class="badge bg-warning text-dark px-3" style="font-size:1.1rem;">{yellow}</div>'
-            '<div class="small mt-1 text-muted">{lbl_yellow}</div></div>'
-            '<div><div class="badge bg-danger px-3" style="font-size:1.1rem;">{red}</div>'
-            '<div class="small mt-1 text-muted">{lbl_red}</div></div>'
-            '</div>'
+            '<div class="d-flex justify-content-around">{tiles}</div>'
             '{overdue}'
-            '<div class="text-center mt-1">'
+            '<div class="text-center mt-2">'
             '<a href="{url}" class="small text-muted">{lbl_all} ({total}) &rarr;</a>'
             '</div></div>',
-            green=green, yellow=yellow, red=red,
-            lbl_green=ui.get('patch_status_green', 'Aktuell'),
-            lbl_yellow=ui.get('patch_status_yellow', 'Ausstehend'),
-            lbl_red=ui.get('patch_status_red', 'Kritisch'),
+            tiles=mark_safe(''.join(str(t) for t in tiles)),
             overdue=overdue_html,
             url=list_url,
-            lbl_all=ui.get('widget_patch_all', 'Alle VMs'),
+            lbl_all=lbl_all,
             total=total,
         )
 

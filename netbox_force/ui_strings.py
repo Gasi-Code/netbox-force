@@ -407,15 +407,14 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVMs ohne verknüpfte NetBox-VM werden übersprungen.',
         'btn_create_roles': 'Standardrollen erstellen',
         'sync_contacts_roles_ready': 'Standardrollen erkannt und vorausgewählt.',
-        # Patch status labels (widget + filter)
-        'patch_status_green': 'Aktuell',
-        'patch_status_yellow': 'Ausstehend',
-        'patch_status_red': 'Kritisch',
+        # Patch status labels (widget + filter) — universal English terms
+        'patch_status_green': 'OK',
+        'patch_status_yellow': 'Warning',
+        'patch_status_red': 'Critical',
         # Search / filter
-        'patch_filter_placeholder': 'VMs durchsuchen…',
+        'patch_filter_placeholder': 'Patchmanagement durchsuchen…',
         'patch_filter_status': 'Alle Status',
-        'patch_filter_apply': 'Filtern',
-        'patch_filter_clear': 'Filter zurücksetzen',
+        'patch_filter_clear': 'Zurücksetzen',
         'patch_filter_no_results': 'Keine VMs entsprechen dem Filter.',
         # Overdue
         'patch_overdue_badge': 'Überfällig',
@@ -836,15 +835,14 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVMs without a linked NetBox VM will be skipped.',
         'btn_create_roles': 'Create standard roles',
         'sync_contacts_roles_ready': 'standard roles detected and pre-selected.',
-        # Patch status labels (widget + filter)
-        'patch_status_green': 'Up to date',
-        'patch_status_yellow': 'Pending',
+        # Patch status labels (widget + filter) — universal English terms
+        'patch_status_green': 'OK',
+        'patch_status_yellow': 'Warning',
         'patch_status_red': 'Critical',
         # Search / filter
-        'patch_filter_placeholder': 'Search VMs…',
+        'patch_filter_placeholder': 'Search patch management…',
         'patch_filter_status': 'All statuses',
-        'patch_filter_apply': 'Filter',
-        'patch_filter_clear': 'Clear filter',
+        'patch_filter_clear': 'Reset',
         'patch_filter_no_results': 'No VMs match the current filter.',
         # Overdue
         'patch_overdue_badge': 'Overdue',

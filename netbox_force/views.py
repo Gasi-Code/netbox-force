@@ -1375,15 +1375,18 @@ def _serialize_patch_vm(pvm):
 
 def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None):
     """Creates a NetBox ObjectChange record so patch mutations appear in the Changelog widget."""
+    import logging as _logging
+    _log = _logging.getLogger('netbox.plugins.netbox_force')
     try:
         import uuid as _uuid
         from django.contrib.contenttypes.models import ContentType
         from extras.models import ObjectChange
         ct = ContentType.objects.get_for_model(PatchVM)
         user = getattr(request, 'user', None)
+        is_auth = bool(user and getattr(user, 'is_authenticated', False))
         ObjectChange.objects.create(
-            user=user if (user and user.is_authenticated) else None,
-            user_name=user.get_username() if (user and user.is_authenticated) else '',
+            user=user if is_auth else None,
+            user_name=(user.get_username() if is_auth else '')[:150],
             request_id=_uuid.uuid4(),
             action=action,
             changed_object_type=ct,
@@ -1392,8 +1395,8 @@ def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None
             prechange_data=prechange,
             postchange_data=postchange,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        _log.warning('_log_patch_change: %s (action=%s pk=%s): %s', patch_vm, action, patch_vm.pk, exc)
 
 
 def _resolve_vm_contacts(patch_vms):
@@ -1479,7 +1482,8 @@ class PatchVMListView(LoginRequiredMixin, View):
             )
             for pvm in patch_vms:
                 last = latest_dates.get(pvm.pk)
-                pvm.is_overdue = (last is None or last < threshold)
+                # Only flag as overdue if VM has been patched before but not recently enough
+                pvm.is_overdue = (last is not None and last < threshold)
 
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
