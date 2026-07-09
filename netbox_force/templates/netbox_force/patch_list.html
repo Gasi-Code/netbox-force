@@ -1,0 +1,94 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ ui.tab_patch|default:"Patchmanagement" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="mdi mdi-wrench-clock"></i> {{ ui.patch_list_title|default:"Patch Management VMs" }}
+                </span>
+                {% if request.user.is_superuser %}
+                <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-sm btn-primary">
+                    <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
+                </a>
+                {% endif %}
+            </h5>
+            <div class="card-body">
+                {% if patch_vms %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>{{ ui.patch_col_vm|default:"VM / FQDN" }}</th>
+                                <th>{{ ui.patch_col_ip|default:"IP Address" }}</th>
+                                <th>{{ ui.patch_col_os|default:"OS" }}</th>
+                                <th>{{ ui.patch_col_status|default:"Patch Status" }}</th>
+                                <th>{{ ui.patch_col_maintenance|default:"Maintenance Window" }}</th>
+                                <th>{{ ui.patch_col_update_mode|default:"Update Installation" }}</th>
+                                <th>{{ ui.patch_col_actions|default:"Actions" }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pvm in patch_vms %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'plugins:netbox_force:patch_detail' pk=pvm.pk %}">
+                                        <strong>{{ pvm }}</strong>
+                                    </a>
+                                    {% if pvm.fqdn and pvm.vm %}
+                                    <br><small class="text-muted">{{ pvm.fqdn }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ pvm.ip_address|default:"—" }}</td>
+                                <td>{{ pvm.os_info|default:"—" }}</td>
+                                <td>
+                                    <span class="badge bg-{{ pvm.status_css_class }}{% if pvm.patch_status == 'yellow' %} text-dark{% endif %}">
+                                        {{ pvm.get_patch_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ pvm.get_maintenance_window_display }}</td>
+                                <td>{{ pvm.get_update_installation_display }}</td>
+                                <td>
+                                    <a href="{% url 'plugins:netbox_force:patch_detail' pk=pvm.pk %}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ ui.btn_detail|default:'Detail' }}">
+                                        <i class="mdi mdi-eye"></i>
+                                    </a>
+                                    {% if request.user.is_superuser %}
+                                    <a href="{% url 'plugins:netbox_force:patch_vm_edit' pk=pvm.pk %}"
+                                       class="btn btn-sm btn-outline-primary" title="{{ ui.btn_edit|default:'Edit' }}">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'plugins:netbox_force:patch_vm_delete' pk=pvm.pk %}"
+                                       class="btn btn-sm btn-outline-danger" title="{{ ui.btn_delete|default:'Delete' }}">
+                                        <i class="mdi mdi-trash-can-outline"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="mdi mdi-wrench-clock mdi-24px"></i>
+                    <p class="mt-2">{{ ui.patch_empty|default:"No VMs in patch management yet." }}</p>
+                    {% if request.user.is_superuser %}
+                    <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-primary">
+                        <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

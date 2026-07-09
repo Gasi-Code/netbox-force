@@ -2,7 +2,7 @@ import csv
 import importlib
 import json
 import re
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.apps import apps
 from django.contrib import messages
@@ -19,10 +19,11 @@ from django.views import View
 from .forms import (
     ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm,
     GuidePageForm, WidgetImageUploadForm,
+    PatchVMForm, PatchUpdateEntryForm, PatchStatusForm,
 )
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate,
-    GuidePage, WidgetImage,
+    GuidePage, WidgetImage, PatchVM, PatchUpdateEntry,
 )
 from .signals import check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
@@ -1341,3 +1342,180 @@ class WidgetImageServeView(AuthenticatedRequiredMixin, View):
             return response
         except (FileNotFoundError, OSError):
             raise Http404('Image file not found on disk.')
+
+
+# =============================================================================
+# PATCH MANAGEMENT VIEWS
+# =============================================================================
+
+class PatchVMListView(LoginRequiredMixin, View):
+    def get(self, request):
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['patch_vms'] = PatchVM.objects.select_related('vm').order_by('fqdn')
+        return render(request, 'netbox_force/patch_list.html', ctx)
+
+
+class PatchVMDetailView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['patch_vm'] = patch_vm
+        ctx['entries'] = patch_vm.update_entries.order_by('-date')
+        ctx['status_form'] = PatchStatusForm(initial={'patch_status': patch_vm.patch_status})
+        return render(request, 'netbox_force/patch_detail.html', ctx)
+
+
+class PatchVMCreateView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['form'] = PatchVMForm()
+        ctx['form_title'] = 'Add VM'
+        return render(request, 'netbox_force/patch_vm_form.html', ctx)
+
+    def post(self, request):
+        form = PatchVMForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'VM added to patch management.')
+            return redirect('plugins:netbox_force:patch_list')
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['form'] = form
+        ctx['form_title'] = 'Add VM'
+        return render(request, 'netbox_force/patch_vm_form.html', ctx)
+
+
+class PatchVMEditView(SuperuserRequiredMixin, View):
+    def get(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['form'] = PatchVMForm(instance=patch_vm)
+        ctx['patch_vm'] = patch_vm
+        ctx['form_title'] = str(patch_vm)
+        return render(request, 'netbox_force/patch_vm_form.html', ctx)
+
+    def post(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        form = PatchVMForm(request.POST, instance=patch_vm)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'VM updated.')
+            return redirect('plugins:netbox_force:patch_detail', pk=patch_vm.pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['form'] = form
+        ctx['patch_vm'] = patch_vm
+        ctx['form_title'] = str(patch_vm)
+        return render(request, 'netbox_force/patch_vm_form.html', ctx)
+
+
+class PatchVMDeleteView(SuperuserRequiredMixin, View):
+    def get(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['patch_vm'] = patch_vm
+        return render(request, 'netbox_force/patch_vm_delete.html', ctx)
+
+    def post(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        name = str(patch_vm)
+        patch_vm.delete()
+        messages.success(request, f'"{name}" removed from patch management.')
+        return redirect('plugins:netbox_force:patch_list')
+
+
+class PatchStatusUpdateView(LoginRequiredMixin, View):
+    """Any authenticated user can flip the traffic-light status."""
+
+    def post(self, request, pk):
+        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        form = PatchStatusForm(request.POST)
+        if form.is_valid():
+            patch_vm.patch_status = form.cleaned_data['patch_status']
+            patch_vm.save()
+            messages.success(request, 'Patch status updated.')
+        return redirect('plugins:netbox_force:patch_detail', pk=pk)
+
+
+class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
+    """Any authenticated user can add a new update history entry."""
+
+    def get(self, request, vm_pk):
+        patch_vm = get_object_or_404(PatchVM, pk=vm_pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['patch_vm'] = patch_vm
+        ctx['form'] = PatchUpdateEntryForm(
+            initial={'date': date.today(), 'updated_by': request.user.username}
+        )
+        ctx['is_edit'] = False
+        return render(request, 'netbox_force/patch_entry_form.html', ctx)
+
+    def post(self, request, vm_pk):
+        patch_vm = get_object_or_404(PatchVM, pk=vm_pk)
+        form = PatchUpdateEntryForm(request.POST)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.vm = patch_vm
+            entry.save()
+            messages.success(request, 'Update entry added.')
+            return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['patch_vm'] = patch_vm
+        ctx['form'] = form
+        ctx['is_edit'] = False
+        return render(request, 'netbox_force/patch_entry_form.html', ctx)
+
+
+class PatchUpdateEntryEditView(SuperuserRequiredMixin, View):
+    """Only superusers can edit existing update history entries."""
+
+    def get(self, request, pk):
+        entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['entry'] = entry
+        ctx['patch_vm'] = entry.vm
+        ctx['form'] = PatchUpdateEntryForm(instance=entry)
+        ctx['is_edit'] = True
+        return render(request, 'netbox_force/patch_entry_form.html', ctx)
+
+    def post(self, request, pk):
+        entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        form = PatchUpdateEntryForm(request.POST, instance=entry)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Update entry saved.')
+            return redirect('plugins:netbox_force:patch_detail', pk=entry.vm.pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['entry'] = entry
+        ctx['patch_vm'] = entry.vm
+        ctx['form'] = form
+        ctx['is_edit'] = True
+        return render(request, 'netbox_force/patch_entry_form.html', ctx)
+
+
+class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
+    """Only superusers can delete update history entries."""
+
+    def get(self, request, pk):
+        entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['entry'] = entry
+        ctx['patch_vm'] = entry.vm
+        return render(request, 'netbox_force/patch_entry_delete.html', ctx)
+
+    def post(self, request, pk):
+        entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        vm_pk = entry.vm.pk
+        entry.delete()
+        messages.success(request, 'Update entry deleted.')
+        return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)

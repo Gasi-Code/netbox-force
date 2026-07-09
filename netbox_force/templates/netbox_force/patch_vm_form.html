@@ -1,0 +1,91 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ form_title }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-server-plus"></i> {{ form_title }}
+            </h5>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                            <div><strong>{{ field }}:</strong> {{ error }}</div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.label_netbox_vm|default:"NetBox VM" }}</label>
+                            {{ form.vm }}
+                            <div class="form-text text-muted">{{ ui.help_netbox_vm|default:"Optional — link to an existing NetBox VM." }}</div>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">{{ ui.label_fqdn|default:"FQDN" }}</label>
+                            {{ form.fqdn }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ ui.label_ip_address|default:"IP Address" }}</label>
+                            {{ form.ip_address }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.label_os_info|default:"OS" }}</label>
+                            {{ form.os_info }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ ui.label_admins|default:"Administrators" }}</label>
+                            {{ form.admins }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</label>
+                            {{ form.verfahrensbetreuer }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ ui.label_maintenance_window|default:"Maintenance Window" }}</label>
+                            {{ form.maintenance_window }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ ui.label_update_installation|default:"Update Installation" }}</label>
+                            {{ form.update_installation }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ ui.label_patch_status|default:"Patch Status" }}</label>
+                            {{ form.patch_status }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.label_ticket_number|default:"Ticket Number" }}</label>
+                            {{ form.ticket_number }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.label_comment|default:"Comment" }}</label>
+                            {{ form.comment }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                        </button>
+                        <a href="{% if patch_vm %}{% url 'plugins:netbox_force:patch_detail' pk=patch_vm.pk %}{% else %}{% url 'plugins:netbox_force:patch_list' %}{% endif %}"
+                           class="btn btn-outline-secondary">
+                            <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

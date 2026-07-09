@@ -1,0 +1,40 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — Delete VM{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <h5 class="card-header text-danger">
+                <i class="mdi mdi-alert"></i> {{ ui.patch_delete_title|default:"Remove VM from Patch Management" }}
+            </h5>
+            <div class="card-body">
+                <p>{{ ui.patch_delete_confirm|default:"Remove this VM from patch management?" }}</p>
+                <p><strong>{{ patch_vm }}</strong></p>
+                {% if patch_vm.update_entries.count %}
+                <div class="alert alert-warning">
+                    <i class="mdi mdi-alert"></i>
+                    {{ ui.patch_delete_warning|default:"This VM has update history entries. All entries will be permanently deleted." }}
+                    ({{ patch_vm.update_entries.count }} {{ ui.patch_entries_count|default:"entries" }})
+                </div>
+                {% endif %}
+                <form method="post" class="d-flex gap-2 mt-3">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="mdi mdi-trash-can"></i> {{ ui.btn_confirm_delete|default:"Confirm Delete" }}
+                    </button>
+                    <a href="{% url 'plugins:netbox_force:patch_detail' pk=patch_vm.pk %}"
+                       class="btn btn-outline-secondary">
+                        <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

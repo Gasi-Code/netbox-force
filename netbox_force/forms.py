@@ -8,7 +8,7 @@ from django.core.validators import FileExtensionValidator
 
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage,
-    LANGUAGE_CHOICES,
+    LANGUAGE_CHOICES, PatchVM, PatchUpdateEntry, PATCH_STATUS_CHOICES,
 )
 
 # Valid model label pattern: app_label.model_name
@@ -474,5 +474,51 @@ class WidgetImageUploadForm(forms.Form):
                 f'(uploaded: {f.size / 1024 / 1024:.1f} MB).'
             )
         return f
+
+
+# =============================================================================
+# PATCH MANAGEMENT FORMS
+# =============================================================================
+
+class PatchVMForm(forms.ModelForm):
+    class Meta:
+        model = PatchVM
+        fields = [
+            'vm', 'fqdn', 'ip_address', 'admins', 'verfahrensbetreuer',
+            'os_info', 'maintenance_window', 'update_installation',
+            'patch_status', 'ticket_number', 'comment',
+        ]
+        widgets = {
+            'vm': forms.Select(attrs={'class': 'form-select'}),
+            'fqdn': forms.TextInput(attrs={'class': 'form-control'}),
+            'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
+            'admins': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'verfahrensbetreuer': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'os_info': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ubuntu 22.04 LTS x64'}),
+            'maintenance_window': forms.Select(attrs={'class': 'form-select'}),
+            'update_installation': forms.Select(attrs={'class': 'form-select'}),
+            'patch_status': forms.Select(attrs={'class': 'form-select'}),
+            'ticket_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+
+class PatchUpdateEntryForm(forms.ModelForm):
+    class Meta:
+        model = PatchUpdateEntry
+        fields = ['date', 'updated_by', 'software', 'info']
+        widgets = {
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'updated_by': forms.TextInput(attrs={'class': 'form-control'}),
+            'software': forms.TextInput(attrs={'class': 'form-control'}),
+            'info': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class PatchStatusForm(forms.Form):
+    patch_status = forms.ChoiceField(
+        choices=PATCH_STATUS_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm'}),
+    )
 
 

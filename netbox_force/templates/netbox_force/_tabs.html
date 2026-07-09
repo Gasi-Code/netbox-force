@@ -59,5 +59,11 @@
         </a>
     </li>
     {% endif %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'patch' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:patch_list' %}">
+            <i class="mdi mdi-wrench-clock"></i> {{ ui.tab_patch|default:"Patchmanagement" }}
+        </a>
+    </li>
 
 </ul>

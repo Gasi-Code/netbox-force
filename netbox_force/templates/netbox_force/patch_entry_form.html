@@ -1,0 +1,69 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {% if is_edit %}{{ ui.patch_entry_edit_title|default:"Edit Update Entry" }}{% else %}{{ ui.patch_entry_add_title|default:"Add Update Entry" }}{% endif %}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-history"></i>
+                {% if is_edit %}
+                {{ ui.patch_entry_edit_title|default:"Edit Update Entry" }}
+                {% else %}
+                {{ ui.patch_entry_add_title|default:"Add Update Entry" }}
+                {% endif %}
+                — <a href="{% url 'plugins:netbox_force:patch_detail' pk=patch_vm.pk %}">{{ patch_vm }}</a>
+            </h5>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                            <div><strong>{{ field }}:</strong> {{ error }}</div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ ui.patch_entry_date|default:"Date" }} <span class="text-danger">*</span></label>
+                            {{ form.date }}
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">{{ ui.patch_entry_by|default:"Updated By" }} <span class="text-danger">*</span></label>
+                            {{ form.updated_by }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.patch_entry_software|default:"Software / Updates" }} <span class="text-danger">*</span></label>
+                            {{ form.software }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ ui.patch_entry_info|default:"Notes" }}</label>
+                            {{ form.info }}
+                            <div class="form-text text-muted">{{ ui.patch_entry_info_help|default:"Problems, observations, notes for next time." }}</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+                        </button>
+                        <a href="{% url 'plugins:netbox_force:patch_detail' pk=patch_vm.pk %}"
+                           class="btn btn-outline-secondary">
+                            <i class="mdi mdi-close"></i> {{ ui.btn_cancel|default:"Cancel" }}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

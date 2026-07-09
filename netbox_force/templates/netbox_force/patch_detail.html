@@ -1,0 +1,179 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — {{ patch_vm }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <!-- Left: VM Info -->
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="mdi mdi-server"></i> {{ patch_vm }}</span>
+                <span class="badge bg-{{ patch_vm.status_css_class }}{% if patch_vm.patch_status == 'yellow' %} text-dark{% endif %} fs-6">
+                    {{ patch_vm.get_patch_status_display }}
+                </span>
+            </h5>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <th class="text-muted" style="width:40%">{{ ui.label_netbox_vm|default:"NetBox VM" }}</th>
+                            <td>
+                                {% if patch_vm.vm %}
+                                <a href="{{ patch_vm.vm.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="mdi mdi-open-in-new"></i> {{ patch_vm.vm.name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_fqdn|default:"FQDN" }}</th>
+                            <td>{{ patch_vm.fqdn|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_ip_address|default:"IP Address" }}</th>
+                            <td>{{ patch_vm.ip_address|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_os_info|default:"OS" }}</th>
+                            <td>{{ patch_vm.os_info|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_admins|default:"Administrators" }}</th>
+                            <td><pre class="mb-0 small">{{ patch_vm.admins|default:"—" }}</pre></td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</th>
+                            <td><pre class="mb-0 small">{{ patch_vm.verfahrensbetreuer|default:"—" }}</pre></td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_maintenance_window|default:"Maintenance Window" }}</th>
+                            <td>{{ patch_vm.get_maintenance_window_display }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_update_installation|default:"Update Installation" }}</th>
+                            <td>{{ patch_vm.get_update_installation_display }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_ticket_number|default:"Ticket Number" }}</th>
+                            <td>{{ patch_vm.ticket_number|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">{{ ui.label_comment|default:"Comment" }}</th>
+                            <td><pre class="mb-0 small">{{ patch_vm.comment|default:"—" }}</pre></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer d-flex gap-2">
+                {% if request.user.is_superuser %}
+                <a href="{% url 'plugins:netbox_force:patch_vm_edit' pk=patch_vm.pk %}"
+                   class="btn btn-sm btn-primary">
+                    <i class="mdi mdi-pencil"></i> {{ ui.btn_edit|default:"Edit" }}
+                </a>
+                <a href="{% url 'plugins:netbox_force:patch_vm_delete' pk=patch_vm.pk %}"
+                   class="btn btn-sm btn-outline-danger">
+                    <i class="mdi mdi-trash-can-outline"></i> {{ ui.btn_delete|default:"Delete" }}
+                </a>
+                {% endif %}
+                <a href="{% url 'plugins:netbox_force:patch_list' %}"
+                   class="btn btn-sm btn-outline-secondary ms-auto">
+                    <i class="mdi mdi-arrow-left"></i> {{ ui.btn_back|default:"Back" }}
+                </a>
+            </div>
+        </div>
+
+        <!-- Status Quick-Update -->
+        <div class="card mb-3">
+            <h6 class="card-header"><i class="mdi mdi-traffic-light"></i> {{ ui.patch_status_title|default:"Set Patch Status" }}</h6>
+            <div class="card-body">
+                <form method="post" action="{% url 'plugins:netbox_force:patch_status_update' pk=patch_vm.pk %}"
+                      class="d-flex gap-2 align-items-center">
+                    {% csrf_token %}
+                    {{ status_form.patch_status }}
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="mdi mdi-check"></i> {{ ui.btn_set_status|default:"Set Status" }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Update History -->
+    <div class="col-md-7">
+        <div class="card">
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="mdi mdi-history"></i> {{ ui.patch_history_title|default:"Update History" }}</span>
+                <a href="{% url 'plugins:netbox_force:patch_entry_add' vm_pk=patch_vm.pk %}"
+                   class="btn btn-sm btn-success">
+                    <i class="mdi mdi-plus"></i> {{ ui.btn_add_entry|default:"Add Entry" }}
+                </a>
+            </h5>
+            <div class="card-body p-0">
+                {% if entries %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ ui.patch_entry_date|default:"Date" }}</th>
+                                <th>{{ ui.patch_entry_by|default:"Updated By" }}</th>
+                                <th>{{ ui.patch_entry_software|default:"Software / Updates" }}</th>
+                                <th>{{ ui.patch_entry_info|default:"Notes" }}</th>
+                                {% if request.user.is_superuser %}
+                                <th>{{ ui.patch_entry_actions|default:"Actions" }}</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in entries %}
+                            <tr>
+                                <td class="text-nowrap">{{ entry.date }}</td>
+                                <td>{{ entry.updated_by }}</td>
+                                <td>{{ entry.software }}</td>
+                                <td>
+                                    {% if entry.info %}
+                                    <span class="small text-muted" title="{{ entry.info }}">
+                                        {{ entry.info|truncatechars:60 }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                {% if request.user.is_superuser %}
+                                <td class="text-nowrap">
+                                    <a href="{% url 'plugins:netbox_force:patch_entry_edit' pk=entry.pk %}"
+                                       class="btn btn-sm btn-outline-primary" title="{{ ui.btn_edit|default:'Edit' }}">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'plugins:netbox_force:patch_entry_delete' pk=entry.pk %}"
+                                       class="btn btn-sm btn-outline-danger" title="{{ ui.btn_delete|default:'Delete' }}">
+                                        <i class="mdi mdi-trash-can-outline"></i>
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="mdi mdi-history mdi-24px"></i>
+                    <p class="mt-2">{{ ui.patch_entry_empty|default:"No update entries yet." }}</p>
+                    <a href="{% url 'plugins:netbox_force:patch_entry_add' vm_pk=patch_vm.pk %}"
+                       class="btn btn-success btn-sm">
+                        <i class="mdi mdi-plus"></i> {{ ui.btn_add_entry|default:"Add Entry" }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

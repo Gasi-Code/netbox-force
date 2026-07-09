@@ -779,3 +779,121 @@ class WidgetImage(models.Model):
                 pass
         super().delete(*args, **kwargs)
 
+
+# =============================================================================
+# PATCH MANAGEMENT
+# =============================================================================
+
+PATCH_STATUS_CHOICES = [
+    ('green', 'Green / OK'),
+    ('yellow', 'Yellow / Warning'),
+    ('red', 'Red / Critical'),
+]
+
+MAINTENANCE_WINDOW_CHOICES = [
+    ('sun_0200_0600', 'Sunday 02:00–06:00'),
+    ('sat_2200_0200', 'Saturday 22:00–02:00'),
+    ('mon_0000_0600', 'Monday 00:00–06:00'),
+    ('fri_2200_0200', 'Friday 22:00–02:00'),
+    ('daily_0200_0400', 'Daily 02:00–04:00'),
+    ('none', 'No maintenance window'),
+    ('custom', 'Custom / on request'),
+]
+
+UPDATE_INSTALLATION_CHOICES = [
+    ('manual', 'Manual'),
+    ('automatic', 'Automatic'),
+    ('unknown', 'Not detected'),
+]
+
+
+class PatchVM(models.Model):
+    """
+    Tracks patch management state for a VM. Optionally linked to a NetBox
+    VirtualMachine; can also be used as a standalone record.
+    """
+    vm = models.OneToOneField(
+        'virtualization.VirtualMachine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patch_entry',
+        verbose_name='NetBox VM',
+    )
+    fqdn = models.CharField(max_length=255, blank=True, default='', verbose_name='FQDN')
+    ip_address = models.CharField(max_length=50, blank=True, default='', verbose_name='IP Address')
+    admins = models.TextField(
+        blank=True, default='',
+        verbose_name='Administrators',
+        help_text='One per line',
+    )
+    verfahrensbetreuer = models.TextField(
+        blank=True, default='',
+        verbose_name='Process Owners',
+        help_text='One per line',
+    )
+    os_info = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='OS',
+        help_text='e.g. Ubuntu 22.04 LTS x64',
+    )
+    maintenance_window = models.CharField(
+        max_length=30,
+        choices=MAINTENANCE_WINDOW_CHOICES,
+        default='none',
+        verbose_name='Maintenance Window',
+    )
+    update_installation = models.CharField(
+        max_length=20,
+        choices=UPDATE_INSTALLATION_CHOICES,
+        default='unknown',
+        verbose_name='Update Installation',
+    )
+    patch_status = models.CharField(
+        max_length=10,
+        choices=PATCH_STATUS_CHOICES,
+        default='green',
+        verbose_name='Patch Status',
+    )
+    ticket_number = models.CharField(max_length=100, blank=True, default='', verbose_name='Ticket Number')
+    comment = models.TextField(blank=True, default='', verbose_name='Comment')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Patch Management VM'
+        verbose_name_plural = 'Patch Management VMs'
+        ordering = ['fqdn']
+
+    def __str__(self):
+        if self.vm:
+            return self.vm.name
+        return self.fqdn or f'VM #{self.pk}'
+
+    @property
+    def status_css_class(self):
+        return {'green': 'success', 'yellow': 'warning', 'red': 'danger'}.get(self.patch_status, 'secondary')
+
+
+class PatchUpdateEntry(models.Model):
+    """One record in a VM's update history."""
+    vm = models.ForeignKey(
+        PatchVM,
+        on_delete=models.CASCADE,
+        related_name='update_entries',
+        verbose_name='VM',
+    )
+    date = models.DateField(verbose_name='Date')
+    updated_by = models.CharField(max_length=200, verbose_name='Updated By')
+    software = models.CharField(max_length=500, verbose_name='Software / Updates')
+    info = models.TextField(blank=True, default='', verbose_name='Notes')
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Update Entry'
+        verbose_name_plural = 'Update Entries'
+        ordering = ['-date']
+
+    def __str__(self):
+        return f'{self.date} — {self.software[:50]}'
+

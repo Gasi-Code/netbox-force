@@ -43,6 +43,11 @@ menu = PluginMenu(
                 link_text='Widget Images',
                 permissions=['netbox_force.view_widgetimage'],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_force:patch_list',
+                link_text='Patchmanagement',
+                permissions=[],
+            ),
         )),
     ),
     icon_class='mdi mdi-shield-check',

@@ -53,4 +53,15 @@ urlpatterns = [
          views.FieldListAPIView.as_view(), name='api_fields'),
     path('helpers/csv-headers/<str:app_label>/<str:model_name>/',
          views.CsvHeadersAPIView.as_view(), name='api_csv_headers'),
+
+    # Patch Management
+    path('patch/', views.PatchVMListView.as_view(), name='patch_list'),
+    path('patch/add/', views.PatchVMCreateView.as_view(), name='patch_vm_add'),
+    path('patch/<int:pk>/', views.PatchVMDetailView.as_view(), name='patch_detail'),
+    path('patch/<int:pk>/edit/', views.PatchVMEditView.as_view(), name='patch_vm_edit'),
+    path('patch/<int:pk>/delete/', views.PatchVMDeleteView.as_view(), name='patch_vm_delete'),
+    path('patch/<int:pk>/status/', views.PatchStatusUpdateView.as_view(), name='patch_status_update'),
+    path('patch/<int:vm_pk>/entries/add/', views.PatchUpdateEntryCreateView.as_view(), name='patch_entry_add'),
+    path('patch/entries/<int:pk>/edit/', views.PatchUpdateEntryEditView.as_view(), name='patch_entry_edit'),
+    path('patch/entries/<int:pk>/delete/', views.PatchUpdateEntryDeleteView.as_view(), name='patch_entry_delete'),
 ]
