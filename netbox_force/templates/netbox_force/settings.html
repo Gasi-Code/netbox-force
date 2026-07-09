@@ -269,6 +269,11 @@
                         <label class="form-check-label" for="id_auto_changelog_enabled">{{ ui.label_auto_changelog_enabled|default:"Auto-generate changelog" }}</label>
                         <div class="form-text">{{ ui.help_auto_changelog_enabled|default:"Automatically generates a changelog message from changed fields when the user leaves the field empty. User-provided messages always take priority." }}</div>
                     </div>
+                    <div class="mb-3 form-check">
+                        {{ form.patchmanagement_enabled }}
+                        <label class="form-check-label" for="id_patchmanagement_enabled">{{ ui.label_patchmanagement_enabled|default:"Enable Patch Management" }}</label>
+                        <div class="form-text">{{ ui.help_patchmanagement_enabled|default:"If enabled, the Patch Management tab is visible." }}</div>
+                    </div>
                 </div>
             </div>
 

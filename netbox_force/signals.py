@@ -771,15 +771,22 @@ def _try_inject_auto_changelog(request, instance):
     if not auto_enabled and not ticket_enabled:
         return False
 
-    # Peek at the raw values without triggering the cache
-    raw = ''
-    for fname in ('changelog_message', 'comments', '_changelog_message'):
-        if hasattr(request, 'data') and isinstance(request.data, dict):
-            raw = (request.data.get(fname) or '').strip()
-        if not raw:
-            raw = request.POST.get(fname, '').strip()
-        if raw:
-            break
+    # On first call for this request, store the original user input.
+    # Subsequent calls within a bulk edit (same request, multiple objects) must
+    # read the original input — not the auto-generated value injected for a
+    # previous object — so each object gets its own correct diff message.
+    if not hasattr(request, '_original_changelog_input'):
+        _raw = ''
+        for fname in ('changelog_message', 'comments', '_changelog_message'):
+            if hasattr(request, 'data') and isinstance(request.data, dict):
+                _raw = (request.data.get(fname) or '').strip()
+            if not _raw:
+                _raw = request.POST.get(fname, '').strip()
+            if _raw:
+                break
+        request._original_changelog_input = _raw
+
+    raw = request._original_changelog_input
 
     lang = _get_setting('language', 'de')
 
@@ -947,8 +954,9 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         return
 
     # --- Auto-changelog: inject generated comment if field is empty ---
-    _try_inject_auto_changelog(request, instance)
-    auto_generated = getattr(request, '_auto_generated_changelog', False)
+    # Use return value (not the request flag) so each object in a bulk edit
+    # gets its own auto_generated status — the flag persists across objects.
+    auto_generated = _try_inject_auto_changelog(request, instance)
 
     # --- Changelog presence + length (min_length respects model policy) ---
     min_len = (policy.min_length_override

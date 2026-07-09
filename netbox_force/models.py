@@ -183,6 +183,11 @@ class ForceSettings(models.Model):
             'message, it is always used as-is.'
         ),
     )
+    patchmanagement_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Enable Patch Management',
+        help_text='If enabled, the Patch Management tab and views are accessible.',
+    )
 
     # --- Webhook Notifications ---
     webhook_enabled = models.BooleanField(
@@ -886,6 +891,8 @@ class PatchUpdateEntry(models.Model):
     )
     date = models.DateField(verbose_name='Date')
     updated_by = models.CharField(max_length=200, verbose_name='Updated By')
+    version_before = models.CharField(max_length=200, blank=True, default='', verbose_name='Version Before')
+    version_after = models.CharField(max_length=200, blank=True, default='', verbose_name='Version After')
     software = models.CharField(max_length=500, verbose_name='Software / Updates')
     info = models.TextField(blank=True, default='', verbose_name='Notes')
     created = models.DateTimeField(auto_now_add=True)

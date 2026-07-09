@@ -48,6 +48,7 @@ class ForceSettingsForm(forms.ModelForm):
             'import_templates_enabled',
             'guide_enabled',
             'auto_changelog_enabled',
+            'patchmanagement_enabled',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -148,6 +149,9 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-check-input',
             }),
             'auto_changelog_enabled': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'patchmanagement_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
             }),
         }
@@ -491,9 +495,13 @@ class PatchVMForm(forms.ModelForm):
         widgets = {
             'vm': forms.Select(attrs={'class': 'form-select'}),
             'fqdn': forms.TextInput(attrs={'class': 'form-control'}),
-            'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
-            'admins': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'verfahrensbetreuer': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'ip_address': forms.TextInput(attrs={
+                'class': 'form-control',
+                'list': 'ip-suggestions',
+                'autocomplete': 'off',
+            }),
+            'admins': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'id': 'id_admins'}),
+            'verfahrensbetreuer': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'id': 'id_verfahrensbetreuer'}),
             'os_info': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ubuntu 22.04 LTS x64'}),
             'maintenance_window': forms.Select(attrs={'class': 'form-select'}),
             'update_installation': forms.Select(attrs={'class': 'form-select'}),
@@ -506,10 +514,16 @@ class PatchVMForm(forms.ModelForm):
 class PatchUpdateEntryForm(forms.ModelForm):
     class Meta:
         model = PatchUpdateEntry
-        fields = ['date', 'updated_by', 'software', 'info']
+        fields = ['date', 'updated_by', 'version_before', 'version_after', 'software', 'info']
         widgets = {
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'updated_by': forms.TextInput(attrs={'class': 'form-control'}),
+            'updated_by': forms.TextInput(attrs={
+                'class': 'form-control',
+                'list': 'contact-suggestions',
+                'autocomplete': 'off',
+            }),
+            'version_before': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.2.3'}),
+            'version_after': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.2.4'}),
             'software': forms.TextInput(attrs={'class': 'form-control'}),
             'info': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }

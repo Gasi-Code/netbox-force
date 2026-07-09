@@ -1348,8 +1348,23 @@ class WidgetImageServeView(AuthenticatedRequiredMixin, View):
 # PATCH MANAGEMENT VIEWS
 # =============================================================================
 
+def _patch_enabled():
+    """Returns True if patchmanagement_enabled is set (defaults True when no DB row yet)."""
+    try:
+        from .models import ForceSettings
+        s = ForceSettings.get_settings()
+        if s is not None:
+            return getattr(s, 'patchmanagement_enabled', True)
+    except Exception:
+        pass
+    return True
+
+
 class PatchVMListView(LoginRequiredMixin, View):
     def get(self, request):
+        if not _patch_enabled():
+            messages.warning(request, 'Patch Management is disabled.')
+            return redirect('plugins:netbox_force:settings')
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['patch_vms'] = PatchVM.objects.select_related('vm').order_by('fqdn')
@@ -1519,3 +1534,41 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
         entry.delete()
         messages.success(request, 'Update entry deleted.')
         return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
+
+
+class PatchIPSuggestView(LoginRequiredMixin, View):
+    """Returns IP address suggestions from NetBox IPAM (JSON)."""
+
+    def get(self, request):
+        from django.http import JsonResponse
+        from django.apps import apps
+        q = request.GET.get('q', '').strip()
+        results = []
+        try:
+            IPAddress = apps.get_model('ipam', 'IPAddress')
+            qs = IPAddress.objects.order_by('address')
+            if q:
+                qs = qs.filter(address__icontains=q)
+            results = [str(ip.address).split('/')[0] for ip in qs[:60]]
+        except Exception:
+            pass
+        return JsonResponse({'results': results})
+
+
+class PatchContactSuggestView(LoginRequiredMixin, View):
+    """Returns contact name suggestions from NetBox Tenancy (JSON)."""
+
+    def get(self, request):
+        from django.http import JsonResponse
+        from django.apps import apps
+        q = request.GET.get('q', '').strip()
+        results = []
+        try:
+            Contact = apps.get_model('tenancy', 'Contact')
+            qs = Contact.objects.order_by('name')
+            if q:
+                qs = qs.filter(name__icontains=q)
+            results = [c.name for c in qs[:60]]
+        except Exception:
+            pass
+        return JsonResponse({'results': results})

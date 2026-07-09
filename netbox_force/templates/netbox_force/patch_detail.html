@@ -123,6 +123,8 @@
                             <tr>
                                 <th>{{ ui.patch_entry_date|default:"Date" }}</th>
                                 <th>{{ ui.patch_entry_by|default:"Updated By" }}</th>
+                                <th>{{ ui.patch_entry_version_before|default:"Before" }}</th>
+                                <th>{{ ui.patch_entry_version_after|default:"After" }}</th>
                                 <th>{{ ui.patch_entry_software|default:"Software / Updates" }}</th>
                                 <th>{{ ui.patch_entry_info|default:"Notes" }}</th>
                                 {% if request.user.is_superuser %}
@@ -135,6 +137,8 @@
                             <tr>
                                 <td class="text-nowrap">{{ entry.date }}</td>
                                 <td>{{ entry.updated_by }}</td>
+                                <td class="text-nowrap small text-muted">{{ entry.version_before|default:"—" }}</td>
+                                <td class="text-nowrap small text-muted">{{ entry.version_after|default:"—" }}</td>
                                 <td>{{ entry.software }}</td>
                                 <td>
                                     {% if entry.info %}

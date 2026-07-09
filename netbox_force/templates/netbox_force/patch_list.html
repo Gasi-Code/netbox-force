@@ -29,6 +29,8 @@
                                 <th>{{ ui.patch_col_vm|default:"VM / FQDN" }}</th>
                                 <th>{{ ui.patch_col_ip|default:"IP Address" }}</th>
                                 <th>{{ ui.patch_col_os|default:"OS" }}</th>
+                                <th>{{ ui.patch_col_admins|default:"Administrators" }}</th>
+                                <th>{{ ui.patch_col_verfahrensbetreuer|default:"Process Owners" }}</th>
                                 <th>{{ ui.patch_col_status|default:"Patch Status" }}</th>
                                 <th>{{ ui.patch_col_maintenance|default:"Maintenance Window" }}</th>
                                 <th>{{ ui.patch_col_update_mode|default:"Update Installation" }}</th>
@@ -48,6 +50,20 @@
                                 </td>
                                 <td>{{ pvm.ip_address|default:"—" }}</td>
                                 <td>{{ pvm.os_info|default:"—" }}</td>
+                                <td>
+                                    {% if pvm.admins %}
+                                    <ul class="list-unstyled mb-0 small">
+                                        {% for admin in pvm.admins.splitlines %}{% if admin.strip %}<li>{{ admin.strip }}</li>{% endif %}{% endfor %}
+                                    </ul>
+                                    {% else %}<span class="text-muted">—</span>{% endif %}
+                                </td>
+                                <td>
+                                    {% if pvm.verfahrensbetreuer %}
+                                    <ul class="list-unstyled mb-0 small">
+                                        {% for vb in pvm.verfahrensbetreuer.splitlines %}{% if vb.strip %}<li>{{ vb.strip }}</li>{% endif %}{% endfor %}
+                                    </ul>
+                                    {% else %}<span class="text-muted">—</span>{% endif %}
+                                </td>
                                 <td>
                                     <span class="badge bg-{{ pvm.status_css_class }}{% if pvm.patch_status == 'yellow' %} text-dark{% endif %}">
                                         {{ pvm.get_patch_status_display }}

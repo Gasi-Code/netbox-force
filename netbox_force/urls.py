@@ -57,6 +57,8 @@ urlpatterns = [
     # Patch Management
     path('patch/', views.PatchVMListView.as_view(), name='patch_list'),
     path('patch/add/', views.PatchVMCreateView.as_view(), name='patch_vm_add'),
+    path('patch/suggest/ip/', views.PatchIPSuggestView.as_view(), name='patch_suggest_ip'),
+    path('patch/suggest/contacts/', views.PatchContactSuggestView.as_view(), name='patch_suggest_contacts'),
     path('patch/<int:pk>/', views.PatchVMDetailView.as_view(), name='patch_detail'),
     path('patch/<int:pk>/edit/', views.PatchVMEditView.as_view(), name='patch_vm_edit'),
     path('patch/<int:pk>/delete/', views.PatchVMDeleteView.as_view(), name='patch_vm_delete'),
