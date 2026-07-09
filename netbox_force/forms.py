@@ -8,7 +8,7 @@ from django.core.validators import FileExtensionValidator
 
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage,
-    LANGUAGE_CHOICES, PatchVM, PatchUpdateEntry, PATCH_STATUS_CHOICES,
+    LANGUAGE_CHOICES, PatchVM, PatchVMContact, PatchUpdateEntry, PATCH_STATUS_CHOICES,
 )
 
 # Valid model label pattern: app_label.model_name
@@ -484,24 +484,42 @@ class WidgetImageUploadForm(forms.Form):
 # PATCH MANAGEMENT FORMS
 # =============================================================================
 
+def _get_contact_choices(empty_label='— not selected —'):
+    """Returns list of (pk, name) tuples from tenancy.Contact."""
+    try:
+        from django.apps import apps
+        Contact = apps.get_model('tenancy', 'Contact')
+        choices = [(c.pk, c.name) for c in Contact.objects.order_by('name')]
+    except Exception:
+        choices = []
+    if empty_label is not None:
+        choices = [('', empty_label)] + choices
+    return choices
+
+
 class PatchVMForm(forms.ModelForm):
+    admin_contact_ids = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '6'}),
+        label='Administrators',
+    )
+    vb_contact_ids = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '6'}),
+        label='Process Owners',
+    )
+
     class Meta:
         model = PatchVM
         fields = [
-            'vm', 'fqdn', 'ip_address', 'admins', 'verfahrensbetreuer',
+            'vm', 'fqdn', 'ip_address',
             'os_info', 'maintenance_window', 'update_installation',
             'patch_status', 'ticket_number', 'comment',
         ]
         widgets = {
             'vm': forms.Select(attrs={'class': 'form-select'}),
             'fqdn': forms.TextInput(attrs={'class': 'form-control'}),
-            'ip_address': forms.TextInput(attrs={
-                'class': 'form-control',
-                'list': 'ip-suggestions',
-                'autocomplete': 'off',
-            }),
-            'admins': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'id': 'id_admins'}),
-            'verfahrensbetreuer': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'id': 'id_verfahrensbetreuer'}),
+            'ip_address': forms.Select(attrs={'class': 'form-select'}),
             'os_info': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ubuntu 22.04 LTS x64'}),
             'maintenance_window': forms.Select(attrs={'class': 'form-select'}),
             'update_installation': forms.Select(attrs={'class': 'form-select'}),
@@ -510,23 +528,85 @@ class PatchVMForm(forms.ModelForm):
             'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # IP address: set queryset + readable label
+        try:
+            from django.apps import apps
+            IPAddress = apps.get_model('ipam', 'IPAddress')
+            self.fields['ip_address'].queryset = IPAddress.objects.order_by('address')
+            self.fields['ip_address'].empty_label = '— no IP selected —'
+            self.fields['ip_address'].label_from_instance = (
+                lambda obj: str(obj.address).split('/')[0]
+            )
+        except Exception:
+            pass
+        # Contact choices
+        contact_choices = _get_contact_choices(empty_label=None)
+        self.fields['admin_contact_ids'].choices = contact_choices
+        self.fields['vb_contact_ids'].choices = contact_choices
+        # Pre-fill selected contacts for existing instance
+        if self.instance and self.instance.pk:
+            admin_pks = list(
+                self.instance.vm_contacts.filter(role='admin').values_list('contact_id', flat=True)
+            )
+            self.fields['admin_contact_ids'].initial = [str(p) for p in admin_pks]
+            vb_pks = list(
+                self.instance.vm_contacts.filter(role='vb').values_list('contact_id', flat=True)
+            )
+            self.fields['vb_contact_ids'].initial = [str(p) for p in vb_pks]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            # Sync admin contacts
+            instance.vm_contacts.filter(role='admin').delete()
+            for pk in self.cleaned_data.get('admin_contact_ids', []):
+                PatchVMContact.objects.get_or_create(
+                    patch_vm=instance, contact_id=int(pk), role='admin'
+                )
+            # Sync vb contacts
+            instance.vm_contacts.filter(role='vb').delete()
+            for pk in self.cleaned_data.get('vb_contact_ids', []):
+                PatchVMContact.objects.get_or_create(
+                    patch_vm=instance, contact_id=int(pk), role='vb'
+                )
+            self.save_m2m()
+        return instance
+
 
 class PatchUpdateEntryForm(forms.ModelForm):
+    updated_by_contact = forms.ChoiceField(
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Updated By',
+    )
+
     class Meta:
         model = PatchUpdateEntry
-        fields = ['date', 'updated_by', 'version_before', 'version_after', 'software', 'info']
+        fields = ['date', 'version_before', 'version_after', 'software', 'info']
         widgets = {
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'updated_by': forms.TextInput(attrs={
-                'class': 'form-control',
-                'list': 'contact-suggestions',
-                'autocomplete': 'off',
-            }),
             'version_before': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.2.3'}),
             'version_after': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.2.4'}),
             'software': forms.TextInput(attrs={'class': 'form-control'}),
             'info': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['updated_by_contact'].choices = _get_contact_choices()
+        if self.instance and self.instance.pk and self.instance.updated_by_contact_id:
+            self.fields['updated_by_contact'].initial = str(self.instance.updated_by_contact_id)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        pk_str = self.cleaned_data.get('updated_by_contact')
+        instance.updated_by_contact_id = int(pk_str) if pk_str else None
+        if commit:
+            instance.save()
+        return instance
 
 
 class PatchStatusForm(forms.Form):

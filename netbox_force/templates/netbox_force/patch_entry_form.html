@@ -38,9 +38,8 @@
                             {{ form.date }}
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label">{{ ui.patch_entry_by|default:"Updated By" }} <span class="text-danger">*</span></label>
-                            {{ form.updated_by }}
-                            <datalist id="contact-suggestions"></datalist>
+                            <label class="form-label">{{ ui.patch_entry_by|default:"Updated By" }}</label>
+                            {{ form.updated_by_contact }}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">{{ ui.patch_entry_version_before|default:"Version Before" }}</label>
@@ -75,28 +74,4 @@
         </div>
     </div>
 </div>
-
-<script>
-(function () {
-    var CONTACT_URL = "{% url 'plugins:netbox_force:patch_suggest_contacts' %}";
-    var inp = document.getElementById('id_updated_by');
-    var dl = document.getElementById('contact-suggestions');
-    if (!inp || !dl) return;
-    function fetch_contacts(q) {
-        fetch(CONTACT_URL + '?q=' + encodeURIComponent(q))
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                dl.innerHTML = '';
-                (d.results || []).forEach(function (n) {
-                    var o = document.createElement('option');
-                    o.value = n;
-                    dl.appendChild(o);
-                });
-            })
-            .catch(function () {});
-    }
-    inp.addEventListener('input', function () { fetch_contacts(this.value); });
-    fetch_contacts('');
-})();
-</script>
 {% endblock content %}

@@ -1360,6 +1360,35 @@ def _patch_enabled():
     return True
 
 
+def _resolve_vm_contacts(patch_vms):
+    """
+    Annotates each PatchVM in the list with _admin_contacts and _vb_contacts
+    (lists of tenancy.Contact objects). Uses two queries total, not N.
+    """
+    from django.apps import apps
+    # Collect all unique contact IDs referenced by this batch
+    all_ids = set()
+    for pvm in patch_vms:
+        for vc in pvm.vm_contacts.all():
+            all_ids.add(vc.contact_id)
+    try:
+        Contact = apps.get_model('tenancy', 'Contact')
+        contacts = {c.pk: c for c in Contact.objects.filter(pk__in=all_ids)}
+    except Exception:
+        contacts = {}
+    for pvm in patch_vms:
+        pvm._admin_contacts = [
+            contacts[vc.contact_id]
+            for vc in pvm.vm_contacts.all()
+            if vc.role == 'admin' and vc.contact_id in contacts
+        ]
+        pvm._vb_contacts = [
+            contacts[vc.contact_id]
+            for vc in pvm.vm_contacts.all()
+            if vc.role == 'vb' and vc.contact_id in contacts
+        ]
+
+
 class PatchVMListView(LoginRequiredMixin, View):
     def get(self, request):
         if not _patch_enabled():
@@ -1367,17 +1396,40 @@ class PatchVMListView(LoginRequiredMixin, View):
             return redirect('plugins:netbox_force:settings')
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
-        ctx['patch_vms'] = PatchVM.objects.select_related('vm').order_by('fqdn')
+        patch_vms = list(
+            PatchVM.objects.select_related('vm', 'ip_address')
+            .prefetch_related('vm_contacts')
+            .order_by('fqdn')
+        )
+        _resolve_vm_contacts(patch_vms)
+        ctx['patch_vms'] = patch_vms
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 
 class PatchVMDetailView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        patch_vm = get_object_or_404(PatchVM, pk=pk)
+        from django.apps import apps
+        patch_vm = get_object_or_404(
+            PatchVM.objects.select_related('vm', 'ip_address').prefetch_related('vm_contacts'),
+            pk=pk,
+        )
+        _resolve_vm_contacts([patch_vm])
+
+        entries = list(patch_vm.update_entries.order_by('-date'))
+        # Pre-fetch updated_by contacts for all entries
+        try:
+            Contact = apps.get_model('tenancy', 'Contact')
+            entry_ids = {e.updated_by_contact_id for e in entries if e.updated_by_contact_id}
+            entry_contacts = {c.pk: c for c in Contact.objects.filter(pk__in=entry_ids)} if entry_ids else {}
+        except Exception:
+            entry_contacts = {}
+        for e in entries:
+            e._updated_by_contact = entry_contacts.get(e.updated_by_contact_id)
+
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['patch_vm'] = patch_vm
-        ctx['entries'] = patch_vm.update_entries.order_by('-date')
+        ctx['entries'] = entries
         ctx['status_form'] = PatchStatusForm(initial={'patch_status': patch_vm.patch_status})
         return render(request, 'netbox_force/patch_detail.html', ctx)
 
@@ -1465,9 +1517,7 @@ class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['patch_vm'] = patch_vm
-        ctx['form'] = PatchUpdateEntryForm(
-            initial={'date': date.today(), 'updated_by': request.user.username}
-        )
+        ctx['form'] = PatchUpdateEntryForm(initial={'date': date.today()})
         ctx['is_edit'] = False
         return render(request, 'netbox_force/patch_entry_form.html', ctx)
 
@@ -1521,7 +1571,16 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
     """Only superusers can delete update history entries."""
 
     def get(self, request, pk):
+        from django.apps import apps
         entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        if entry.updated_by_contact_id:
+            try:
+                Contact = apps.get_model('tenancy', 'Contact')
+                entry._updated_by_contact = Contact.objects.filter(pk=entry.updated_by_contact_id).first()
+            except Exception:
+                entry._updated_by_contact = None
+        else:
+            entry._updated_by_contact = None
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['entry'] = entry

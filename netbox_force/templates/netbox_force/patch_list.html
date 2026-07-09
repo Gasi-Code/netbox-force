@@ -48,24 +48,32 @@
                                     <br><small class="text-muted">{{ pvm.fqdn }}</small>
                                     {% endif %}
                                 </td>
-                                <td>{{ pvm.ip_address|default:"—" }}</td>
+                                <td>
+                                    {% if pvm.ip_address %}
+                                    <a href="{{ pvm.ip_address.get_absolute_url }}" target="_blank">{{ pvm.ip_display }}</a>
+                                    {% else %}—{% endif %}
+                                </td>
                                 <td>{{ pvm.os_info|default:"—" }}</td>
                                 <td>
-                                    {% if pvm.admins %}
+                                    {% if pvm._admin_contacts %}
                                     <ul class="list-unstyled mb-0 small">
-                                        {% for admin in pvm.admins.splitlines %}{% if admin.strip %}<li>{{ admin.strip }}</li>{% endif %}{% endfor %}
+                                        {% for c in pvm._admin_contacts %}
+                                        <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
+                                        {% endfor %}
                                     </ul>
                                     {% else %}<span class="text-muted">—</span>{% endif %}
                                 </td>
                                 <td>
-                                    {% if pvm.verfahrensbetreuer %}
+                                    {% if pvm._vb_contacts %}
                                     <ul class="list-unstyled mb-0 small">
-                                        {% for vb in pvm.verfahrensbetreuer.splitlines %}{% if vb.strip %}<li>{{ vb.strip }}</li>{% endif %}{% endfor %}
+                                        {% for c in pvm._vb_contacts %}
+                                        <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
+                                        {% endfor %}
                                     </ul>
                                     {% else %}<span class="text-muted">—</span>{% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-{{ pvm.status_css_class }}{% if pvm.patch_status == 'yellow' %} text-dark{% endif %}">
+                                    <span class="badge bg-{{ pvm.status_css_class }} {% if pvm.patch_status == 'yellow' %}text-dark{% else %}text-white{% endif %}">
                                         {{ pvm.get_patch_status_display }}
                                     </span>
                                 </td>

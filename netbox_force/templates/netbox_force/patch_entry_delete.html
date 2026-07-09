@@ -22,7 +22,7 @@
                     </tr>
                     <tr>
                         <th>{{ ui.patch_entry_by|default:"Updated By" }}</th>
-                        <td>{{ entry.updated_by }}</td>
+                        <td>{{ entry._updated_by_contact.name|default:"—" }}</td>
                     </tr>
                     <tr>
                         <th>{{ ui.patch_entry_software|default:"Software / Updates" }}</th>

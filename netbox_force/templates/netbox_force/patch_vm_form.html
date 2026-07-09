@@ -39,7 +39,6 @@
                         <div class="col-md-4">
                             <label class="form-label">{{ ui.label_ip_address|default:"IP Address" }}</label>
                             {{ form.ip_address }}
-                            <datalist id="ip-suggestions"></datalist>
                         </div>
                         <div class="col-12">
                             <label class="form-label">{{ ui.label_os_info|default:"OS" }}</label>
@@ -47,31 +46,13 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">{{ ui.label_admins|default:"Administrators" }}</label>
-                            <div class="input-group mb-1">
-                                <input type="text" id="admin-picker" class="form-control form-control-sm"
-                                       placeholder="{{ ui.contact_search_placeholder|default:'Search contact…' }}"
-                                       list="contact-suggestions-admins" autocomplete="off">
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        onclick="appendContact('admin-picker','id_admins')">
-                                    <i class="mdi mdi-plus"></i>
-                                </button>
-                            </div>
-                            <datalist id="contact-suggestions-admins"></datalist>
-                            {{ form.admins }}
+                            {{ form.admin_contact_ids }}
+                            <div class="form-text text-muted">Ctrl+Click / Cmd+Click für Mehrfachauswahl</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</label>
-                            <div class="input-group mb-1">
-                                <input type="text" id="vb-picker" class="form-control form-control-sm"
-                                       placeholder="{{ ui.contact_search_placeholder|default:'Search contact…' }}"
-                                       list="contact-suggestions-vb" autocomplete="off">
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        onclick="appendContact('vb-picker','id_verfahrensbetreuer')">
-                                    <i class="mdi mdi-plus"></i>
-                                </button>
-                            </div>
-                            <datalist id="contact-suggestions-vb"></datalist>
-                            {{ form.verfahrensbetreuer }}
+                            {{ form.vb_contact_ids }}
+                            <div class="form-text text-muted">Ctrl+Click / Cmd+Click für Mehrfachauswahl</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">{{ ui.label_maintenance_window|default:"Maintenance Window" }}</label>
@@ -109,61 +90,4 @@
         </div>
     </div>
 </div>
-
-<script>
-(function () {
-    var IP_URL = "{% url 'plugins:netbox_force:patch_suggest_ip' %}";
-    var CONTACT_URL = "{% url 'plugins:netbox_force:patch_suggest_contacts' %}";
-
-    function fillDatalist(dl, items) {
-        dl.innerHTML = '';
-        items.forEach(function (v) {
-            var o = document.createElement('option');
-            o.value = v;
-            dl.appendChild(o);
-        });
-    }
-
-    function fetchSuggest(url, q, dl) {
-        fetch(url + '?q=' + encodeURIComponent(q))
-            .then(function (r) { return r.json(); })
-            .then(function (d) { fillDatalist(dl, d.results || []); })
-            .catch(function () {});
-    }
-
-    // IP autocomplete
-    var ipInput = document.getElementById('id_ip_address');
-    var ipDl = document.getElementById('ip-suggestions');
-    if (ipInput && ipDl) {
-        ipInput.addEventListener('input', function () {
-            fetchSuggest(IP_URL, this.value, ipDl);
-        });
-        fetchSuggest(IP_URL, '', ipDl);
-    }
-
-    // Contact autocomplete helper (shared fetch for all contact lists)
-    function setupContactPicker(inputId, dlId) {
-        var inp = document.getElementById(inputId);
-        var dl = document.getElementById(dlId);
-        if (!inp || !dl) return;
-        inp.addEventListener('input', function () {
-            fetchSuggest(CONTACT_URL, this.value, dl);
-        });
-        fetchSuggest(CONTACT_URL, '', dl);
-    }
-    setupContactPicker('admin-picker', 'contact-suggestions-admins');
-    setupContactPicker('vb-picker', 'contact-suggestions-vb');
-})();
-
-function appendContact(pickerId, textareaId) {
-    var picker = document.getElementById(pickerId);
-    var ta = document.getElementById(textareaId);
-    if (!picker || !ta) return;
-    var val = picker.value.trim();
-    if (!val) return;
-    var existing = ta.value.trim();
-    ta.value = existing ? existing + '\n' + val : val;
-    picker.value = '';
-}
-</script>
 {% endblock content %}

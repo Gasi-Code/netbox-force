@@ -13,7 +13,7 @@
         <div class="card mb-3">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="mdi mdi-server"></i> {{ patch_vm }}</span>
-                <span class="badge bg-{{ patch_vm.status_css_class }}{% if patch_vm.patch_status == 'yellow' %} text-dark{% endif %} fs-6">
+                <span class="badge bg-{{ patch_vm.status_css_class }} {% if patch_vm.patch_status == 'yellow' %}text-dark{% else %}text-white{% endif %} fs-6">
                     {{ patch_vm.get_patch_status_display }}
                 </span>
             </h5>
@@ -38,7 +38,11 @@
                         </tr>
                         <tr>
                             <th class="text-muted">{{ ui.label_ip_address|default:"IP Address" }}</th>
-                            <td>{{ patch_vm.ip_address|default:"—" }}</td>
+                            <td>
+                                {% if patch_vm.ip_address %}
+                                <a href="{{ patch_vm.ip_address.get_absolute_url }}" target="_blank">{{ patch_vm.ip_display }}</a>
+                                {% else %}—{% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <th class="text-muted">{{ ui.label_os_info|default:"OS" }}</th>
@@ -46,11 +50,27 @@
                         </tr>
                         <tr>
                             <th class="text-muted">{{ ui.label_admins|default:"Administrators" }}</th>
-                            <td><pre class="mb-0 small">{{ patch_vm.admins|default:"—" }}</pre></td>
+                            <td>
+                                {% if patch_vm._admin_contacts %}
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for c in patch_vm._admin_contacts %}
+                                    <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}—{% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <th class="text-muted">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</th>
-                            <td><pre class="mb-0 small">{{ patch_vm.verfahrensbetreuer|default:"—" }}</pre></td>
+                            <td>
+                                {% if patch_vm._vb_contacts %}
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for c in patch_vm._vb_contacts %}
+                                    <li><a href="{{ c.get_absolute_url }}" target="_blank">{{ c.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}—{% endif %}
+                            </td>
                         </tr>
                         <tr>
                             <th class="text-muted">{{ ui.label_maintenance_window|default:"Maintenance Window" }}</th>
@@ -136,7 +156,11 @@
                             {% for entry in entries %}
                             <tr>
                                 <td class="text-nowrap">{{ entry.date }}</td>
-                                <td>{{ entry.updated_by }}</td>
+                                <td>
+                                    {% if entry._updated_by_contact %}
+                                    <a href="{{ entry._updated_by_contact.get_absolute_url }}" target="_blank">{{ entry._updated_by_contact.name }}</a>
+                                    {% else %}—{% endif %}
+                                </td>
                                 <td class="text-nowrap small text-muted">{{ entry.version_before|default:"—" }}</td>
                                 <td class="text-nowrap small text-muted">{{ entry.version_after|default:"—" }}</td>
                                 <td>{{ entry.software }}</td>

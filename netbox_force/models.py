@@ -827,16 +827,14 @@ class PatchVM(models.Model):
         db_constraint=False,
     )
     fqdn = models.CharField(max_length=255, blank=True, default='', verbose_name='FQDN')
-    ip_address = models.CharField(max_length=50, blank=True, default='', verbose_name='IP Address')
-    admins = models.TextField(
-        blank=True, default='',
-        verbose_name='Administrators',
-        help_text='One per line',
-    )
-    verfahrensbetreuer = models.TextField(
-        blank=True, default='',
-        verbose_name='Process Owners',
-        help_text='One per line',
+    ip_address = models.ForeignKey(
+        'ipam.IPAddress',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patch_vms',
+        verbose_name='IP Address',
+        db_constraint=False,
     )
     os_info = models.CharField(
         max_length=200, blank=True, default='',
@@ -880,6 +878,43 @@ class PatchVM(models.Model):
     def status_css_class(self):
         return {'green': 'success', 'yellow': 'warning', 'red': 'danger'}.get(self.patch_status, 'secondary')
 
+    @property
+    def ip_display(self):
+        if self.ip_address_id and self.ip_address:
+            return str(self.ip_address.address).split('/')[0]
+        return ''
+
+
+class PatchVMContact(models.Model):
+    """Links a NetBox Contact (by PK) to a PatchVM in a given role."""
+    ROLE_ADMIN = 'admin'
+    ROLE_VB = 'vb'
+    ROLE_CHOICES = [('admin', 'Administrator'), ('vb', 'Process Owner')]
+
+    patch_vm = models.ForeignKey(
+        PatchVM,
+        on_delete=models.CASCADE,
+        related_name='vm_contacts',
+    )
+    contact_id = models.PositiveIntegerField(verbose_name='Contact')
+    role = models.CharField(max_length=5, choices=ROLE_CHOICES, verbose_name='Role')
+
+    class Meta:
+        verbose_name = 'VM Contact'
+        verbose_name_plural = 'VM Contacts'
+        unique_together = [('patch_vm', 'contact_id', 'role')]
+        ordering = ['role']
+
+    def __str__(self):
+        return f'{self.get_role_display()} #{self.contact_id}'
+
+    def get_contact(self):
+        try:
+            from django.apps import apps
+            return apps.get_model('tenancy', 'Contact').objects.get(pk=self.contact_id)
+        except Exception:
+            return None
+
 
 class PatchUpdateEntry(models.Model):
     """One record in a VM's update history."""
@@ -890,12 +925,21 @@ class PatchUpdateEntry(models.Model):
         verbose_name='VM',
     )
     date = models.DateField(verbose_name='Date')
-    updated_by = models.CharField(max_length=200, verbose_name='Updated By')
+    updated_by_contact_id = models.PositiveIntegerField(null=True, blank=True, verbose_name='Updated By')
     version_before = models.CharField(max_length=200, blank=True, default='', verbose_name='Version Before')
     version_after = models.CharField(max_length=200, blank=True, default='', verbose_name='Version After')
     software = models.CharField(max_length=500, verbose_name='Software / Updates')
     info = models.TextField(blank=True, default='', verbose_name='Notes')
     created = models.DateTimeField(auto_now_add=True)
+
+    def get_updated_by_contact(self):
+        if not self.updated_by_contact_id:
+            return None
+        try:
+            from django.apps import apps
+            return apps.get_model('tenancy', 'Contact').objects.get(pk=self.updated_by_contact_id)
+        except Exception:
+            return None
 
     class Meta:
         verbose_name = 'Update Entry'
