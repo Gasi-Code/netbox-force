@@ -1710,7 +1710,7 @@ class PatchContactSyncView(SuperuserRequiredMixin, View):
                     continue
                 role = admin_role if vc.role == 'admin' else vb_role
                 _, was_created = ContactAssignment.objects.get_or_create(
-                    content_type=vm_ct,
+                    object_type=vm_ct,
                     object_id=pvm.vm.pk,
                     contact=contact,
                     role=role,
