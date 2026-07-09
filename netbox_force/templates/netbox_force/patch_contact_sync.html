@@ -17,6 +17,28 @@
                 </a>
             </h5>
             <div class="card-body">
+
+                {% if not plugin_admin_role or not plugin_vb_role %}
+                <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="mdi mdi-alert"></i>
+                        {{ ui.sync_contacts_no_roles|default:"No standard contact roles found. Create them automatically in the configured plugin language." }}
+                    </div>
+                    <form method="post" action="{% url 'plugins:netbox_force:patch_create_contact_roles' %}" class="ms-3">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-warning text-dark text-nowrap">
+                            <i class="mdi mdi-plus-circle"></i> {{ ui.btn_create_roles|default:"Create standard roles" }}
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="mdi mdi-check-circle"></i>
+                    <strong>{{ plugin_admin_role.name }}</strong> &amp; <strong>{{ plugin_vb_role.name }}</strong>
+                    — {{ ui.sync_contacts_roles_ready|default:"standard roles detected and pre-selected." }}
+                </div>
+                {% endif %}
+
                 {% if contact_roles %}
                 <p class="text-muted">{{ ui.sync_contacts_desc|default:"Select ContactRoles for administrators and process owners. Existing assignments are skipped." }}</p>
 
@@ -39,9 +61,12 @@
                                 {{ ui.sync_contacts_role_admin|default:"ContactRole for Administrators" }}
                             </label>
                             <select name="admin_role_id" class="form-select" required>
-                                <option value="">— {{ ui.btn_save|default:"Select" }} —</option>
+                                <option value="">—</option>
                                 {% for role in contact_roles %}
-                                <option value="{{ role.pk }}">{{ role.name }}</option>
+                                <option value="{{ role.pk }}"
+                                    {% if plugin_admin_role and role.pk == plugin_admin_role.pk %}selected{% endif %}>
+                                    {{ role.name }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -51,9 +76,12 @@
                                 {{ ui.sync_contacts_role_vb|default:"ContactRole for Process Owners" }}
                             </label>
                             <select name="vb_role_id" class="form-select" required>
-                                <option value="">— {{ ui.btn_save|default:"Select" }} —</option>
+                                <option value="">—</option>
                                 {% for role in contact_roles %}
-                                <option value="{{ role.pk }}">{{ role.name }}</option>
+                                <option value="{{ role.pk }}"
+                                    {% if plugin_vb_role and role.pk == plugin_vb_role.pk %}selected{% endif %}>
+                                    {{ role.name }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -68,13 +96,11 @@
                     </div>
                 </form>
                 {% else %}
-                <div class="alert alert-warning">
-                    <i class="mdi mdi-alert"></i>
-                    {{ ui.sync_contacts_no_roles|default:"No ContactRoles found in NetBox. Please create them under Tenancy → Contact Roles first." }}
+                <div class="text-center py-3">
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                        <i class="mdi mdi-arrow-left"></i> {{ ui.btn_back|default:"Back" }}
+                    </a>
                 </div>
-                <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
-                    <i class="mdi mdi-arrow-left"></i> {{ ui.btn_back|default:"Back" }}
-                </a>
                 {% endif %}
             </div>
         </div>

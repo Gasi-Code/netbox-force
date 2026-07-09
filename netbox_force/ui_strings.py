@@ -405,6 +405,8 @@ UI_STRINGS = {
         'sync_contacts_no_roles': 'Keine ContactRoles in NetBox gefunden. Bitte zuerst unter Tenancy → Contact Roles anlegen.',
         'sync_contacts_preview': 'VMs mit Kontakten und verknüpfter NetBox-VM',
         'sync_contacts_no_vm_hint': 'PatchVMs ohne verknüpfte NetBox-VM werden übersprungen.',
+        'btn_create_roles': 'Standardrollen erstellen',
+        'sync_contacts_roles_ready': 'Standardrollen erkannt und vorausgewählt.',
     },
 
     'en': {
@@ -808,6 +810,8 @@ UI_STRINGS = {
         'sync_contacts_no_roles': 'No ContactRoles found in NetBox. Please create them under Tenancy → Contact Roles first.',
         'sync_contacts_preview': 'VMs with contacts and linked NetBox VM',
         'sync_contacts_no_vm_hint': 'PatchVMs without a linked NetBox VM will be skipped.',
+        'btn_create_roles': 'Create standard roles',
+        'sync_contacts_roles_ready': 'standard roles detected and pre-selected.',
     },
 
     'es': {

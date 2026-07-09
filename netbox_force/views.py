@@ -1594,6 +1594,21 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
 
 
+_PLUGIN_ADMIN_ROLE_SLUG = 'netbox-force-admin'
+_PLUGIN_VB_ROLE_SLUG = 'netbox-force-vb'
+
+
+def _get_plugin_contact_roles():
+    from django.apps import apps
+    try:
+        ContactRole = apps.get_model('tenancy', 'ContactRole')
+        admin = ContactRole.objects.filter(slug=_PLUGIN_ADMIN_ROLE_SLUG).first()
+        vb = ContactRole.objects.filter(slug=_PLUGIN_VB_ROLE_SLUG).first()
+        return admin, vb
+    except Exception:
+        return None, None
+
+
 class PatchVMImportView(SuperuserRequiredMixin, View):
     def get(self, request):
         if not _patch_enabled():
@@ -1648,6 +1663,7 @@ class PatchContactSyncView(SuperuserRequiredMixin, View):
         if not _patch_enabled():
             return redirect('plugins:netbox_force:settings')
         roles = self._get_contact_roles()
+        plugin_admin_role, plugin_vb_role = _get_plugin_contact_roles()
         patch_vms = list(
             PatchVM.objects.filter(vm__isnull=False).prefetch_related('vm_contacts')
         )
@@ -1655,6 +1671,8 @@ class PatchContactSyncView(SuperuserRequiredMixin, View):
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['contact_roles'] = roles
+        ctx['plugin_admin_role'] = plugin_admin_role
+        ctx['plugin_vb_role'] = plugin_vb_role
         ctx['preview_count'] = preview_count
         return render(request, 'netbox_force/patch_contact_sync.html', ctx)
 
@@ -1706,6 +1724,33 @@ class PatchContactSyncView(SuperuserRequiredMixin, View):
         if skipped:
             messages.info(request, f'{skipped} already existed, skipped.')
         return redirect('plugins:netbox_force:patch_list')
+
+
+class PatchContactRoleCreateView(SuperuserRequiredMixin, View):
+    def post(self, request):
+        from django.apps import apps
+        try:
+            settings = ForceSettings.get_settings()
+            lang = getattr(settings, 'language', 'en') or 'en'
+            ui = get_all_ui_strings(lang)
+            admin_name = ui.get('label_admins', 'Administrators')
+            vb_name = ui.get('label_verfahrensbetreuer', 'Process Owners')
+            ContactRole = apps.get_model('tenancy', 'ContactRole')
+            _, admin_created = ContactRole.objects.get_or_create(
+                slug=_PLUGIN_ADMIN_ROLE_SLUG,
+                defaults={'name': admin_name},
+            )
+            _, vb_created = ContactRole.objects.get_or_create(
+                slug=_PLUGIN_VB_ROLE_SLUG,
+                defaults={'name': vb_name},
+            )
+            if admin_created or vb_created:
+                messages.success(request, f'Contact roles created: "{admin_name}", "{vb_name}".')
+            else:
+                messages.info(request, 'Contact roles already exist.')
+        except Exception as e:
+            messages.error(request, f'Error creating contact roles: {e}')
+        return redirect('plugins:netbox_force:patch_contact_sync')
 
 
 class PatchIPSuggestView(LoginRequiredMixin, View):
