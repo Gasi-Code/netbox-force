@@ -6,7 +6,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('netbox_force', '0010_remove_wizards'),
-        ('virtualization', '0001_initial'),
     ]
 
     operations = [
@@ -57,6 +56,7 @@ class Migration(migrations.Migration):
                     related_name='patch_entry',
                     to='virtualization.virtualmachine',
                     verbose_name='NetBox VM',
+                    db_constraint=False,
                 )),
             ],
             options={

@@ -819,6 +819,7 @@ class PatchVM(models.Model):
         blank=True,
         related_name='patch_entry',
         verbose_name='NetBox VM',
+        db_constraint=False,
     )
     fqdn = models.CharField(max_length=255, blank=True, default='', verbose_name='FQDN')
     ip_address = models.CharField(max_length=50, blank=True, default='', verbose_name='IP Address')
