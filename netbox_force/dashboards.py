@@ -440,6 +440,108 @@ class QuickLinksWidget(DashboardWidget):
 # which finds this class by name in the module without it being in the registry.
 # The proper __name__ ('BookmarksWidget', not 'QuickLinksWidget') is what makes
 # the import_string lookup work correctly.
+@register_widget
+class PatchStatusWidget(DashboardWidget):
+    default_title = _LocalizedAttr('widget_patch_title', 'Patch Status Overview')
+    description = _LocalizedAttr('widget_patch_description', 'Shows current patch status of all VMs')
+    width = 4
+    height = 2
+
+    class ConfigForm(WidgetConfigForm):
+        pass
+
+    def render(self, request):
+        ui, settings = _get_widget_strings()
+        enabled = getattr(settings, 'patchmanagement_enabled', True) if settings else True
+
+        if not enabled:
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<i class="mdi mdi-lock-outline" style="font-size:2rem;"></i>'
+                '<p class="small mb-0 mt-2">{}</p></div>',
+                ui.get('widget_patch_disabled', 'Patch Management is disabled.')
+            )
+
+        try:
+            from .models import PatchVM
+            from django.db.models import Count
+            counts = dict(
+                PatchVM.objects.values_list('patch_status').annotate(c=Count('pk')).values_list('patch_status', 'c')
+            )
+            total = sum(counts.values())
+        except Exception:
+            counts = {}
+            total = 0
+
+        try:
+            list_url = reverse('plugins:netbox_force:patch_list')
+        except Exception:
+            list_url = '#'
+
+        if not total:
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<i class="mdi mdi-server-network" style="font-size:2rem;"></i>'
+                '<p class="small mb-0 mt-2">{}</p>'
+                '<a href="{}" class="small">{}</a></div>',
+                ui.get('widget_patch_empty', 'No VMs in patch management.'),
+                list_url,
+                ui.get('widget_patch_all', 'All VMs'),
+            )
+
+        green = counts.get('green', 0)
+        yellow = counts.get('yellow', 0)
+        red = counts.get('red', 0)
+        overdue_days = getattr(settings, 'patch_overdue_days', 0) if settings else 0
+        overdue_html = mark_safe('')
+        if overdue_days > 0:
+            try:
+                from datetime import date, timedelta
+                from django.db.models import Max
+                from .models import PatchUpdateEntry
+                threshold = date.today() - timedelta(days=overdue_days)
+                patched_vms = set(
+                    PatchUpdateEntry.objects.values('vm_id').annotate(latest=Max('date'))
+                    .filter(latest__gte=threshold).values_list('vm_id', flat=True)
+                )
+                all_vm_ids = set(PatchVM.objects.values_list('pk', flat=True))
+                overdue_count = len(all_vm_ids - patched_vms)
+                if overdue_count > 0:
+                    overdue_html = format_html(
+                        '<div class="text-center mt-1">'
+                        '<span class="badge bg-warning text-dark">'
+                        '<i class="mdi mdi-alert"></i> {} {}</span></div>',
+                        overdue_count,
+                        ui.get('widget_patch_overdue', 'overdue'),
+                    )
+            except Exception:
+                pass
+
+        return format_html(
+            '<div class="d-flex flex-column gap-1 p-2">'
+            '<div class="d-flex justify-content-around text-center">'
+            '<div><div class="badge bg-success px-3" style="font-size:1.1rem;">{green}</div>'
+            '<div class="small mt-1 text-muted">{lbl_green}</div></div>'
+            '<div><div class="badge bg-warning text-dark px-3" style="font-size:1.1rem;">{yellow}</div>'
+            '<div class="small mt-1 text-muted">{lbl_yellow}</div></div>'
+            '<div><div class="badge bg-danger px-3" style="font-size:1.1rem;">{red}</div>'
+            '<div class="small mt-1 text-muted">{lbl_red}</div></div>'
+            '</div>'
+            '{overdue}'
+            '<div class="text-center mt-1">'
+            '<a href="{url}" class="small text-muted">{lbl_all} ({total}) &rarr;</a>'
+            '</div></div>',
+            green=green, yellow=yellow, red=red,
+            lbl_green=ui.get('patch_status_green', 'Aktuell'),
+            lbl_yellow=ui.get('patch_status_yellow', 'Ausstehend'),
+            lbl_red=ui.get('patch_status_red', 'Kritisch'),
+            overdue=overdue_html,
+            url=list_url,
+            lbl_all=ui.get('widget_patch_all', 'Alle VMs'),
+            total=total,
+        )
+
+
 class BookmarksWidget(QuickLinksWidget):
     """Not registered — only here so import_string can resolve existing
     per-user dashboard configs saved under the old class name."""

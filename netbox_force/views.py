@@ -1360,6 +1360,42 @@ def _patch_enabled():
     return True
 
 
+def _serialize_patch_vm(pvm):
+    return {
+        'fqdn': pvm.fqdn,
+        'patch_status': pvm.patch_status,
+        'os_info': pvm.os_info,
+        'maintenance_window': pvm.maintenance_window,
+        'update_installation': pvm.update_installation,
+        'ticket_number': pvm.ticket_number,
+        'vm_id': pvm.vm_id,
+        'ip_address_id': pvm.ip_address_id,
+    }
+
+
+def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None):
+    """Creates a NetBox ObjectChange record so patch mutations appear in the Changelog widget."""
+    try:
+        import uuid as _uuid
+        from django.contrib.contenttypes.models import ContentType
+        from extras.models import ObjectChange
+        ct = ContentType.objects.get_for_model(PatchVM)
+        user = getattr(request, 'user', None)
+        ObjectChange.objects.create(
+            user=user if (user and user.is_authenticated) else None,
+            user_name=user.get_username() if (user and user.is_authenticated) else '',
+            request_id=_uuid.uuid4(),
+            action=action,
+            changed_object_type=ct,
+            changed_object_id=patch_vm.pk,
+            object_repr=str(patch_vm)[:200],
+            prechange_data=prechange,
+            postchange_data=postchange,
+        )
+    except Exception:
+        pass
+
+
 def _resolve_vm_contacts(patch_vms):
     """
     Annotates each PatchVM with admin_contacts_resolved and vb_contacts_resolved
@@ -1393,15 +1429,65 @@ class PatchVMListView(LoginRequiredMixin, View):
         if not _patch_enabled():
             messages.warning(request, 'Patch Management is disabled.')
             return redirect('plugins:netbox_force:settings')
+
+        from django.db.models import Q, Count, Max
+        from datetime import date, timedelta
+
+        settings = ForceSettings.get_settings()
+        overdue_days = getattr(settings, 'patch_overdue_days', 0) if settings else 0
+
+        q = request.GET.get('q', '').strip()
+        status_filter = request.GET.get('status', '').strip()
+
+        qs = PatchVM.objects.select_related('vm', 'ip_address').prefetch_related('vm_contacts')
+
+        if q:
+            try:
+                from django.apps import apps as _apps
+                Contact = _apps.get_model('tenancy', 'Contact')
+                contact_ids = list(Contact.objects.filter(name__icontains=q).values_list('pk', flat=True)[:200])
+            except Exception:
+                contact_ids = []
+            contact_q = Q(vm_contacts__contact_id__in=contact_ids) if contact_ids else Q()
+            qs = qs.filter(
+                Q(fqdn__icontains=q) |
+                Q(vm__name__icontains=q) |
+                Q(os_info__icontains=q) |
+                Q(ip_address__address__icontains=q) |
+                Q(maintenance_window__icontains=q) |
+                Q(update_installation__icontains=q) |
+                Q(patch_status__icontains=q) |
+                contact_q
+            ).distinct()
+
+        if status_filter:
+            qs = qs.filter(patch_status=status_filter)
+
+        patch_vms = list(qs.order_by('fqdn'))
+        _resolve_vm_contacts(patch_vms)
+
+        # Status counts across ALL records (not filtered)
+        status_counts = dict(
+            PatchVM.objects.values_list('patch_status').annotate(c=Count('pk')).values_list('patch_status', 'c')
+        )
+
+        # Overdue detection
+        if overdue_days > 0:
+            threshold = date.today() - timedelta(days=overdue_days)
+            latest_dates = dict(
+                PatchUpdateEntry.objects.values('vm_id').annotate(latest=Max('date')).values_list('vm_id', 'latest')
+            )
+            for pvm in patch_vms:
+                last = latest_dates.get(pvm.pk)
+                pvm.is_overdue = (last is None or last < threshold)
+
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
-        patch_vms = list(
-            PatchVM.objects.select_related('vm', 'ip_address')
-            .prefetch_related('vm_contacts')
-            .order_by('fqdn')
-        )
-        _resolve_vm_contacts(patch_vms)
         ctx['patch_vms'] = patch_vms
+        ctx['status_counts'] = status_counts
+        ctx['overdue_days'] = overdue_days
+        ctx['q'] = q
+        ctx['status_filter'] = status_filter
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 
@@ -1444,7 +1530,8 @@ class PatchVMCreateView(SuperuserRequiredMixin, View):
     def post(self, request):
         form = PatchVMForm(request.POST)
         if form.is_valid():
-            form.save()
+            pvm = form.save()
+            _log_patch_change(request, 'create', pvm, postchange=_serialize_patch_vm(pvm))
             messages.success(request, 'VM added to patch management.')
             return redirect('plugins:netbox_force:patch_list')
         ctx = _base_context()
@@ -1466,11 +1553,13 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
+        prechange = _serialize_patch_vm(patch_vm)
         form = PatchVMForm(request.POST, instance=patch_vm)
         if form.is_valid():
-            form.save()
+            pvm = form.save()
+            _log_patch_change(request, 'update', pvm, prechange=prechange, postchange=_serialize_patch_vm(pvm))
             messages.success(request, 'VM updated.')
-            return redirect('plugins:netbox_force:patch_detail', pk=patch_vm.pk)
+            return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
         ctx['form'] = form
@@ -1490,6 +1579,8 @@ class PatchVMDeleteView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         name = str(patch_vm)
+        prechange = _serialize_patch_vm(patch_vm)
+        _log_patch_change(request, 'delete', patch_vm, prechange=prechange)
         patch_vm.delete()
         messages.success(request, f'"{name}" removed from patch management.')
         return redirect('plugins:netbox_force:patch_list')
@@ -1502,8 +1593,10 @@ class PatchStatusUpdateView(LoginRequiredMixin, View):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         form = PatchStatusForm(request.POST)
         if form.is_valid():
+            prechange = _serialize_patch_vm(patch_vm)
             patch_vm.patch_status = form.cleaned_data['patch_status']
             patch_vm.save()
+            _log_patch_change(request, 'update', patch_vm, prechange=prechange, postchange=_serialize_patch_vm(patch_vm))
             messages.success(request, 'Patch status updated.')
         return redirect('plugins:netbox_force:patch_detail', pk=pk)
 
@@ -1527,6 +1620,9 @@ class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
             entry = form.save(commit=False)
             entry.vm = patch_vm
             entry.save()
+            _log_patch_change(request, 'update', patch_vm,
+                              postchange={**_serialize_patch_vm(patch_vm),
+                                          'update_entry': str(entry.date) + ': ' + entry.software})
             messages.success(request, 'Update entry added.')
             return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
         ctx = _base_context()
@@ -1588,7 +1684,11 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         entry = get_object_or_404(PatchUpdateEntry, pk=pk)
-        vm_pk = entry.vm.pk
+        patch_vm = entry.vm
+        vm_pk = patch_vm.pk
+        _log_patch_change(request, 'update', patch_vm,
+                          prechange={**_serialize_patch_vm(patch_vm),
+                                     'deleted_entry': str(entry.date) + ': ' + entry.software})
         entry.delete()
         messages.success(request, 'Update entry deleted.')
         return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
@@ -1643,7 +1743,8 @@ class PatchVMImportView(SuperuserRequiredMixin, View):
             try:
                 vm = VirtualMachine.objects.get(pk=int(pk_str))
                 if not PatchVM.objects.filter(vm=vm).exists():
-                    PatchVM.objects.create(vm=vm, fqdn=vm.name, patch_status='green')
+                    pvm = PatchVM.objects.create(vm=vm, fqdn=vm.name, patch_status='green')
+                    _log_patch_change(request, 'create', pvm, postchange=_serialize_patch_vm(pvm))
                     count += 1
             except Exception:
                 continue

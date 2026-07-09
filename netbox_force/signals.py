@@ -1145,3 +1145,38 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
                          model_label, username)
             _enforce('ticket_missing', ticket_error, comment)
+
+
+# =============================================================================
+# AUTO-ADD NEW VMs TO PATCH MANAGEMENT
+# =============================================================================
+
+def _auto_add_vm_to_patch(sender, instance, created, **kwargs):
+    """When a new NetBox VirtualMachine is created, auto-add it to PatchVM if the setting is on."""
+    if not created:
+        return
+    try:
+        from .models import ForceSettings, PatchVM
+        settings = ForceSettings.get_settings()
+        if not settings or not getattr(settings, 'auto_add_vms_to_patch', False):
+            return
+        if not PatchVM.objects.filter(vm_id=instance.pk).exists():
+            PatchVM.objects.create(
+                vm=instance,
+                fqdn=instance.name,
+                patch_status='green',
+            )
+            logger.info("auto_add_vm_to_patch: created PatchVM for VirtualMachine pk=%s name=%s",
+                        instance.pk, instance.name)
+    except Exception as exc:
+        logger.exception("auto_add_vm_to_patch: failed for pk=%s: %s", instance.pk, exc)
+
+
+# Connect after all apps are loaded (signals.py is imported from ready())
+try:
+    from django.apps import apps as _django_apps
+    _VirtualMachine = _django_apps.get_model('virtualization', 'VirtualMachine')
+    from django.db.models.signals import post_save as _post_save
+    _post_save.connect(_auto_add_vm_to_patch, sender=_VirtualMachine, weak=False)
+except Exception:
+    pass

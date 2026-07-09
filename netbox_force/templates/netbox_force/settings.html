@@ -274,6 +274,16 @@
                         <label class="form-check-label" for="id_patchmanagement_enabled">{{ ui.label_patchmanagement_enabled|default:"Enable Patch Management" }}</label>
                         <div class="form-text">{{ ui.help_patchmanagement_enabled|default:"If enabled, the Patch Management tab is visible." }}</div>
                     </div>
+                    <div class="mb-3 form-check">
+                        {{ form.auto_add_vms_to_patch }}
+                        <label class="form-check-label" for="id_auto_add_vms_to_patch">{{ ui.label_auto_add_vms_to_patch|default:"Auto-add new VMs to Patch Management" }}</label>
+                        <div class="form-text">{{ ui.help_auto_add_vms_to_patch|default:"When enabled, newly created NetBox VMs are automatically added to Patch Management." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="id_patch_overdue_days">{{ ui.label_patch_overdue_days|default:"Overdue threshold (days)" }}</label>
+                        {{ form.patch_overdue_days }}
+                        <div class="form-text">{{ ui.help_patch_overdue_days|default:"VMs not patched within this many days are shown with an overdue warning. Set 0 to disable." }}</div>
+                    </div>
                 </div>
             </div>
 

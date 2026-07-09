@@ -29,6 +29,63 @@
                 {% endif %}
             </h5>
             <div class="card-body">
+
+                {# Status summary row #}
+                {% if status_counts %}
+                <div class="d-flex gap-3 mb-3 flex-wrap align-items-center">
+                    {% if status_counts.green %}
+                    <span class="badge bg-success px-3 py-2 fs-6">
+                        <i class="mdi mdi-check-circle"></i> {{ status_counts.green }}
+                        <span class="fw-normal ms-1">{{ ui.patch_status_green|default:"Aktuell" }}</span>
+                    </span>
+                    {% endif %}
+                    {% if status_counts.yellow %}
+                    <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                        <i class="mdi mdi-clock-outline"></i> {{ status_counts.yellow }}
+                        <span class="fw-normal ms-1">{{ ui.patch_status_yellow|default:"Ausstehend" }}</span>
+                    </span>
+                    {% endif %}
+                    {% if status_counts.red %}
+                    <span class="badge bg-danger px-3 py-2 fs-6">
+                        <i class="mdi mdi-alert-circle"></i> {{ status_counts.red }}
+                        <span class="fw-normal ms-1">{{ ui.patch_status_red|default:"Kritisch" }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# Search / filter bar #}
+                <form method="get" class="mb-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="mdi mdi-magnify"></i></span>
+                                <input type="text" name="q" value="{{ q }}"
+                                       class="form-control"
+                                       placeholder="{{ ui.patch_filter_placeholder|default:'Search…' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="status" class="form-select">
+                                <option value="">{{ ui.patch_filter_status|default:"All statuses" }}</option>
+                                <option value="green" {% if status_filter == "green" %}selected{% endif %}>{{ ui.patch_status_green|default:"Aktuell" }}</option>
+                                <option value="yellow" {% if status_filter == "yellow" %}selected{% endif %}>{{ ui.patch_status_yellow|default:"Ausstehend" }}</option>
+                                <option value="red" {% if status_filter == "red" %}selected{% endif %}>{{ ui.patch_status_red|default:"Kritisch" }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="mdi mdi-filter"></i> {{ ui.patch_filter_apply|default:"Filter" }}
+                            </button>
+                            {% if q or status_filter %}
+                            <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-danger">
+                                <i class="mdi mdi-close"></i> {{ ui.patch_filter_clear|default:"Clear" }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+
                 {% if patch_vms %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -84,6 +141,11 @@
                                     <span class="badge bg-{{ pvm.status_css_class }} {% if pvm.patch_status == 'yellow' %}text-dark{% else %}text-white{% endif %}">
                                         {{ pvm.get_patch_status_display }}
                                     </span>
+                                    {% if overdue_days > 0 and pvm.is_overdue %}
+                                    <br><span class="badge bg-warning text-dark mt-1" title="{{ overdue_days }} days">
+                                        <i class="mdi mdi-alert"></i> {{ ui.patch_overdue_badge|default:"Overdue" }}
+                                    </span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ pvm.get_maintenance_window_display }}</td>
                                 <td>{{ pvm.get_update_installation_display }}</td>
@@ -107,6 +169,14 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                {% elif q or status_filter %}
+                <div class="text-center text-muted py-4">
+                    <i class="mdi mdi-magnify mdi-24px"></i>
+                    <p class="mt-2">{{ ui.patch_filter_no_results|default:"No VMs match the current filter." }}</p>
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-outline-secondary">
+                        <i class="mdi mdi-close"></i> {{ ui.patch_filter_clear|default:"Clear filter" }}
+                    </a>
                 </div>
                 {% else %}
                 <div class="text-center text-muted py-4">

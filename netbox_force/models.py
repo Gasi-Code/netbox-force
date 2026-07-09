@@ -188,6 +188,16 @@ class ForceSettings(models.Model):
         verbose_name='Enable Patch Management',
         help_text='If enabled, the Patch Management tab and views are accessible.',
     )
+    auto_add_vms_to_patch = models.BooleanField(
+        default=False,
+        verbose_name='Auto-add new VMs to Patch Management',
+        help_text='When enabled, new NetBox VMs are automatically added to Patch Management on creation.',
+    )
+    patch_overdue_days = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Overdue threshold (days)',
+        help_text='VMs not patched within this many days are marked overdue. Set 0 to disable.',
+    )
 
     # --- Webhook Notifications ---
     webhook_enabled = models.BooleanField(
@@ -883,6 +893,10 @@ class PatchVM(models.Model):
         if self.ip_address_id and self.ip_address:
             return str(self.ip_address.address).split('/')[0]
         return ''
+
+    def get_last_patched(self):
+        entry = self.update_entries.order_by('-date').first()
+        return entry.date if entry else None
 
 
 class PatchVMContact(models.Model):

@@ -49,6 +49,8 @@ class ForceSettingsForm(forms.ModelForm):
             'guide_enabled',
             'auto_changelog_enabled',
             'patchmanagement_enabled',
+            'auto_add_vms_to_patch',
+            'patch_overdue_days',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -153,6 +155,15 @@ class ForceSettingsForm(forms.ModelForm):
             }),
             'patchmanagement_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
+            }),
+            'auto_add_vms_to_patch': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'patch_overdue_days': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'max': 3650,
+                'style': 'width: 8rem;',
             }),
         }
 

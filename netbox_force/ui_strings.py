@@ -407,6 +407,30 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVMs ohne verknüpfte NetBox-VM werden übersprungen.',
         'btn_create_roles': 'Standardrollen erstellen',
         'sync_contacts_roles_ready': 'Standardrollen erkannt und vorausgewählt.',
+        # Patch status labels (widget + filter)
+        'patch_status_green': 'Aktuell',
+        'patch_status_yellow': 'Ausstehend',
+        'patch_status_red': 'Kritisch',
+        # Search / filter
+        'patch_filter_placeholder': 'VMs durchsuchen…',
+        'patch_filter_status': 'Alle Status',
+        'patch_filter_apply': 'Filtern',
+        'patch_filter_clear': 'Filter zurücksetzen',
+        'patch_filter_no_results': 'Keine VMs entsprechen dem Filter.',
+        # Overdue
+        'patch_overdue_badge': 'Überfällig',
+        # Dashboard widget
+        'widget_patch_title': 'Patch-Status Übersicht',
+        'widget_patch_description': 'Zeigt den aktuellen Patch-Status aller VMs.',
+        'widget_patch_disabled': 'Patchmanagement ist deaktiviert.',
+        'widget_patch_empty': 'Keine VMs im Patchmanagement.',
+        'widget_patch_all': 'Alle VMs',
+        'widget_patch_overdue': 'überfällig',
+        # Settings labels
+        'label_auto_add_vms_to_patch': 'Neue VMs automatisch zum Patchmanagement hinzufügen',
+        'help_auto_add_vms_to_patch': 'Wenn aktiviert, werden neu erstellte NetBox-VMs automatisch ins Patchmanagement aufgenommen.',
+        'label_patch_overdue_days': 'Überfälligkeitsschwelle (Tage)',
+        'help_patch_overdue_days': 'VMs, die länger als diese Anzahl Tage nicht gepatcht wurden, erhalten eine Warnung. 0 = deaktiviert.',
     },
 
     'en': {
@@ -812,6 +836,30 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVMs without a linked NetBox VM will be skipped.',
         'btn_create_roles': 'Create standard roles',
         'sync_contacts_roles_ready': 'standard roles detected and pre-selected.',
+        # Patch status labels (widget + filter)
+        'patch_status_green': 'Up to date',
+        'patch_status_yellow': 'Pending',
+        'patch_status_red': 'Critical',
+        # Search / filter
+        'patch_filter_placeholder': 'Search VMs…',
+        'patch_filter_status': 'All statuses',
+        'patch_filter_apply': 'Filter',
+        'patch_filter_clear': 'Clear filter',
+        'patch_filter_no_results': 'No VMs match the current filter.',
+        # Overdue
+        'patch_overdue_badge': 'Overdue',
+        # Dashboard widget
+        'widget_patch_title': 'Patch Status Overview',
+        'widget_patch_description': 'Shows the current patch status of all VMs.',
+        'widget_patch_disabled': 'Patch Management is disabled.',
+        'widget_patch_empty': 'No VMs in patch management.',
+        'widget_patch_all': 'All VMs',
+        'widget_patch_overdue': 'overdue',
+        # Settings labels
+        'label_auto_add_vms_to_patch': 'Auto-add new VMs to Patch Management',
+        'help_auto_add_vms_to_patch': 'When enabled, newly created NetBox VMs are automatically added to Patch Management.',
+        'label_patch_overdue_days': 'Overdue threshold (days)',
+        'help_patch_overdue_days': 'VMs not patched within this many days are shown with an overdue warning. Set 0 to disable.',
     },
 
     'es': {
