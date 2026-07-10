@@ -889,6 +889,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         logger.debug("pre_save: %s exempt user, skipping", model_label)
         return
 
+    if getattr(instance, '_netbox_force_sync_save', False):
+        logger.debug("pre_save: %s internal sync save, skipping enforcement", model_label)
+        return
+
     # --- Per-model policy (after exemption checks to avoid unnecessary DB access) ---
     policy = None
     try:
@@ -1166,6 +1170,7 @@ def _auto_add_vm_to_patch(sender, instance, created, **kwargs):
                 vm=instance,
                 fqdn=instance.name,
                 patch_status='green',
+                os_info=instance.platform.name if instance.platform else '',
             )
             logger.info("auto_add_vm_to_patch: created PatchVM for VirtualMachine pk=%s name=%s",
                         instance.pk, instance.name)
@@ -1325,15 +1330,101 @@ def _remove_contact_assignment_from_patch(sender, instance, **kwargs):
         logger.exception("_remove_contact_assignment_from_patch failed: %s", exc)
 
 
+# =============================================================================
+# BIDIRECTIONAL OS SYNC: VirtualMachine.platform <-> PatchVM.os_info
+# =============================================================================
+
+def _get_or_create_platform(os_name):
+    """Find an existing Platform by name or create a new one with a unique slug."""
+    from django.utils.text import slugify
+    Platform = apps.get_model('dcim', 'Platform')
+    try:
+        return Platform.objects.get(name=os_name)
+    except Platform.DoesNotExist:
+        pass
+    slug = slugify(os_name)[:100] or 'platform'
+    base = slug
+    n = 1
+    while Platform.objects.filter(slug=slug).exists():
+        slug = f'{base}-{n}'
+        n += 1
+    try:
+        return Platform.objects.create(name=os_name, slug=slug)
+    except Exception:
+        return Platform.objects.get(name=os_name)
+
+
+def _sync_vm_platform_to_patch(sender, instance, created, **kwargs):
+    """When VM.platform changes, sync its name to the linked PatchVM.os_info."""
+    if created:
+        return  # _auto_add_vm_to_patch sets os_info on creation
+    try:
+        from .models import PatchVM
+        try:
+            patch_vm = PatchVM.objects.get(vm_id=instance.pk)
+        except PatchVM.DoesNotExist:
+            return
+        new_os = instance.platform.name if instance.platform else ''
+        if patch_vm.os_info == new_os:
+            return
+        patch_vm.os_info = new_os
+        patch_vm._changelog_message = (
+            f'Betriebssystem synchronisiert: {new_os!r}' if new_os
+            else 'Betriebssystem gelöscht (synchronisiert von VM)'
+        )
+        patch_vm._netbox_force_sync_save = True
+        patch_vm.save(update_fields=['os_info', 'last_updated'])
+        logger.info("sync_vm_platform_to_patch: vm pk=%s → PatchVM pk=%s os_info=%r",
+                    instance.pk, patch_vm.pk, new_os)
+    except Exception as exc:
+        logger.exception("_sync_vm_platform_to_patch failed pk=%s: %s", instance.pk, exc)
+
+
+def _sync_patch_os_to_vm(sender, instance, created, **kwargs):
+    """When PatchVM.os_info changes, sync to the linked VM.platform (find or create Platform)."""
+    if not instance.vm_id:
+        return
+    try:
+        VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
+        try:
+            vm = VirtualMachine.objects.select_related('platform').get(pk=instance.vm_id)
+        except VirtualMachine.DoesNotExist:
+            return
+        os_name = (instance.os_info or '').strip()
+        if os_name:
+            current_name = vm.platform.name if vm.platform else ''
+            if current_name == os_name:
+                return
+            platform = _get_or_create_platform(os_name)
+            vm.platform = platform
+        else:
+            if not vm.platform_id:
+                return
+            vm.platform = None
+        vm._changelog_message = (
+            f'Betriebssystem synchronisiert aus Patchmanagement: {os_name!r}' if os_name
+            else 'Betriebssystem gelöscht (synchronisiert aus Patchmanagement)'
+        )
+        vm._netbox_force_sync_save = True
+        vm.save(update_fields=['platform_id', 'last_updated'])
+        logger.info("sync_patch_os_to_vm: PatchVM pk=%s → VM pk=%s platform=%r",
+                    instance.pk, vm.pk, os_name)
+    except Exception as exc:
+        logger.exception("_sync_patch_os_to_vm failed pk=%s: %s", instance.pk, exc)
+
+
 # Connect after all apps are loaded (signals.py is imported from ready())
 try:
     from django.apps import apps as _django_apps
     _VirtualMachine = _django_apps.get_model('virtualization', 'VirtualMachine')
     from django.db.models.signals import post_save as _post_save
     _post_save.connect(_auto_add_vm_to_patch, sender=_VirtualMachine, weak=False)
+    _post_save.connect(_sync_vm_platform_to_patch, sender=_VirtualMachine, weak=False)
     _ContactAssignment = _django_apps.get_model('tenancy', 'ContactAssignment')
     _post_save.connect(_sync_contact_assignment_to_patch, sender=_ContactAssignment, weak=False)
     from django.db.models.signals import post_delete as _post_delete
     _post_delete.connect(_remove_contact_assignment_from_patch, sender=_ContactAssignment, weak=False)
+    from .models import PatchVM as _PatchVM
+    _post_save.connect(_sync_patch_os_to_vm, sender=_PatchVM, weak=False)
 except Exception:
     pass
