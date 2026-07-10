@@ -1253,7 +1253,7 @@ def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
             postchange_data=post_contacts,
         )
         if comments:
-            oc_kwargs['comments'] = comments
+            oc_kwargs['message'] = comments
         ObjectChange.objects.create(**oc_kwargs)
     except Exception as exc:
         logger.warning('_log_patchvm_contact_change failed pk=%s: %s', patch_vm.pk, exc)

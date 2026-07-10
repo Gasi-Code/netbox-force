@@ -1581,24 +1581,9 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
             post_vb = sorted(int(p) for p in form.cleaned_data.get('vb_contact_ids', []))
             patch_vm._contact_change_post = {'admin_contacts': post_admin, 'vb_contacts': post_vb}
             msg = _compute_contact_change_message(pre_admin, pre_vb, post_admin, post_vb)
-            logger.warning("PATCH_DEBUG view post pk=%s pre_admin=%s post_admin=%s pre_vb=%s post_vb=%s msg=%r",
-                           pk, pre_admin, post_admin, pre_vb, post_vb, msg)
             if msg:
                 patch_vm._contact_change_message = msg
-                logger.warning("PATCH_DEBUG set _contact_change_message=%r on id(patch_vm)=%s", msg, id(patch_vm))
             pvm = form.save()
-            logger.warning("PATCH_DEBUG after form.save() id(pvm)=%s", id(pvm))
-            try:
-                from django.apps import apps as _apps
-                from django.contrib.contenttypes.models import ContentType
-                _OC = _apps.get_model('core', 'ObjectChange')
-                _ct = ContentType.objects.get_for_model(PatchVM)
-                _oc = _OC.objects.filter(changed_object_type=_ct, changed_object_id=pvm.pk).order_by('-time').first()
-                if _oc:
-                    _fields = {f.name: getattr(_oc, f.name, 'ERR') for f in _oc._meta.fields}
-                    logger.warning("PATCH_DEBUG saved OC pk=%s fields=%s", _oc.pk, _fields)
-            except Exception as _e:
-                logger.warning("PATCH_DEBUG OC query failed: %s", _e)
             messages.success(request, 'VM updated.')
             return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()
