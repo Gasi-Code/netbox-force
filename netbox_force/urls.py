@@ -57,6 +57,7 @@ urlpatterns = [
     # Patch Management
     path('patch/', views.PatchVMListView.as_view(), name='patch_list'),
     path('patch/add/', views.PatchVMCreateView.as_view(), name='patch_vm_add'),
+    path('patch/bulk-edit/', views.PatchVMBulkEditView.as_view(), name='patch_vm_bulk_edit'),
     path('patch/import/', views.PatchVMImportView.as_view(), name='patch_vm_import'),
     path('patch/sync-contacts/', views.PatchContactSyncView.as_view(), name='patch_contact_sync'),
     path('patch/sync-contacts/create-roles/', views.PatchContactRoleCreateView.as_view(), name='patch_create_contact_roles'),

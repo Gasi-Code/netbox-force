@@ -608,6 +608,60 @@ class PatchVMForm(forms.ModelForm):
         return instance
 
 
+class PatchVMBulkEditForm(forms.Form):
+    """Bulk-edit form for PatchVM — only fields with apply_X checked are written."""
+    apply_os_info = forms.BooleanField(required=False)
+    os_info = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'list': 'platform-datalist',
+            'autocomplete': 'off',
+            'placeholder': 'z.B. Ubuntu 24.04 LTS',
+        }),
+    )
+    apply_admin_contacts = forms.BooleanField(required=False)
+    admin_contact_ids = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+        label='Administrators',
+    )
+    apply_vb_contacts = forms.BooleanField(required=False)
+    vb_contact_ids = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+        label='Process Owners',
+    )
+    apply_ticket_number = forms.BooleanField(required=False)
+    ticket_number = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    apply_comment = forms.BooleanField(required=False)
+    comment = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        contact_choices = _get_contact_choices(empty_label=None)
+        self.fields['admin_contact_ids'].choices = contact_choices
+        self.fields['vb_contact_ids'].choices = contact_choices
+        self.contact_data = [{'pk': pk, 'name': name} for pk, name in contact_choices]
+        try:
+            Platform = apps.get_model('dcim', 'Platform')
+            self.platform_names = list(Platform.objects.order_by('name').values_list('name', flat=True))
+        except Exception:
+            self.platform_names = []
+        if self.is_bound:
+            self.selected_admin_data = [int(x) for x in self.data.getlist('admin_contact_ids') if x]
+            self.selected_vb_data = [int(x) for x in self.data.getlist('vb_contact_ids') if x]
+        else:
+            self.selected_admin_data = []
+            self.selected_vb_data = []
+
+
 class PatchUpdateEntryForm(forms.ModelForm):
     updated_by_contact = forms.ChoiceField(
         required=False,

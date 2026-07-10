@@ -22,11 +22,11 @@ from django.views import View
 from .forms import (
     ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm,
     GuidePageForm, WidgetImageUploadForm,
-    PatchVMForm, PatchUpdateEntryForm, PatchStatusForm,
+    PatchVMForm, PatchVMBulkEditForm, PatchUpdateEntryForm, PatchStatusForm,
 )
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate,
-    GuidePage, WidgetImage, PatchVM, PatchUpdateEntry,
+    GuidePage, WidgetImage, PatchVM, PatchVMContact, PatchUpdateEntry,
 )
 from .signals import check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
@@ -1608,6 +1608,101 @@ class PatchVMDeleteView(SuperuserRequiredMixin, View):
         patch_vm.snapshot()
         patch_vm.delete()
         messages.success(request, f'"{name}" removed from patch management.')
+        return redirect('plugins:netbox_force:patch_list')
+
+
+class PatchVMBulkEditView(SuperuserRequiredMixin, View):
+    """Bulk-edit selected PatchVMs. Fields are only written when their apply_X checkbox is checked."""
+
+    def get(self, request):
+        pks = [int(p) for p in request.GET.getlist('pk') if p.isdigit()]
+        if not pks:
+            messages.warning(request, 'Keine VMs ausgewählt.')
+            return redirect('plugins:netbox_force:patch_list')
+        patch_vms = list(PatchVM.objects.filter(pk__in=pks).order_by('fqdn'))
+        if not patch_vms:
+            messages.warning(request, 'Keine gültigen VMs gefunden.')
+            return redirect('plugins:netbox_force:patch_list')
+        ctx = _base_context()
+        ctx['active_tab'] = 'patch'
+        ctx['form'] = PatchVMBulkEditForm()
+        ctx['patch_vms'] = patch_vms
+        ctx['pk_list'] = [pvm.pk for pvm in patch_vms]
+        return render(request, 'netbox_force/patch_vm_bulk_edit.html', ctx)
+
+    def post(self, request):
+        pks = [int(p) for p in request.POST.getlist('pk') if p.isdigit()]
+        patch_vms = list(PatchVM.objects.filter(pk__in=pks))
+        if not patch_vms:
+            messages.warning(request, 'Keine gültigen VMs gefunden.')
+            return redirect('plugins:netbox_force:patch_list')
+        form = PatchVMBulkEditForm(request.POST)
+        if not form.is_valid():
+            ctx = _base_context()
+            ctx['active_tab'] = 'patch'
+            ctx['form'] = form
+            ctx['patch_vms'] = patch_vms
+            ctx['pk_list'] = pks
+            return render(request, 'netbox_force/patch_vm_bulk_edit.html', ctx)
+
+        apply_os = form.cleaned_data.get('apply_os_info')
+        apply_admin = form.cleaned_data.get('apply_admin_contacts')
+        apply_vb = form.cleaned_data.get('apply_vb_contacts')
+        apply_ticket = form.cleaned_data.get('apply_ticket_number')
+        apply_comment = form.cleaned_data.get('apply_comment')
+
+        new_os = form.cleaned_data.get('os_info', '')
+        new_admin_pks = sorted(int(p) for p in form.cleaned_data.get('admin_contact_ids', []))
+        new_vb_pks = sorted(int(p) for p in form.cleaned_data.get('vb_contact_ids', []))
+        new_ticket = form.cleaned_data.get('ticket_number', '')
+        new_comment = form.cleaned_data.get('comment', '')
+
+        updated = 0
+        for pvm in patch_vms:
+            pre_admin = sorted(pvm.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
+            pre_vb = sorted(pvm.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
+            pvm.snapshot()
+
+            changed_fields = []
+            if apply_os and pvm.os_info != new_os:
+                pvm.os_info = new_os
+                changed_fields.append('OS')
+            if apply_ticket and pvm.ticket_number != new_ticket:
+                pvm.ticket_number = new_ticket
+                changed_fields.append('Ticket')
+            if apply_comment and pvm.comment != new_comment:
+                pvm.comment = new_comment
+                changed_fields.append('Kommentar')
+
+            post_admin = new_admin_pks if apply_admin else pre_admin
+            post_vb = new_vb_pks if apply_vb else pre_vb
+            contacts_changed = (post_admin != pre_admin) or (post_vb != pre_vb)
+
+            if apply_admin or apply_vb:
+                pvm._contact_change_post = {'admin_contacts': post_admin, 'vb_contacts': post_vb}
+                contact_msg = _compute_contact_change_message(pre_admin, pre_vb, post_admin, post_vb)
+                if contact_msg:
+                    pvm._contact_change_message = contact_msg
+
+            if changed_fields:
+                pvm._changelog_message = f'Massenbearbeitung: {", ".join(changed_fields)}'
+            elif contacts_changed:
+                pvm._changelog_message = 'Massenbearbeitung: Kontakte'
+
+            if changed_fields or contacts_changed:
+                pvm._netbox_force_sync_save = True
+                pvm.save()
+                if apply_admin:
+                    pvm.vm_contacts.filter(role='admin').delete()
+                    for pk in new_admin_pks:
+                        PatchVMContact.objects.get_or_create(patch_vm=pvm, contact_id=pk, role='admin')
+                if apply_vb:
+                    pvm.vm_contacts.filter(role='vb').delete()
+                    for pk in new_vb_pks:
+                        PatchVMContact.objects.get_or_create(patch_vm=pvm, contact_id=pk, role='vb')
+                updated += 1
+
+        messages.success(request, f'{updated} VM(s) aktualisiert.')
         return redirect('plugins:netbox_force:patch_list')
 
 

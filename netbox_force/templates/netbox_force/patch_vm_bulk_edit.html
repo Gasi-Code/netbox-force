@@ -1,0 +1,284 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force — Massenbearbeitung ({{ pk_list|length }} VMs){% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+{{ form.contact_data|json_script:"contact-data" }}
+{{ form.selected_admin_data|json_script:"admin-selected" }}
+{{ form.selected_vb_data|json_script:"vb-selected" }}
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+
+        {# Selected VMs overview #}
+        <div class="card mb-3">
+            <h5 class="card-header">
+                <i class="mdi mdi-server-network"></i>
+                Massenbearbeitung — {{ pk_list|length }} VM(s) ausgewählt
+            </h5>
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-2">
+                    {% for pvm in patch_vms %}
+                    <span class="badge bg-secondary fs-6 fw-normal">{{ pvm }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Edit form #}
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-pencil-box-multiple"></i> Felder bearbeiten
+            </h5>
+            <div class="card-body">
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="mdi mdi-information-outline"></i>
+                    Nur Felder mit aktivierter Checkbox werden überschrieben.
+                    Felder ohne Haken bleiben unverändert.
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                        <div><strong>{{ field }}:</strong> {{ error }}</div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    {% for pk in pk_list %}
+                    <input type="hidden" name="pk" value="{{ pk }}">
+                    {% endfor %}
+
+                    <div class="row g-3">
+
+                        {# OS #}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <input type="checkbox" name="apply_os_info" id="apply_os_info"
+                                       class="form-check-input apply-toggle" data-target="os-field"
+                                       {% if form.apply_os_info.value %}checked{% endif %}>
+                                <label for="apply_os_info" class="form-label mb-0 fw-semibold">
+                                    Betriebssystem anwenden
+                                </label>
+                            </div>
+                            <div id="os-field" class="field-group ps-4" style="display:none">
+                                <div class="d-flex gap-2 align-items-center">
+                                    {{ form.os_info }}
+                                    <a href="/dcim/platforms/add/" target="_blank"
+                                       class="btn btn-outline-secondary btn-sm text-nowrap"
+                                       title="Neues Betriebssystem in NetBox anlegen">
+                                        <i class="mdi mdi-plus"></i> Neues OS
+                                    </a>
+                                </div>
+                                <datalist id="platform-datalist">
+                                    {% for name in form.platform_names %}
+                                    <option value="{{ name }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                        </div>
+
+                        {# Admin contacts #}
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <input type="checkbox" name="apply_admin_contacts" id="apply_admin_contacts"
+                                       class="form-check-input apply-toggle" data-target="admin-field"
+                                       {% if form.apply_admin_contacts.value %}checked{% endif %}>
+                                <label for="apply_admin_contacts" class="form-label mb-0 fw-semibold">
+                                    Administrator*innen anwenden
+                                </label>
+                            </div>
+                            <div id="admin-field" class="field-group ps-4" style="display:none">
+                                <div id="admin-picker">
+                                    <div style="position:relative">
+                                        <input type="text" id="admin-search" class="form-control form-control-sm"
+                                               placeholder="Kontakt suchen…" autocomplete="off">
+                                        <ul id="admin-dropdown" class="list-group shadow"
+                                            style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
+                                    </div>
+                                    <div id="admin-chips" class="d-flex flex-wrap gap-1 mt-2" style="min-height:1.5rem"></div>
+                                    <div id="admin-hiddens"></div>
+                                </div>
+                                <div class="form-text text-muted">Ersetzt die Administrator*innen aller ausgewählten VMs.</div>
+                            </div>
+                        </div>
+
+                        {# VB contacts #}
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <input type="checkbox" name="apply_vb_contacts" id="apply_vb_contacts"
+                                       class="form-check-input apply-toggle" data-target="vb-field"
+                                       {% if form.apply_vb_contacts.value %}checked{% endif %}>
+                                <label for="apply_vb_contacts" class="form-label mb-0 fw-semibold">
+                                    Verfahrensbetreuer*innen anwenden
+                                </label>
+                            </div>
+                            <div id="vb-field" class="field-group ps-4" style="display:none">
+                                <div id="vb-picker">
+                                    <div style="position:relative">
+                                        <input type="text" id="vb-search" class="form-control form-control-sm"
+                                               placeholder="Kontakt suchen…" autocomplete="off">
+                                        <ul id="vb-dropdown" class="list-group shadow"
+                                            style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
+                                    </div>
+                                    <div id="vb-chips" class="d-flex flex-wrap gap-1 mt-2" style="min-height:1.5rem"></div>
+                                    <div id="vb-hiddens"></div>
+                                </div>
+                                <div class="form-text text-muted">Ersetzt die Verfahrensbetreuer*innen aller ausgewählten VMs.</div>
+                            </div>
+                        </div>
+
+                        {# Ticket number #}
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <input type="checkbox" name="apply_ticket_number" id="apply_ticket_number"
+                                       class="form-check-input apply-toggle" data-target="ticket-field"
+                                       {% if form.apply_ticket_number.value %}checked{% endif %}>
+                                <label for="apply_ticket_number" class="form-label mb-0 fw-semibold">
+                                    Ticketnummer anwenden
+                                </label>
+                            </div>
+                            <div id="ticket-field" class="field-group ps-4" style="display:none">
+                                {{ form.ticket_number }}
+                            </div>
+                        </div>
+
+                        {# Comment #}
+                        <div class="col-12">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <input type="checkbox" name="apply_comment" id="apply_comment"
+                                       class="form-check-input apply-toggle" data-target="comment-field"
+                                       {% if form.apply_comment.value %}checked{% endif %}>
+                                <label for="apply_comment" class="form-label mb-0 fw-semibold">
+                                    Kommentar anwenden
+                                </label>
+                            </div>
+                            <div id="comment-field" class="field-group ps-4" style="display:none">
+                                {{ form.comment }}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="mdi mdi-content-save"></i> Massenbearbeitung speichern
+                        </button>
+                        <a href="{% url 'plugins:netbox_force:patch_list' %}"
+                           class="btn btn-outline-secondary">
+                            <i class="mdi mdi-close"></i> Abbrechen
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    // Apply-toggle: show/hide field groups
+    document.querySelectorAll('.apply-toggle').forEach(function (cb) {
+        var target = document.getElementById(cb.dataset.target);
+        if (!target) return;
+        function sync() { target.style.display = cb.checked ? '' : 'none'; }
+        cb.addEventListener('change', sync);
+        sync();
+    });
+
+    // Contact search picker
+    var ALL_CONTACTS = JSON.parse(document.getElementById('contact-data').textContent);
+    var initAdmin = JSON.parse(document.getElementById('admin-selected').textContent);
+    var initVb = JSON.parse(document.getElementById('vb-selected').textContent);
+
+    var nameMap = {};
+    ALL_CONTACTS.forEach(function (c) { nameMap[c.pk] = c.name; });
+
+    function buildPicker(searchId, dropdownId, chipsId, hiddensId, fieldName, initPks) {
+        var search = document.getElementById(searchId);
+        var dropdown = document.getElementById(dropdownId);
+        var chipsDiv = document.getElementById(chipsId);
+        var hiddensDiv = document.getElementById(hiddensId);
+        var selected = new Set(initPks);
+
+        function renderChips() {
+            chipsDiv.innerHTML = '';
+            hiddensDiv.innerHTML = '';
+            selected.forEach(function (pk) {
+                var name = nameMap[pk] || String(pk);
+                var chip = document.createElement('span');
+                chip.className = 'badge bg-primary d-inline-flex align-items-center gap-1';
+                chip.style.cssText = 'font-size:0.82em;padding:0.35em 0.55em;cursor:default';
+                var label = document.createElement('span');
+                label.textContent = name;
+                chip.appendChild(label);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-close btn-close-white';
+                btn.style.cssText = 'font-size:0.55em;width:0.75em;height:0.75em;opacity:0.8';
+                btn.setAttribute('aria-label', 'Remove');
+                (function (pkCopy) {
+                    btn.addEventListener('click', function () {
+                        selected.delete(pkCopy);
+                        renderChips();
+                    });
+                }(pk));
+                chip.appendChild(btn);
+                chipsDiv.appendChild(chip);
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = fieldName;
+                hidden.value = pk;
+                hiddensDiv.appendChild(hidden);
+            });
+        }
+
+        function renderDropdown(query) {
+            var q = query.toLowerCase().trim();
+            dropdown.innerHTML = '';
+            if (!q) { dropdown.style.display = 'none'; return; }
+            var matches = ALL_CONTACTS.filter(function (c) {
+                return !selected.has(c.pk) && c.name.toLowerCase().indexOf(q) !== -1;
+            });
+            if (matches.length === 0) { dropdown.style.display = 'none'; return; }
+            matches.slice(0, 30).forEach(function (c) {
+                var li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action py-1 px-2';
+                li.style.cursor = 'pointer';
+                li.textContent = c.name;
+                (function (contact) {
+                    li.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        selected.add(contact.pk);
+                        renderChips();
+                        search.value = '';
+                        dropdown.style.display = 'none';
+                        search.focus();
+                    });
+                }(c));
+                dropdown.appendChild(li);
+            });
+            dropdown.style.display = 'block';
+        }
+
+        search.addEventListener('input', function () { renderDropdown(search.value); });
+        search.addEventListener('focus', function () { if (search.value) renderDropdown(search.value); });
+        search.addEventListener('blur', function () {
+            setTimeout(function () { dropdown.style.display = 'none'; }, 200);
+        });
+        renderChips();
+    }
+
+    buildPicker('admin-search', 'admin-dropdown', 'admin-chips', 'admin-hiddens', 'admin_contact_ids', initAdmin);
+    buildPicker('vb-search', 'vb-dropdown', 'vb-chips', 'vb-hiddens', 'vb_contact_ids', initVb);
+}());
+</script>
+{% endblock content %}

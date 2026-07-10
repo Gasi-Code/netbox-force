@@ -93,10 +93,33 @@
                 </form>
 
                 {% if patch_vms %}
+                {% if request.user.is_superuser %}
+                <form method="get" action="{% url 'plugins:netbox_force:patch_vm_bulk_edit' %}" id="bulk-form">
+                {% endif %}
+
+                {# Bulk action bar — visible only when checkboxes selected #}
+                {% if request.user.is_superuser %}
+                <div id="bulk-bar" class="d-none mb-3 p-2 rounded border border-warning bg-warning bg-opacity-10 d-flex align-items-center gap-3">
+                    <span class="fw-semibold"><span id="bulk-count">0</span> VM(s) ausgewählt</span>
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="mdi mdi-pencil-box-multiple"></i> Massenbearbeitung
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="bulk-deselect">
+                        <i class="mdi mdi-close"></i> Auswahl aufheben
+                    </button>
+                </div>
+                {% endif %}
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
+                                {% if request.user.is_superuser %}
+                                <th style="width:2.5rem">
+                                    <input type="checkbox" id="select-all" class="form-check-input"
+                                           title="Alle auswählen">
+                                </th>
+                                {% endif %}
                                 <th>{{ ui.patch_col_vm|default:"VM / FQDN" }}</th>
                                 <th>{{ ui.patch_col_ip|default:"IP Address" }}</th>
                                 <th>{{ ui.patch_col_os|default:"OS" }}</th>
@@ -111,6 +134,12 @@
                         <tbody>
                             {% for pvm in patch_vms %}
                             <tr>
+                                {% if request.user.is_superuser %}
+                                <td>
+                                    <input type="checkbox" name="pk" value="{{ pvm.pk }}"
+                                           class="form-check-input row-check">
+                                </td>
+                                {% endif %}
                                 <td>
                                     <a href="{% url 'plugins:netbox_force:patch_detail' pk=pvm.pk %}">
                                         <strong>{{ pvm }}</strong>
@@ -176,6 +205,49 @@
                         </tbody>
                     </table>
                 </div>
+
+                {% if request.user.is_superuser %}
+                </form>
+                {% endif %}
+
+                <script>
+                (function () {
+                    var allCheck = document.getElementById('select-all');
+                    var bar = document.getElementById('bulk-bar');
+                    var countEl = document.getElementById('bulk-count');
+                    var deselect = document.getElementById('bulk-deselect');
+                    if (!allCheck) return;
+
+                    function rowChecks() {
+                        return document.querySelectorAll('.row-check');
+                    }
+                    function updateBar() {
+                        var n = document.querySelectorAll('.row-check:checked').length;
+                        countEl.textContent = n;
+                        if (n > 0) {
+                            bar.classList.remove('d-none');
+                            bar.classList.add('d-flex');
+                        } else {
+                            bar.classList.add('d-none');
+                            bar.classList.remove('d-flex');
+                        }
+                        allCheck.indeterminate = n > 0 && n < rowChecks().length;
+                        allCheck.checked = n > 0 && n === rowChecks().length;
+                    }
+                    allCheck.addEventListener('change', function () {
+                        rowChecks().forEach(function (cb) { cb.checked = allCheck.checked; });
+                        updateBar();
+                    });
+                    document.querySelectorAll('.row-check').forEach(function (cb) {
+                        cb.addEventListener('change', updateBar);
+                    });
+                    deselect.addEventListener('click', function () {
+                        rowChecks().forEach(function (cb) { cb.checked = false; });
+                        allCheck.checked = false;
+                        updateBar();
+                    });
+                }());
+                </script>
                 {% elif q or status_filter %}
                 <div class="text-center text-muted py-4">
                     <i class="mdi mdi-magnify mdi-24px"></i>
