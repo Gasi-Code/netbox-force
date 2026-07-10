@@ -1298,6 +1298,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'Las PatchVMs sin VM de NetBox vinculada se omitirán.',
         'btn_create_roles': 'Crear roles estándar',
         'sync_contacts_roles_ready': 'roles estándar detectados y preseleccionados.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Agregar nuevas VMs automáticamente a la gestión de parches',
+        'help_auto_add_vms_to_patch': 'Cuando está activado, las nuevas VMs de NetBox se añaden automáticamente a la gestión de parches.',
+        'label_patch_overdue_days': 'Umbral de vencimiento (días)',
+        'help_patch_overdue_days': 'Las VMs no parcheadas dentro de estos días se muestran con una advertencia de vencimiento. Establecer 0 para deshabilitar.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Seleccionar todo',
         'patch_bulk_edit_title': 'Edición masiva',
@@ -1689,6 +1694,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVM bez propojeného NetBox VM budou přeskočeny.',
         'btn_create_roles': 'Vytvořit standardní role',
         'sync_contacts_roles_ready': 'standardní role nalezeny a předvybrány.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Automaticky přidávat nové VM do správy záplat',
+        'help_auto_add_vms_to_patch': 'Pokud je aktivováno, nově vytvořené NetBox VM jsou automaticky přidány do správy záplat.',
+        'label_patch_overdue_days': 'Práh zpoždění (dny)',
+        'help_patch_overdue_days': 'VM, které nebyly záplatovány v průběhu tohoto počtu dní, jsou zobrazeny s varováním o zpoždění. Nastavte 0 pro deaktivaci.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Vybrat vše',
         'patch_bulk_edit_title': 'Hromadná úprava',
@@ -2080,6 +2090,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': "PatchVM'er uden tilknyttet NetBox VM springes over.",
         'btn_create_roles': 'Opret standardroller',
         'sync_contacts_roles_ready': 'standardroller fundet og forvalgt.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Tilføj automatisk nye VM\'er til patch-håndtering',
+        'help_auto_add_vms_to_patch': 'Når aktiveret, tilføjes nyoprettede NetBox VM\'er automatisk til patch-håndtering.',
+        'label_patch_overdue_days': 'Forfaldstærskel (dage)',
+        'help_patch_overdue_days': 'VM\'er, der ikke er patchet inden for dette antal dage, vises med en forfaldssadvarsle. Sæt til 0 for at deaktivere.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Vælg alle',
         'patch_bulk_edit_title': 'Masseredigering',
@@ -2471,6 +2486,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'Les PatchVMs sans VM NetBox liée seront ignorées.',
         'btn_create_roles': 'Créer les rôles standard',
         'sync_contacts_roles_ready': 'rôles standard détectés et présélectionnés.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Ajouter automatiquement les nouvelles VMs à la gestion des correctifs',
+        'help_auto_add_vms_to_patch': 'Lorsque cette option est activée, les nouvelles VMs NetBox sont automatiquement ajoutées à la gestion des correctifs.',
+        'label_patch_overdue_days': 'Seuil de retard (jours)',
+        'help_patch_overdue_days': 'Les VMs non corrigées dans ce nombre de jours sont affichées avec un avertissement de retard. Définir 0 pour désactiver.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Tout sélectionner',
         'patch_bulk_edit_title': 'Modification en masse',
@@ -2862,6 +2882,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'Le PatchVM senza VM NetBox collegata verranno saltate.',
         'btn_create_roles': 'Crea ruoli standard',
         'sync_contacts_roles_ready': 'ruoli standard rilevati e preselezionati.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Aggiungere automaticamente nuove VM alla gestione delle patch',
+        'help_auto_add_vms_to_patch': 'Se abilitato, le nuove VM di NetBox vengono aggiunte automaticamente alla gestione delle patch.',
+        'label_patch_overdue_days': 'Soglia di scadenza (giorni)',
+        'help_patch_overdue_days': 'Le VM non patchate entro questo numero di giorni vengono visualizzate con un avviso di scadenza. Impostare 0 per disabilitare.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Seleziona tutto',
         'patch_bulk_edit_title': 'Modifica multipla',
@@ -3253,6 +3278,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'NetBox VMが紐付いていないPatchVMはスキップされます。',
         'btn_create_roles': '標準ロールを作成',
         'sync_contacts_roles_ready': '標準ロールが検出され、事前選択されました。',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': '新しい VM をパッチ管理に自動追加',
+        'help_auto_add_vms_to_patch': '有効にすると、新しく作成された NetBox VM が自動的にパッチ管理に追加されます。',
+        'label_patch_overdue_days': '期限切れ閾値（日数）',
+        'help_patch_overdue_days': 'この日数以内にパッチが適用されていない VM には期限切れ警告が表示されます。0 で無効化。',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'すべて選択',
         'patch_bulk_edit_title': '一括編集',
@@ -3644,6 +3674,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVM bez piesaistītas NetBox VM tiks izlaistas.',
         'btn_create_roles': 'Izveidot standarta lomas',
         'sync_contacts_roles_ready': 'standarta lomas atrastas un iepriekš atlasītas.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Automātiski pievienot jaunas VM ielāpu pārvaldībai',
+        'help_auto_add_vms_to_patch': 'Ja aktivizēts, jaunizveidotās NetBox VM tiek automātiski pievienotas ielāpu pārvaldībai.',
+        'label_patch_overdue_days': 'Nokavēšanas slieksnis (dienas)',
+        'help_patch_overdue_days': 'VM, kurām ielāpi nav piemēroti šajā dienu skaitā, tiek rādītas ar nokavēšanas brīdinājumu. Iestatiet 0, lai atspējotu.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Atlasīt visus',
         'patch_bulk_edit_title': 'Lielapjoma rediģēšana',
@@ -4035,6 +4070,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': "PatchVM's zonder gekoppelde NetBox VM worden overgeslagen.",
         'btn_create_roles': 'Standaardrollen aanmaken',
         'sync_contacts_roles_ready': 'standaardrollen gedetecteerd en voorgeselecteerd.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': "Nieuwe VM's automatisch toevoegen aan patchbeheer",
+        'help_auto_add_vms_to_patch': "Wanneer ingeschakeld, worden nieuw aangemaakte NetBox VM's automatisch toegevoegd aan patchbeheer.",
+        'label_patch_overdue_days': 'Achterstandsdrempel (dagen)',
+        'help_patch_overdue_days': "VM's die binnen dit aantal dagen niet zijn gepatcht, worden weergegeven met een achterstandswaarschuwing. Stel 0 in om uit te schakelen.",
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Alles selecteren',
         'patch_bulk_edit_title': 'Bulkbewerking',
@@ -4426,6 +4466,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVM bez powiązanej maszyny wirtualnej NetBox zostaną pominięte.',
         'btn_create_roles': 'Utwórz standardowe role',
         'sync_contacts_roles_ready': 'standardowe role wykryte i wstępnie wybrane.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Automatycznie dodawaj nowe VM do zarządzania poprawkami',
+        'help_auto_add_vms_to_patch': 'Po włączeniu nowo utworzone maszyny wirtualne NetBox są automatycznie dodawane do zarządzania poprawkami.',
+        'label_patch_overdue_days': 'Próg zaległości (dni)',
+        'help_patch_overdue_days': 'VM, dla których poprawki nie zostały zastosowane w ciągu tej liczby dni, są wyświetlane z ostrzeżeniem o zaległości. Ustaw 0, aby wyłączyć.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Zaznacz wszystko',
         'patch_bulk_edit_title': 'Masowa edycja',
@@ -4817,6 +4862,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVMs sem VM NetBox vinculada serão ignoradas.',
         'btn_create_roles': 'Criar funções padrão',
         'sync_contacts_roles_ready': 'funções padrão detectadas e pré-selecionadas.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Adicionar automaticamente novas VMs ao gerenciamento de patches',
+        'help_auto_add_vms_to_patch': 'Quando ativado, as novas VMs do NetBox são adicionadas automaticamente ao gerenciamento de patches.',
+        'label_patch_overdue_days': 'Limite de atraso (dias)',
+        'help_patch_overdue_days': 'VMs não corrigidas dentro deste número de dias são exibidas com um aviso de atraso. Defina 0 para desabilitar.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Selecionar tudo',
         'patch_bulk_edit_title': 'Edição em massa',
@@ -5208,6 +5258,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': 'PatchVM без связанной NetBox ВМ будут пропущены.',
         'btn_create_roles': 'Создать стандартные роли',
         'sync_contacts_roles_ready': 'стандартные роли обнаружены и предварительно выбраны.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Автоматически добавлять новые ВМ в управление исправлениями',
+        'help_auto_add_vms_to_patch': 'При включении новые ВМ NetBox автоматически добавляются в управление исправлениями.',
+        'label_patch_overdue_days': 'Порог просрочки (дни)',
+        'help_patch_overdue_days': 'ВМ, не обновлявшиеся в течение этого количества дней, отображаются с предупреждением о просрочке. Установите 0 для отключения.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Выбрать всё',
         'patch_bulk_edit_title': 'Массовое редактирование',
@@ -5599,6 +5654,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': "Bağlı NetBox VM'si olmayan PatchVM'ler atlanacak.",
         'btn_create_roles': 'Standart Rolleri Oluştur',
         'sync_contacts_roles_ready': 'standart roller algılandı ve önceden seçildi.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': "Yeni VM'leri yama yönetimine otomatik ekle",
+        'help_auto_add_vms_to_patch': "Etkinleştirildiğinde, yeni oluşturulan NetBox VM'leri otomatik olarak yama yönetimine eklenir.",
+        'label_patch_overdue_days': 'Gecikme eşiği (gün)',
+        'help_patch_overdue_days': "Bu gün sayısı içinde yamalanmamış VM'ler gecikme uyarısıyla gösterilir. Devre dışı bırakmak için 0 girin.",
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Tümünü seç',
         'patch_bulk_edit_title': 'Toplu düzenleme',
@@ -5990,6 +6050,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': "PatchVM без прив'язаної NetBox ВМ будуть пропущені.",
         'btn_create_roles': 'Створити стандартні ролі',
         'sync_contacts_roles_ready': 'стандартні ролі виявлено та попередньо вибрано.',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': 'Автоматично додавати нові ВМ до управління виправленнями',
+        'help_auto_add_vms_to_patch': 'Якщо увімкнено, нові ВМ NetBox автоматично додаються до управління виправленнями.',
+        'label_patch_overdue_days': 'Поріг прострочення (дні)',
+        'help_patch_overdue_days': 'ВМ, для яких виправлення не застосовувались протягом цієї кількості днів, відображаються з попередженням про прострочення. Встановіть 0 для вимкнення.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Вибрати все',
         'patch_bulk_edit_title': 'Масове редагування',
@@ -6382,6 +6447,11 @@ UI_STRINGS = {
         'sync_contacts_no_vm_hint': '未关联 NetBox 虚拟机的 PatchVM 将被跳过。',
         'btn_create_roles': '创建标准角色',
         'sync_contacts_roles_ready': '已检测到标准角色并已预选。',
+        # Patch management settings
+        'label_auto_add_vms_to_patch': '自动将新虚拟机添加到补丁管理',
+        'help_auto_add_vms_to_patch': '启用后，新创建的 NetBox 虚拟机将自动添加到补丁管理中。',
+        'label_patch_overdue_days': '逾期阈值（天）',
+        'help_patch_overdue_days': '超过此天数未打补丁的虚拟机将显示逾期警告。设为 0 则禁用。',
         # Bulk edit / contact picker / OS field
         'patch_select_all': '全选',
         'patch_bulk_edit_title': '批量编辑',
