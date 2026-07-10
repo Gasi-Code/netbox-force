@@ -1176,24 +1176,44 @@ _PATCH_ADMIN_ROLE_SLUG = 'netbox-force-admin'
 _PATCH_VB_ROLE_SLUG = 'netbox-force-vb'
 
 
-def _log_patchvm_objectchange(patch_vm):
-    """Create ObjectChange for patch_vm after a contact modification."""
+def _get_patchvm_contacts(patch_vm, PatchVMContact):
+    return {
+        'admin_contacts': sorted(
+            PatchVMContact.objects.filter(patch_vm=patch_vm, role='admin').values_list('contact_id', flat=True)
+        ),
+        'vb_contacts': sorted(
+            PatchVMContact.objects.filter(patch_vm=patch_vm, role='vb').values_list('contact_id', flat=True)
+        ),
+    }
+
+
+def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
+    """Create ObjectChange for PatchVM showing contact list change."""
     try:
         import uuid
+        from django.contrib.contenttypes.models import ContentType
         from extras.models import ObjectChange
         from .middleware import get_current_request
         request = get_current_request()
-        oc = patch_vm.to_objectchange('update')
-        oc.request_id = uuid.uuid4()
+        user = None
+        user_name = ''
         if request and hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False):
-            oc.user = request.user
-            oc.user_name = request.user.get_username()[:150]
-        else:
-            oc.user = None
-            oc.user_name = ''
-        oc.save()
+            user = request.user
+            user_name = request.user.get_username()[:150]
+        ct = ContentType.objects.get_for_model(type(patch_vm))
+        ObjectChange.objects.create(
+            user=user,
+            user_name=user_name,
+            request_id=uuid.uuid4(),
+            action='update',
+            changed_object_type=ct,
+            changed_object_id=patch_vm.pk,
+            object_repr=str(patch_vm)[:200],
+            prechange_data=pre_contacts,
+            postchange_data=post_contacts,
+        )
     except Exception as exc:
-        logger.warning('_log_patchvm_objectchange failed pk=%s: %s', patch_vm.pk, exc)
+        logger.warning('_log_patchvm_contact_change failed pk=%s: %s', patch_vm.pk, exc)
 
 
 def _sync_contact_assignment_to_patch(sender, instance, created, **kwargs):
@@ -1221,12 +1241,13 @@ def _sync_contact_assignment_to_patch(sender, instance, created, **kwargs):
             return
         contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
         if contact_id:
-            patch_vm.snapshot()
+            pre_contacts = _get_patchvm_contacts(patch_vm, PatchVMContact)
             _, created_new = PatchVMContact.objects.get_or_create(
                 patch_vm=patch_vm, contact_id=contact_id, role=pm_role
             )
             if created_new:
-                _log_patchvm_objectchange(patch_vm)
+                post_contacts = _get_patchvm_contacts(patch_vm, PatchVMContact)
+                _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts)
             logger.info("contact_sync: added contact %s as %s to PatchVM pk=%s", contact_id, pm_role, patch_vm.pk)
     except Exception as exc:
         logger.exception("_sync_contact_assignment_to_patch failed: %s", exc)
@@ -1255,12 +1276,13 @@ def _remove_contact_assignment_from_patch(sender, instance, **kwargs):
             return
         contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
         if contact_id:
-            patch_vm.snapshot()
+            pre_contacts = _get_patchvm_contacts(patch_vm, PatchVMContact)
             deleted, _ = PatchVMContact.objects.filter(
                 patch_vm=patch_vm, contact_id=contact_id, role=pm_role
             ).delete()
             if deleted:
-                _log_patchvm_objectchange(patch_vm)
+                post_contacts = _get_patchvm_contacts(patch_vm, PatchVMContact)
+                _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts)
     except Exception as exc:
         logger.exception("_remove_contact_assignment_from_patch failed: %s", exc)
 
