@@ -152,7 +152,7 @@
 
                 var chip = document.createElement('span');
                 chip.className = 'badge bg-primary d-inline-flex align-items-center gap-1';
-                chip.style.cssText = 'font-size:0.82em;padding:0.35em 0.55em;cursor:default';
+                chip.style.cssText = 'font-size:0.82em;padding:0.35em 0.55em;cursor:default;color:#000';
 
                 var label = document.createElement('span');
                 label.textContent = name;
@@ -160,7 +160,7 @@
 
                 var btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'btn-close btn-close-white';
+                btn.className = 'btn-close';
                 btn.style.cssText = 'font-size:0.55em;width:0.75em;height:0.75em;opacity:0.8';
                 btn.setAttribute('aria-label', 'Remove');
                 (function (pkCopy) {
@@ -196,9 +196,11 @@
             }
             matches.slice(0, 30).forEach(function (c) {
                 var li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-action py-1 px-2';
-                li.style.cssText = 'cursor:pointer;background:var(--bs-body-bg);color:var(--bs-body-color)';
+                li.className = 'py-1 px-2';
+                li.style.cssText = 'cursor:pointer;list-style:none;background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#212529);border-bottom:1px solid var(--bs-border-color,#dee2e6)';
                 li.textContent = c.name;
+                li.addEventListener('mouseenter', function () { this.style.background = 'var(--bs-secondary-bg,#e9ecef)'; });
+                li.addEventListener('mouseleave', function () { this.style.background = 'var(--bs-body-bg,#fff)'; });
                 (function (contact) {
                     li.addEventListener('mousedown', function (e) {
                         e.preventDefault();
