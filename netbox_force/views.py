@@ -1,8 +1,11 @@
 import csv
 import importlib
 import json
+import logging
 import re
 from datetime import date, timedelta
+
+logger = logging.getLogger('netbox.plugins.netbox_force')
 
 from django.apps import apps
 from django.contrib import messages
@@ -1373,6 +1376,34 @@ def _serialize_patch_vm(pvm):  # kept for import compatibility; not used for cha
     }
 
 
+def _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post_vb):
+    """
+    ChangeLoggingMixin's to_objectchange() fires inside form.save() → instance.save(),
+    before the form syncs PatchVMContacts. Patch the freshly-created ObjectChange with
+    the correct pre/post contact lists captured in the view.
+    """
+    try:
+        from django.apps import apps
+        from django.contrib.contenttypes.models import ContentType
+        OC = apps.get_model('core', 'ObjectChange')
+        ct = ContentType.objects.get_for_model(PatchVM)
+        oc = OC.objects.filter(
+            changed_object_type=ct,
+            changed_object_id=pvm.pk,
+        ).order_by('-time').first()
+        if oc is None:
+            return
+        if isinstance(oc.prechange_data, dict):
+            oc.prechange_data['admin_contacts'] = pre_admin
+            oc.prechange_data['vb_contacts'] = pre_vb
+        if isinstance(oc.postchange_data, dict):
+            oc.postchange_data['admin_contacts'] = post_admin
+            oc.postchange_data['vb_contacts'] = post_vb
+        oc.save()
+    except Exception as exc:
+        logger.warning('_patch_contact_diff_in_objectchange pk=%s: %s', pvm.pk, exc)
+
+
 def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None):
     # Superseded by ChangeLoggingMixin on PatchVM — NetBox's signal handles ObjectChange creation.
     pass
@@ -1536,10 +1567,15 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
+        pre_admin = sorted(patch_vm.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
+        pre_vb = sorted(patch_vm.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
         patch_vm.snapshot()
         form = PatchVMForm(request.POST, instance=patch_vm)
         if form.is_valid():
             pvm = form.save()
+            post_admin = sorted(pvm.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
+            post_vb = sorted(pvm.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
+            _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post_vb)
             messages.success(request, 'VM updated.')
             return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()
