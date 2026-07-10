@@ -1577,15 +1577,17 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
         patch_vm.snapshot()
         form = PatchVMForm(request.POST, instance=patch_vm)
         if form.is_valid():
-            # Compute post-contacts from cleaned_data before form.save() so
-            # to_objectchange() (which fires during instance.save()) has correct data.
             post_admin = sorted(int(p) for p in form.cleaned_data.get('admin_contact_ids', []))
             post_vb = sorted(int(p) for p in form.cleaned_data.get('vb_contact_ids', []))
             patch_vm._contact_change_post = {'admin_contacts': post_admin, 'vb_contacts': post_vb}
             msg = _compute_contact_change_message(pre_admin, pre_vb, post_admin, post_vb)
+            logger.warning("PATCH_DEBUG view post pk=%s pre_admin=%s post_admin=%s pre_vb=%s post_vb=%s msg=%r",
+                           pk, pre_admin, post_admin, pre_vb, post_vb, msg)
             if msg:
                 patch_vm._contact_change_message = msg
+                logger.warning("PATCH_DEBUG set _contact_change_message=%r on id(patch_vm)=%s", msg, id(patch_vm))
             pvm = form.save()
+            logger.warning("PATCH_DEBUG after form.save() id(pvm)=%s", id(pvm))
             messages.success(request, 'VM updated.')
             return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()

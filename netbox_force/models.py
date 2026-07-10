@@ -920,10 +920,17 @@ class PatchVM(ChangeLoggingMixin, models.Model):
                 pass
 
     def to_objectchange(self, action, **kwargs):
+        import logging as _logging
+        _log = _logging.getLogger('netbox.plugins.netbox_force')
         oc = super().to_objectchange(action, **kwargs)
+        _log.warning(
+            "PATCH_DEBUG to_objectchange pk=%s action=%s _contact_change_message=%r oc_type=%s oc_comments=%r",
+            self.pk, action,
+            getattr(self, '_contact_change_message', 'NOT_SET'),
+            type(oc).__name__,
+            getattr(oc, 'comments', 'NO_ATTR'),
+        )
         try:
-            # Use pre-computed post-contacts from view if available (correct timing),
-            # otherwise fall back to current DB state (may miss form-synced contacts).
             post_contacts = getattr(self, '_contact_change_post', None)
             if post_contacts is not None:
                 admin_post = post_contacts.get('admin_contacts', [])
@@ -931,18 +938,19 @@ class PatchVM(ChangeLoggingMixin, models.Model):
             else:
                 admin_post = sorted(self.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
                 vb_post = sorted(self.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
-            if oc.postchange_data is not None:
+            if oc is not None and oc.postchange_data is not None:
                 oc.postchange_data['admin_contacts'] = admin_post
                 oc.postchange_data['vb_contacts'] = vb_post
-        except Exception:
-            pass
+        except Exception as e:
+            _log.warning("PATCH_DEBUG contacts block failed: %s", e)
         try:
             contact_msg = getattr(self, '_contact_change_message', None)
-            if contact_msg:
+            if contact_msg and oc is not None:
                 existing = getattr(oc, 'comments', '') or ''
                 oc.comments = f'{existing}; {contact_msg}' if existing else contact_msg
-        except Exception:
-            pass
+                _log.warning("PATCH_DEBUG set oc.comments=%r", oc.comments)
+        except Exception as e:
+            _log.warning("PATCH_DEBUG contact_msg block failed: %s", e)
         return oc
 
     def get_absolute_url(self):
