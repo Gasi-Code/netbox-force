@@ -14,17 +14,21 @@
                 <span>
                     <i class="mdi mdi-wrench-clock"></i> {{ ui.patch_list_title|default:"Patch Management VMs" }}
                 </span>
-                {% if request.user.is_superuser %}
+                {% if perms.netbox_force.import_patchvm or perms.netbox_force.add_patchvm %}
                 <div class="d-flex gap-2">
+                    {% if perms.netbox_force.import_patchvm %}
                     <a href="{% url 'plugins:netbox_force:patch_vm_import' %}" class="btn btn-sm btn-outline-secondary">
                         <i class="mdi mdi-database-import"></i> {{ ui.btn_import_vms|default:"Import VMs" }}
                     </a>
                     <a href="{% url 'plugins:netbox_force:patch_contact_sync' %}" class="btn btn-sm btn-outline-info">
                         <i class="mdi mdi-account-sync"></i> {{ ui.btn_sync_contacts|default:"Sync Contacts" }}
                     </a>
+                    {% endif %}
+                    {% if perms.netbox_force.add_patchvm %}
                     <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-sm btn-primary">
                         <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
                     </a>
+                    {% endif %}
                 </div>
                 {% endif %}
             </h5>
@@ -93,12 +97,12 @@
                 </form>
 
                 {% if patch_vms %}
-                {% if request.user.is_superuser %}
+                {% if perms.netbox_force.bulk_edit_patchvm %}
                 <form method="get" action="{% url 'plugins:netbox_force:patch_vm_bulk_edit' %}" id="bulk-form">
                 {% endif %}
 
                 {# Bulk action bar — visible only when checkboxes selected #}
-                {% if request.user.is_superuser %}
+                {% if perms.netbox_force.bulk_edit_patchvm %}
                 <div id="bulk-bar" class="d-none mb-3 p-2 rounded border border-warning bg-warning bg-opacity-10 d-flex align-items-center gap-3">
                     <span class="fw-semibold"><span id="bulk-count">0</span> {{ ui.patch_bulk_vms_selected|default:"VM(s) selected" }}</span>
                     <button type="submit" class="btn btn-warning btn-sm">
@@ -114,7 +118,7 @@
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
-                                {% if request.user.is_superuser %}
+                                {% if perms.netbox_force.bulk_edit_patchvm %}
                                 <th style="width:2.5rem">
                                     <input type="checkbox" id="select-all" class="form-check-input"
                                            title="{{ ui.patch_select_all|default:'Select all' }}">
@@ -134,7 +138,7 @@
                         <tbody>
                             {% for pvm in patch_vms %}
                             <tr>
-                                {% if request.user.is_superuser %}
+                                {% if perms.netbox_force.bulk_edit_patchvm %}
                                 <td>
                                     <input type="checkbox" name="pk" value="{{ pvm.pk }}"
                                            class="form-check-input row-check">
@@ -189,11 +193,13 @@
                                        class="btn btn-sm btn-outline-secondary" title="{{ ui.btn_detail|default:'Detail' }}">
                                         <i class="mdi mdi-eye"></i>
                                     </a>
-                                    {% if request.user.is_superuser %}
+                                    {% if perms.netbox_force.change_patchvm %}
                                     <a href="{% url 'plugins:netbox_force:patch_vm_edit' pk=pvm.pk %}"
                                        class="btn btn-sm btn-outline-primary" title="{{ ui.btn_edit|default:'Edit' }}">
                                         <i class="mdi mdi-pencil"></i>
                                     </a>
+                                    {% endif %}
+                                    {% if perms.netbox_force.delete_patchvm %}
                                     <a href="{% url 'plugins:netbox_force:patch_vm_delete' pk=pvm.pk %}"
                                        class="btn btn-sm btn-outline-danger" title="{{ ui.btn_delete|default:'Delete' }}">
                                         <i class="mdi mdi-trash-can-outline"></i>
@@ -206,7 +212,7 @@
                     </table>
                 </div>
 
-                {% if request.user.is_superuser %}
+                {% if perms.netbox_force.bulk_edit_patchvm %}
                 </form>
                 {% endif %}
 
@@ -260,7 +266,7 @@
                 <div class="text-center text-muted py-4">
                     <i class="mdi mdi-wrench-clock mdi-24px"></i>
                     <p class="mt-2">{{ ui.patch_empty|default:"No VMs in patch management yet." }}</p>
-                    {% if request.user.is_superuser %}
+                    {% if perms.netbox_force.add_patchvm %}
                     <a href="{% url 'plugins:netbox_force:patch_vm_add' %}" class="btn btn-primary">
                         <i class="mdi mdi-plus"></i> {{ ui.btn_add_vm|default:"Add VM" }}
                     </a>

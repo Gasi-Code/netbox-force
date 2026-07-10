@@ -9,7 +9,7 @@ logger = logging.getLogger('netbox.plugins.netbox_force')
 
 from django.apps import apps
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -46,6 +46,14 @@ class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 class AuthenticatedRequiredMixin(LoginRequiredMixin):
     """Requires the user to be logged in (any authenticated user)."""
     pass
+
+
+class PatchPermRequiredMixin(LoginRequiredMixin, PermissionRequiredMixin):
+    """Permission check for patch management views.
+    Superusers pass automatically (Django ModelBackend grants all perms to superusers).
+    Non-superusers without the required permission receive a 403.
+    """
+    raise_exception = True
 
 
 # =============================================================================
@@ -1538,7 +1546,8 @@ class PatchVMDetailView(LoginRequiredMixin, View):
         return render(request, 'netbox_force/patch_detail.html', ctx)
 
 
-class PatchVMCreateView(SuperuserRequiredMixin, View):
+class PatchVMCreateView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.add_patchvm'
     def get(self, request):
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
@@ -1560,7 +1569,8 @@ class PatchVMCreateView(SuperuserRequiredMixin, View):
         return render(request, 'netbox_force/patch_vm_form.html', ctx)
 
 
-class PatchVMEditView(SuperuserRequiredMixin, View):
+class PatchVMEditView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.change_patchvm'
     def get(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         ctx = _base_context()
@@ -1594,7 +1604,8 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
         return render(request, 'netbox_force/patch_vm_form.html', ctx)
 
 
-class PatchVMDeleteView(SuperuserRequiredMixin, View):
+class PatchVMDeleteView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.delete_patchvm'
     def get(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         ctx = _base_context()
@@ -1611,8 +1622,9 @@ class PatchVMDeleteView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_list')
 
 
-class PatchVMBulkEditView(SuperuserRequiredMixin, View):
+class PatchVMBulkEditView(PatchPermRequiredMixin, View):
     """Bulk-edit selected PatchVMs. Fields are only written when their apply_X checkbox is checked."""
+    permission_required = 'netbox_force.bulk_edit_patchvm'
 
     def get(self, request):
         pks = [int(p) for p in request.GET.getlist('pk') if p.isdigit()]
@@ -1706,8 +1718,9 @@ class PatchVMBulkEditView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_list')
 
 
-class PatchStatusUpdateView(LoginRequiredMixin, View):
-    """Any authenticated user can flip the traffic-light status."""
+class PatchStatusUpdateView(PatchPermRequiredMixin, View):
+    """Users with change_patch_status permission can flip the traffic-light status."""
+    permission_required = 'netbox_force.change_patch_status'
 
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
@@ -1720,8 +1733,9 @@ class PatchStatusUpdateView(LoginRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_detail', pk=pk)
 
 
-class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
-    """Any authenticated user can add a new update history entry."""
+class PatchUpdateEntryCreateView(PatchPermRequiredMixin, View):
+    """Users with change_patch_status permission can add update history entries."""
+    permission_required = 'netbox_force.change_patch_status'
 
     def get(self, request, vm_pk):
         patch_vm = get_object_or_404(PatchVM, pk=vm_pk)
@@ -1749,8 +1763,9 @@ class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
         return render(request, 'netbox_force/patch_entry_form.html', ctx)
 
 
-class PatchUpdateEntryEditView(SuperuserRequiredMixin, View):
-    """Only superusers can edit existing update history entries."""
+class PatchUpdateEntryEditView(PatchPermRequiredMixin, View):
+    """Users with change_patch_status permission can edit existing update history entries."""
+    permission_required = 'netbox_force.change_patch_status'
 
     def get(self, request, pk):
         entry = get_object_or_404(PatchUpdateEntry, pk=pk)
@@ -1779,8 +1794,9 @@ class PatchUpdateEntryEditView(SuperuserRequiredMixin, View):
         return render(request, 'netbox_force/patch_entry_form.html', ctx)
 
 
-class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
-    """Only superusers can delete update history entries."""
+class PatchUpdateEntryDeleteView(PatchPermRequiredMixin, View):
+    """Users with change_patch_status permission can delete update history entries."""
+    permission_required = 'netbox_force.change_patch_status'
 
     def get(self, request, pk):
         from django.apps import apps
@@ -1824,7 +1840,8 @@ def _get_plugin_contact_roles():
         return None, None
 
 
-class PatchVMImportView(SuperuserRequiredMixin, View):
+class PatchVMImportView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.import_patchvm'
     def get(self, request):
         if not _patch_enabled():
             return redirect('plugins:netbox_force:settings')
@@ -1867,7 +1884,8 @@ class PatchVMImportView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_list')
 
 
-class PatchContactSyncView(SuperuserRequiredMixin, View):
+class PatchContactSyncView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.import_patchvm'
     def _get_contact_roles(self):
         from django.apps import apps
         try:
@@ -1942,7 +1960,8 @@ class PatchContactSyncView(SuperuserRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_list')
 
 
-class PatchContactRoleCreateView(SuperuserRequiredMixin, View):
+class PatchContactRoleCreateView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.import_patchvm'
     def post(self, request):
         from django.apps import apps
         try:
