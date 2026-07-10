@@ -3,6 +3,14 @@ import time
 
 from django.db import models
 from django.db.utils import OperationalError, ProgrammingError
+from django.urls import reverse
+
+try:
+    from netbox.models import ChangeLoggingMixin
+except ImportError:
+    class ChangeLoggingMixin(models.Model):
+        class Meta:
+            abstract = True
 
 
 LANGUAGE_CHOICES = [
@@ -822,7 +830,7 @@ UPDATE_INSTALLATION_CHOICES = [
 ]
 
 
-class PatchVM(models.Model):
+class PatchVM(ChangeLoggingMixin, models.Model):
     """
     Tracks patch management state for a VM. Optionally linked to a NetBox
     VirtualMachine; can also be used as a standalone record.
@@ -898,6 +906,9 @@ class PatchVM(models.Model):
         entry = self.update_entries.order_by('-date').first()
         return entry.date if entry else None
 
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_force:patch_detail', kwargs={'pk': self.pk})
+
 
 class PatchVMContact(models.Model):
     """Links a NetBox Contact (by PK) to a PatchVM in a given role."""
@@ -930,7 +941,7 @@ class PatchVMContact(models.Model):
             return None
 
 
-class PatchUpdateEntry(models.Model):
+class PatchUpdateEntry(ChangeLoggingMixin, models.Model):
     """One record in a VM's update history."""
     vm = models.ForeignKey(
         PatchVM,
@@ -959,6 +970,9 @@ class PatchUpdateEntry(models.Model):
         verbose_name = 'Update Entry'
         verbose_name_plural = 'Update Entries'
         ordering = ['-date']
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_force:patch_detail', kwargs={'pk': self.vm_id})
 
     def __str__(self):
         return f'{self.date} — {self.software[:50]}'

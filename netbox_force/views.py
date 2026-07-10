@@ -1360,7 +1360,7 @@ def _patch_enabled():
     return True
 
 
-def _serialize_patch_vm(pvm):
+def _serialize_patch_vm(pvm):  # kept for import compatibility; not used for changelog anymore
     return {
         'fqdn': pvm.fqdn,
         'patch_status': pvm.patch_status,
@@ -1374,29 +1374,8 @@ def _serialize_patch_vm(pvm):
 
 
 def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None):
-    """Creates a NetBox ObjectChange record so patch mutations appear in the Changelog widget."""
-    import logging as _logging
-    _log = _logging.getLogger('netbox.plugins.netbox_force')
-    try:
-        import uuid as _uuid
-        from django.contrib.contenttypes.models import ContentType
-        from extras.models import ObjectChange
-        ct = ContentType.objects.get_for_model(PatchVM)
-        user = getattr(request, 'user', None)
-        is_auth = bool(user and getattr(user, 'is_authenticated', False))
-        ObjectChange.objects.create(
-            user=user if is_auth else None,
-            user_name=(user.get_username() if is_auth else '')[:150],
-            request_id=_uuid.uuid4(),
-            action=action,
-            changed_object_type=ct,
-            changed_object_id=patch_vm.pk,
-            object_repr=str(patch_vm)[:200],
-            prechange_data=prechange,
-            postchange_data=postchange,
-        )
-    except Exception as exc:
-        _log.warning('_log_patch_change: %s (action=%s pk=%s): %s', patch_vm, action, patch_vm.pk, exc)
+    # Superseded by ChangeLoggingMixin on PatchVM — NetBox's signal handles ObjectChange creation.
+    pass
 
 
 def _resolve_vm_contacts(patch_vms):
@@ -1557,11 +1536,10 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
-        prechange = _serialize_patch_vm(patch_vm)
+        patch_vm.snapshot()
         form = PatchVMForm(request.POST, instance=patch_vm)
         if form.is_valid():
             pvm = form.save()
-            _log_patch_change(request, 'update', pvm, prechange=prechange, postchange=_serialize_patch_vm(pvm))
             messages.success(request, 'VM updated.')
             return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()
@@ -1583,8 +1561,7 @@ class PatchVMDeleteView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         name = str(patch_vm)
-        prechange = _serialize_patch_vm(patch_vm)
-        _log_patch_change(request, 'delete', patch_vm, prechange=prechange)
+        patch_vm.snapshot()
         patch_vm.delete()
         messages.success(request, f'"{name}" removed from patch management.')
         return redirect('plugins:netbox_force:patch_list')
@@ -1597,10 +1574,9 @@ class PatchStatusUpdateView(LoginRequiredMixin, View):
         patch_vm = get_object_or_404(PatchVM, pk=pk)
         form = PatchStatusForm(request.POST)
         if form.is_valid():
-            prechange = _serialize_patch_vm(patch_vm)
+            patch_vm.snapshot()
             patch_vm.patch_status = form.cleaned_data['patch_status']
             patch_vm.save()
-            _log_patch_change(request, 'update', patch_vm, prechange=prechange, postchange=_serialize_patch_vm(patch_vm))
             messages.success(request, 'Patch status updated.')
         return redirect('plugins:netbox_force:patch_detail', pk=pk)
 
@@ -1624,9 +1600,6 @@ class PatchUpdateEntryCreateView(LoginRequiredMixin, View):
             entry = form.save(commit=False)
             entry.vm = patch_vm
             entry.save()
-            _log_patch_change(request, 'update', patch_vm,
-                              postchange={**_serialize_patch_vm(patch_vm),
-                                          'update_entry': str(entry.date) + ': ' + entry.software})
             messages.success(request, 'Update entry added.')
             return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
         ctx = _base_context()
@@ -1652,6 +1625,7 @@ class PatchUpdateEntryEditView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         entry = get_object_or_404(PatchUpdateEntry, pk=pk)
+        entry.snapshot()
         form = PatchUpdateEntryForm(request.POST, instance=entry)
         if form.is_valid():
             form.save()
@@ -1690,9 +1664,7 @@ class PatchUpdateEntryDeleteView(SuperuserRequiredMixin, View):
         entry = get_object_or_404(PatchUpdateEntry, pk=pk)
         patch_vm = entry.vm
         vm_pk = patch_vm.pk
-        _log_patch_change(request, 'update', patch_vm,
-                          prechange={**_serialize_patch_vm(patch_vm),
-                                     'deleted_entry': str(entry.date) + ': ' + entry.software})
+        entry.snapshot()
         entry.delete()
         messages.success(request, 'Update entry deleted.')
         return redirect('plugins:netbox_force:patch_detail', pk=vm_pk)
