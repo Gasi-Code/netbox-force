@@ -1193,7 +1193,7 @@ def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
     try:
         import uuid
         from django.contrib.contenttypes.models import ContentType
-        ObjectChange = apps.get_model('extras', 'ObjectChange')
+        ObjectChange = apps.get_model('core', 'ObjectChange')
         from .middleware import get_current_request
         request = get_current_request()
         user = None
