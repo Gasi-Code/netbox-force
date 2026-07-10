@@ -883,8 +883,8 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Patch Management VM'
-        verbose_name_plural = 'Patch Management VMs'
+        verbose_name = 'Patchmanagement'
+        verbose_name_plural = 'Patchmanagement VMs'
         ordering = ['fqdn']
 
     def __str__(self):
@@ -905,6 +905,33 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     def get_last_patched(self):
         entry = self.update_entries.order_by('-date').first()
         return entry.date if entry else None
+
+    def snapshot(self):
+        super().snapshot()
+        if hasattr(self, '_prechange_snapshot') and isinstance(self._prechange_snapshot, dict):
+            try:
+                self._prechange_snapshot['admin_contacts'] = sorted(
+                    self.vm_contacts.filter(role='admin').values_list('contact_id', flat=True)
+                )
+                self._prechange_snapshot['vb_contacts'] = sorted(
+                    self.vm_contacts.filter(role='vb').values_list('contact_id', flat=True)
+                )
+            except Exception:
+                pass
+
+    def to_objectchange(self, action, **kwargs):
+        oc = super().to_objectchange(action, **kwargs)
+        try:
+            if oc.postchange_data is not None:
+                oc.postchange_data['admin_contacts'] = sorted(
+                    self.vm_contacts.filter(role='admin').values_list('contact_id', flat=True)
+                )
+                oc.postchange_data['vb_contacts'] = sorted(
+                    self.vm_contacts.filter(role='vb').values_list('contact_id', flat=True)
+                )
+        except Exception:
+            pass
+        return oc
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_force:patch_detail', kwargs={'pk': self.pk})

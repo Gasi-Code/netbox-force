@@ -1176,6 +1176,26 @@ _PATCH_ADMIN_ROLE_SLUG = 'netbox-force-admin'
 _PATCH_VB_ROLE_SLUG = 'netbox-force-vb'
 
 
+def _log_patchvm_objectchange(patch_vm):
+    """Create ObjectChange for patch_vm after a contact modification."""
+    try:
+        import uuid
+        from extras.models import ObjectChange
+        from .middleware import get_current_request
+        request = get_current_request()
+        oc = patch_vm.to_objectchange('update')
+        oc.request_id = uuid.uuid4()
+        if request and hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False):
+            oc.user = request.user
+            oc.user_name = request.user.get_username()[:150]
+        else:
+            oc.user = None
+            oc.user_name = ''
+        oc.save()
+    except Exception as exc:
+        logger.warning('_log_patchvm_objectchange failed pk=%s: %s', patch_vm.pk, exc)
+
+
 def _sync_contact_assignment_to_patch(sender, instance, created, **kwargs):
     """Mirror a NetBox ContactAssignment to PatchVMContact when plugin role is used on a VM."""
     if not created:
@@ -1201,7 +1221,12 @@ def _sync_contact_assignment_to_patch(sender, instance, created, **kwargs):
             return
         contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
         if contact_id:
-            PatchVMContact.objects.get_or_create(patch_vm=patch_vm, contact_id=contact_id, role=pm_role)
+            patch_vm.snapshot()
+            _, created_new = PatchVMContact.objects.get_or_create(
+                patch_vm=patch_vm, contact_id=contact_id, role=pm_role
+            )
+            if created_new:
+                _log_patchvm_objectchange(patch_vm)
             logger.info("contact_sync: added contact %s as %s to PatchVM pk=%s", contact_id, pm_role, patch_vm.pk)
     except Exception as exc:
         logger.exception("_sync_contact_assignment_to_patch failed: %s", exc)
@@ -1230,7 +1255,12 @@ def _remove_contact_assignment_from_patch(sender, instance, **kwargs):
             return
         contact_id = getattr(instance, 'contact_id', None) or getattr(getattr(instance, 'contact', None), 'pk', None)
         if contact_id:
-            PatchVMContact.objects.filter(patch_vm=patch_vm, contact_id=contact_id, role=pm_role).delete()
+            patch_vm.snapshot()
+            deleted, _ = PatchVMContact.objects.filter(
+                patch_vm=patch_vm, contact_id=contact_id, role=pm_role
+            ).delete()
+            if deleted:
+                _log_patchvm_objectchange(patch_vm)
     except Exception as exc:
         logger.exception("_remove_contact_assignment_from_patch failed: %s", exc)
 
