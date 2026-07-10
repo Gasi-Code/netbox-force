@@ -1376,11 +1376,23 @@ def _serialize_patch_vm(pvm):  # kept for import compatibility; not used for cha
     }
 
 
+_PATCHVM_FIELD_LABELS = {
+    'patch_status': 'Patch-Status',
+    'os_info': 'Betriebssystem',
+    'ip_address': 'IP-Adresse',
+    'fqdn': 'FQDN',
+    'maintenance_window': 'Wartungsfenster',
+    'update_installation': 'Update-Installation',
+    'ticket_number': 'Ticket',
+    'comment': 'Kommentar',
+}
+
+
 def _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post_vb):
     """
     ChangeLoggingMixin's to_objectchange() fires inside form.save() → instance.save(),
     before the form syncs PatchVMContacts. Patch the freshly-created ObjectChange with
-    the correct pre/post contact lists captured in the view.
+    the correct pre/post contact lists and generate a human-readable Nachricht comment.
     """
     try:
         from django.apps import apps
@@ -1393,12 +1405,66 @@ def _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post
         ).order_by('-time').first()
         if oc is None:
             return
-        if isinstance(oc.prechange_data, dict):
-            oc.prechange_data['admin_contacts'] = pre_admin
-            oc.prechange_data['vb_contacts'] = pre_vb
-        if isinstance(oc.postchange_data, dict):
-            oc.postchange_data['admin_contacts'] = post_admin
-            oc.postchange_data['vb_contacts'] = post_vb
+
+        pre = oc.prechange_data or {}
+        post = oc.postchange_data or {}
+
+        # Patch contact lists with correct pre/post values
+        if isinstance(pre, dict):
+            pre['admin_contacts'] = pre_admin
+            pre['vb_contacts'] = pre_vb
+        if isinstance(post, dict):
+            post['admin_contacts'] = post_admin
+            post['vb_contacts'] = post_vb
+        oc.prechange_data = pre
+        oc.postchange_data = post
+
+        # Build Nachricht (comments) — human-readable diff
+        parts = []
+
+        # Field changes
+        for field, label in _PATCHVM_FIELD_LABELS.items():
+            pre_val = pre.get(field)
+            post_val = post.get(field)
+            if pre_val != post_val:
+                if field == 'ip_address':
+                    parts.append(f'{label} geändert')
+                else:
+                    parts.append(f'{label}: {pre_val} → {post_val}')
+
+        # Contact changes — resolve IDs to names
+        added_admin = sorted(set(post_admin) - set(pre_admin))
+        removed_admin = sorted(set(pre_admin) - set(post_admin))
+        added_vb = sorted(set(post_vb) - set(pre_vb))
+        removed_vb = sorted(set(pre_vb) - set(post_vb))
+        all_ids = set(added_admin + removed_admin + added_vb + removed_vb)
+        contact_names = {}
+        if all_ids:
+            try:
+                Contact = apps.get_model('tenancy', 'Contact')
+                for c in Contact.objects.filter(pk__in=all_ids):
+                    contact_names[c.pk] = c.name
+            except Exception:
+                pass
+
+        def _names(ids):
+            return ', '.join(contact_names.get(i, str(i)) for i in ids)
+
+        if added_admin:
+            parts.append(f'Admin hinzugefügt: {_names(added_admin)}')
+        if removed_admin:
+            parts.append(f'Admin entfernt: {_names(removed_admin)}')
+        if added_vb:
+            parts.append(f'VB hinzugefügt: {_names(added_vb)}')
+        if removed_vb:
+            parts.append(f'VB entfernt: {_names(removed_vb)}')
+
+        if parts:
+            try:
+                oc.comments = '; '.join(parts)
+            except Exception:
+                pass
+
         oc.save()
     except Exception as exc:
         logger.warning('_patch_contact_diff_in_objectchange pk=%s: %s', pvm.pk, exc)
