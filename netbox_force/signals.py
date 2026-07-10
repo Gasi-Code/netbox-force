@@ -1202,7 +1202,41 @@ def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
             user = request.user
             user_name = request.user.get_username()[:150]
         ct = ContentType.objects.get_for_model(type(patch_vm))
-        ObjectChange.objects.create(
+
+        # Build human-readable Nachricht
+        pre_admin = sorted(pre_contacts.get('admin_contacts', []))
+        post_admin = sorted(post_contacts.get('admin_contacts', []))
+        pre_vb = sorted(pre_contacts.get('vb_contacts', []))
+        post_vb = sorted(post_contacts.get('vb_contacts', []))
+        added_admin = sorted(set(post_admin) - set(pre_admin))
+        removed_admin = sorted(set(pre_admin) - set(post_admin))
+        added_vb = sorted(set(post_vb) - set(pre_vb))
+        removed_vb = sorted(set(pre_vb) - set(post_vb))
+        all_ids = set(added_admin + removed_admin + added_vb + removed_vb)
+        contact_names = {}
+        if all_ids:
+            try:
+                Contact = apps.get_model('tenancy', 'Contact')
+                for c in Contact.objects.filter(pk__in=all_ids):
+                    contact_names[c.pk] = c.name
+            except Exception:
+                pass
+
+        def _n(ids):
+            return ', '.join(contact_names.get(i, str(i)) for i in ids)
+
+        parts = []
+        if added_admin:
+            parts.append(f'Admin hinzugefügt: {_n(added_admin)}')
+        if removed_admin:
+            parts.append(f'Admin entfernt: {_n(removed_admin)}')
+        if added_vb:
+            parts.append(f'VB hinzugefügt: {_n(added_vb)}')
+        if removed_vb:
+            parts.append(f'VB entfernt: {_n(removed_vb)}')
+        comments = '; '.join(parts)
+
+        oc_kwargs = dict(
             user=user,
             user_name=user_name,
             request_id=uuid.uuid4(),
@@ -1213,6 +1247,9 @@ def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
             prechange_data=pre_contacts,
             postchange_data=post_contacts,
         )
+        if comments:
+            oc_kwargs['comments'] = comments
+        ObjectChange.objects.create(**oc_kwargs)
     except Exception as exc:
         logger.warning('_log_patchvm_contact_change failed pk=%s: %s', patch_vm.pk, exc)
 

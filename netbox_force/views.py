@@ -1376,98 +1376,37 @@ def _serialize_patch_vm(pvm):  # kept for import compatibility; not used for cha
     }
 
 
-_PATCHVM_FIELD_LABELS = {
-    'patch_status': 'Patch-Status',
-    'os_info': 'Betriebssystem',
-    'ip_address': 'IP-Adresse',
-    'fqdn': 'FQDN',
-    'maintenance_window': 'Wartungsfenster',
-    'update_installation': 'Update-Installation',
-    'ticket_number': 'Ticket',
-    'comment': 'Kommentar',
-}
-
-
-def _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post_vb):
-    """
-    ChangeLoggingMixin's to_objectchange() fires inside form.save() → instance.save(),
-    before the form syncs PatchVMContacts. Patch the freshly-created ObjectChange with
-    the correct pre/post contact lists and generate a human-readable Nachricht comment.
-    """
+def _compute_contact_change_message(pre_admin, pre_vb, post_admin, post_vb):
+    """Return a human-readable contact diff string, or empty string if nothing changed."""
+    added_admin = sorted(set(post_admin) - set(pre_admin))
+    removed_admin = sorted(set(pre_admin) - set(post_admin))
+    added_vb = sorted(set(post_vb) - set(pre_vb))
+    removed_vb = sorted(set(pre_vb) - set(post_vb))
+    all_ids = set(added_admin + removed_admin + added_vb + removed_vb)
+    if not all_ids:
+        return ''
+    contact_names = {}
     try:
         from django.apps import apps
-        from django.contrib.contenttypes.models import ContentType
-        OC = apps.get_model('core', 'ObjectChange')
-        ct = ContentType.objects.get_for_model(PatchVM)
-        oc = OC.objects.filter(
-            changed_object_type=ct,
-            changed_object_id=pvm.pk,
-        ).order_by('-time').first()
-        if oc is None:
-            return
+        Contact = apps.get_model('tenancy', 'Contact')
+        for c in Contact.objects.filter(pk__in=all_ids):
+            contact_names[c.pk] = c.name
+    except Exception:
+        pass
 
-        pre = oc.prechange_data or {}
-        post = oc.postchange_data or {}
+    def _names(ids):
+        return ', '.join(contact_names.get(i, str(i)) for i in ids)
 
-        # Patch contact lists with correct pre/post values
-        if isinstance(pre, dict):
-            pre['admin_contacts'] = pre_admin
-            pre['vb_contacts'] = pre_vb
-        if isinstance(post, dict):
-            post['admin_contacts'] = post_admin
-            post['vb_contacts'] = post_vb
-        oc.prechange_data = pre
-        oc.postchange_data = post
-
-        # Build Nachricht (comments) — human-readable diff
-        parts = []
-
-        # Field changes
-        for field, label in _PATCHVM_FIELD_LABELS.items():
-            pre_val = pre.get(field)
-            post_val = post.get(field)
-            if pre_val != post_val:
-                if field == 'ip_address':
-                    parts.append(f'{label} geändert')
-                else:
-                    parts.append(f'{label}: {pre_val} → {post_val}')
-
-        # Contact changes — resolve IDs to names
-        added_admin = sorted(set(post_admin) - set(pre_admin))
-        removed_admin = sorted(set(pre_admin) - set(post_admin))
-        added_vb = sorted(set(post_vb) - set(pre_vb))
-        removed_vb = sorted(set(pre_vb) - set(post_vb))
-        all_ids = set(added_admin + removed_admin + added_vb + removed_vb)
-        contact_names = {}
-        if all_ids:
-            try:
-                Contact = apps.get_model('tenancy', 'Contact')
-                for c in Contact.objects.filter(pk__in=all_ids):
-                    contact_names[c.pk] = c.name
-            except Exception:
-                pass
-
-        def _names(ids):
-            return ', '.join(contact_names.get(i, str(i)) for i in ids)
-
-        if added_admin:
-            parts.append(f'Admin hinzugefügt: {_names(added_admin)}')
-        if removed_admin:
-            parts.append(f'Admin entfernt: {_names(removed_admin)}')
-        if added_vb:
-            parts.append(f'VB hinzugefügt: {_names(added_vb)}')
-        if removed_vb:
-            parts.append(f'VB entfernt: {_names(removed_vb)}')
-
-        if parts:
-            try:
-                oc.comments = '; '.join(parts)
-            except Exception:
-                pass
-
-        oc.save()
-    except Exception as exc:
-        logger.warning('_patch_contact_diff_in_objectchange pk=%s: %s', pvm.pk, exc)
+    parts = []
+    if added_admin:
+        parts.append(f'Admin hinzugefügt: {_names(added_admin)}')
+    if removed_admin:
+        parts.append(f'Admin entfernt: {_names(removed_admin)}')
+    if added_vb:
+        parts.append(f'VB hinzugefügt: {_names(added_vb)}')
+    if removed_vb:
+        parts.append(f'VB entfernt: {_names(removed_vb)}')
+    return '; '.join(parts)
 
 
 def _log_patch_change(request, action, patch_vm, prechange=None, postchange=None):
@@ -1638,10 +1577,15 @@ class PatchVMEditView(SuperuserRequiredMixin, View):
         patch_vm.snapshot()
         form = PatchVMForm(request.POST, instance=patch_vm)
         if form.is_valid():
+            # Compute post-contacts from cleaned_data before form.save() so
+            # to_objectchange() (which fires during instance.save()) has correct data.
+            post_admin = sorted(int(p) for p in form.cleaned_data.get('admin_contact_ids', []))
+            post_vb = sorted(int(p) for p in form.cleaned_data.get('vb_contact_ids', []))
+            patch_vm._contact_change_post = {'admin_contacts': post_admin, 'vb_contacts': post_vb}
+            msg = _compute_contact_change_message(pre_admin, pre_vb, post_admin, post_vb)
+            if msg:
+                patch_vm._contact_change_message = msg
             pvm = form.save()
-            post_admin = sorted(pvm.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
-            post_vb = sorted(pvm.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
-            _patch_contact_diff_in_objectchange(pvm, pre_admin, pre_vb, post_admin, post_vb)
             messages.success(request, 'VM updated.')
             return redirect('plugins:netbox_force:patch_detail', pk=pvm.pk)
         ctx = _base_context()

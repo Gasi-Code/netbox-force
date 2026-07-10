@@ -922,13 +922,25 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     def to_objectchange(self, action, **kwargs):
         oc = super().to_objectchange(action, **kwargs)
         try:
+            # Use pre-computed post-contacts from view if available (correct timing),
+            # otherwise fall back to current DB state (may miss form-synced contacts).
+            post_contacts = getattr(self, '_contact_change_post', None)
+            if post_contacts is not None:
+                admin_post = post_contacts.get('admin_contacts', [])
+                vb_post = post_contacts.get('vb_contacts', [])
+            else:
+                admin_post = sorted(self.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
+                vb_post = sorted(self.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
             if oc.postchange_data is not None:
-                oc.postchange_data['admin_contacts'] = sorted(
-                    self.vm_contacts.filter(role='admin').values_list('contact_id', flat=True)
-                )
-                oc.postchange_data['vb_contacts'] = sorted(
-                    self.vm_contacts.filter(role='vb').values_list('contact_id', flat=True)
-                )
+                oc.postchange_data['admin_contacts'] = admin_post
+                oc.postchange_data['vb_contacts'] = vb_post
+        except Exception:
+            pass
+        try:
+            contact_msg = getattr(self, '_contact_change_message', None)
+            if contact_msg:
+                existing = getattr(oc, 'comments', '') or ''
+                oc.comments = f'{existing}; {contact_msg}' if existing else contact_msg
         except Exception:
             pass
         return oc
