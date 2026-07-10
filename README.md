@@ -1,11 +1,11 @@
 # NetBox Force
 
-> A comprehensive NetBox plugin that enforces changelog discipline, naming conventions, required fields, ticket references, change windows, and compliance auditing on every object change.
+> A comprehensive NetBox plugin that enforces changelog discipline, naming conventions, required fields, ticket references, change windows, and compliance auditing on every object change — and adds a full Patch Management module for tracking VM patch status.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-4.5.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-4.6.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -20,6 +20,8 @@ NetBox is a powerful source-of-truth platform, but out of the box it places no c
 - The change happens within an approved time window
 - Field values conform to naming patterns
 - Required fields are actually filled in
+
+In addition, **NetBox Force 4.6** includes a fully integrated **Patch Management** module that tracks the patch status, operating system, responsible contacts, and update history for every virtual machine in NetBox.
 
 All features are **opt-in** and can be individually toggled. Out of the box, only the changelog presence check is active with a 2-character minimum. Everything else is enabled and configured through the plugin's web UI — no configuration file changes required after initial setup.
 
@@ -43,6 +45,7 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 | **Changelog requirement** | Blocks saves/deletes unless a changelog comment is provided |
 | **Minimum length** | Configurable minimum character count for changelog entries (default: 2) |
 | **Blocked phrases** | Reject changelog entries that contain only meaningless words (whole-word matching, e.g. "fix", "test", "update"). Has an explicit enable/disable toggle |
+| **Auto-changelog** | Automatically generate a human-readable diff comment when none is provided (optional). Lists every changed field in the configured language |
 
 ### Ticket Reference
 
@@ -134,6 +137,7 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 | **Violation statistics** | Total count, breakdown by reason with progress bars |
 | **Top users** | Most frequently blocked users |
 | **30-day trend** | Daily violation chart for the past month |
+| **Patch Management widget** | Overview of VM patch status (green/yellow/red) directly on the NetBox home dashboard |
 
 ### Modules
 
@@ -147,7 +151,7 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 | Feature | Description |
 |---|---|
 | **Multilingual UI** | All labels, help texts, and error messages available in 16 languages. Language switchable in plugin settings |
-| **Sidebar localization** | Sidebar navigation labels follow the configured plugin language (updated on NetBox restart) |
+| **Sidebar localization** | Sidebar navigation labels follow the configured language (updated on NetBox restart) |
 | **API support** | Enforcement applies to both UI and API requests. API error messages are always in English |
 | **Singleton settings** | All settings stored in the database — configurable through the web UI without editing configuration files |
 
@@ -171,6 +175,90 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 | `tr` | Türkçe (Turkish) |
 | `uk` | Українська (Ukrainian) |
 | `zh-hans` | 中文 (Chinese Simplified) |
+
+---
+
+## Patch Management Module
+
+The Patch Management module (introduced in v4.5.0, significantly expanded in v4.6.0) tracks the patch status and maintenance history of virtual machines directly within NetBox.
+
+### What it tracks
+
+Each virtual machine in Patch Management has the following fields:
+
+| Field | Description |
+|---|---|
+| **VM** | Link to the NetBox VirtualMachine object |
+| **FQDN** | Fully qualified domain name of the VM |
+| **IP Address** | Link to a NetBox IPAddress object |
+| **Operating System** | Free-text OS name — automatically synced with `VirtualMachine.platform` (bidirectional) |
+| **Patch Status** | Color-coded status: Green (up-to-date), Yellow (patches pending), Red (critically overdue) |
+| **Maintenance Window** | When this VM may be patched: None, Business Hours, Non-Business Hours, or Weekend |
+| **Update Installation** | How updates are applied: Unknown, Automatic, or Manual |
+| **Ticket Number** | Internal ticket reference for the last patch cycle |
+| **Comment** | Free-text notes |
+| **Administrators** | One or more NetBox Contacts responsible for this VM (role: Patch-Admin) |
+| **Process Owners** | One or more NetBox Contacts as process owners (role: Patch-VB) |
+| **Overdue warning** | Configurable threshold in days — VMs are flagged as overdue if not patched within this period |
+
+### Update History
+
+Each VM in Patch Management can have multiple update entries:
+
+| Field | Description |
+|---|---|
+| **Date** | Date the patch was applied |
+| **Version Before** | Software version before patching |
+| **Version After** | Software version after patching |
+| **Software** | Name of the patched software or OS |
+| **Info** | Additional notes |
+| **Updated By** | NetBox Contact who performed the patch |
+
+### Contact Integration
+
+Contacts in Patch Management are standard NetBox Contacts (from the Tenancy app). The plugin automatically creates two ContactRole objects on startup:
+
+- **Patch-Admin** (`patch-admin`) — for Administrators
+- **Patch-VB** (`patch-vb`) — for Process Owners (Verfahrensbetreuer)
+
+Contact assignments are **bidirectional**: adding a contact in the Patch Management form also adds a ContactAssignment on the VM in NetBox's native Contacts tab, and vice versa. Removing a contact does the same.
+
+### Operating System Sync
+
+The `Operating System` field in Patch Management is kept in sync with `VirtualMachine.platform` in NetBox:
+
+- When you set or change `VirtualMachine.platform` in NetBox → the Patch Management OS field updates automatically
+- When you set or change the OS in the Patch Management form → NetBox creates or finds the matching `Platform` object and sets it on the VM
+- When a new VM is auto-added to Patch Management → its current platform is copied as the initial OS value
+- Platform objects are created with a URL-safe slug if they don't already exist
+
+### Auto-Add VMs
+
+When the **Auto-Add VMs** setting is enabled, every newly created VirtualMachine is automatically added to Patch Management with:
+- `patch_status = green`
+- `fqdn` = VM name
+- `os_info` = current platform name (if set)
+
+### Changelog Integration
+
+All Patch Management changes appear in NetBox's native Changelog (ObjectChange), including:
+
+- Field changes (OS, patch status, IP, maintenance window, etc.) — auto-generated "Nachricht" describing each changed field
+- Contact additions and removals — "Nachricht" lists the contact names: `Admin hinzugefügt: John Doe; VB entfernt: Jane Smith`
+- The ObjectChange type shows **Patchmanagement** (not the internal model name)
+
+### Dashboard Widget
+
+A Patch Management dashboard widget can be added to the NetBox home screen. It shows:
+- Count of VMs per patch status (green/yellow/red)
+- Overdue VM count (if threshold is configured)
+
+### Patch Management Settings
+
+| Setting | Description |
+|---|---|
+| **Overdue threshold (days)** | Number of days after the last patch date before a VM is flagged as overdue. Set to 0 to disable |
+| **Auto-Add new VMs** | Automatically add every new VirtualMachine to Patch Management |
 
 ---
 
@@ -299,7 +387,7 @@ PLUGINS_CONFIG = {
 | `enforce_on_delete` | `True` | Whether to require a changelog when deleting objects |
 | `extra_exempt_models` | `[]` | Additional model labels to exempt (format: `app.model`) |
 
-All other settings (ticket reference, change window, audit log, validation rules, etc.) are configured exclusively through the web UI.
+All other settings (ticket reference, change window, audit log, validation rules, patch management, etc.) are configured exclusively through the web UI.
 
 ---
 
@@ -320,6 +408,7 @@ The main configuration page. Organized into sections:
 - **Webhook** — enable/disable + endpoint URL and optional HMAC signing secret
 - **Exemptions** — exempt users, groups, and models
 - **Modules** — enable/disable Import Templates and User Guide
+- **Patch Management** — overdue threshold, auto-add VMs toggle
 
 ### Validation Rules
 
@@ -341,6 +430,45 @@ Violations can be exported as CSV for compliance reporting.
 ### Dashboard
 
 A read-only statistics page showing enforcement activity. Includes feature status indicators, violation breakdowns, top blocked users, and a 30-day daily trend chart.
+
+### Patch Management
+
+The Patch Management section is accessible from the sidebar under **NetBox Force → Patchmanagement**.
+
+#### VM List
+
+The main list view shows all VMs currently tracked in Patch Management with:
+- FQDN and IP address
+- Operating system
+- Patch status (color-coded badge)
+- Last patch date
+- Overdue flag (if threshold exceeded)
+- Administrators and Process Owners
+
+#### Adding a VM Manually
+
+Click **Add VM** to create a new Patch Management entry. Select the NetBox VirtualMachine, set the FQDN, IP, OS, patch status, maintenance window, and assign contacts.
+
+#### VM Detail View
+
+The detail view for a single VM shows all fields plus the full update history. From here you can:
+- Edit the VM record
+- Add a new update entry
+- View the overdue status
+- See linked contacts
+
+#### Recording a Patch
+
+In the VM detail view, click **Add Update** to record a new patch event. Fill in the date, software version before and after, and optional notes.
+
+#### Search and Filter
+
+The list view supports:
+- Free-text search (FQDN, OS)
+- Filter by patch status
+- Filter by maintenance window
+- Filter by overdue status
+- Filter by contact
 
 ### Import Templates
 
@@ -398,6 +526,39 @@ Signal Handler (pre_save / pre_delete)
     All checks passed ──────────────────────────────────► save/delete proceeds
 ```
 
+### OS Sync Flow (Patch Management)
+
+```
+VM.platform changes (NetBox UI/API)
+    │
+    ▼
+post_save signal on VirtualMachine
+    │
+    ▼
+Find linked PatchVM → compare os_info
+    │
+    ├── os_info already matches? ───────────────────────► skip (no loop)
+    └── os_info differs? ───────────────────────────────► PatchVM.os_info = platform.name
+                                                          PatchVM.save() → ObjectChange created
+
+PatchVM.os_info changes (Patch Management form)
+    │
+    ▼
+post_save signal on PatchVM
+    │
+    ▼
+Find linked VirtualMachine → compare platform.name
+    │
+    ├── already matches? ───────────────────────────────► skip (no loop)
+    └── differs? ──────────────────────────────────────► Platform.get_or_create(name=os_info)
+                                                          VM.platform = platform
+                                                          VM.save() → ObjectChange created
+```
+
+### Violation Queue
+
+Violations are not written during the signal handler itself (a DB rollback would also roll back the violation record). Instead, violations are buffered in thread-local storage and written **after** the view returns, outside the transaction.
+
 ### Language & Sidebar Localization
 
 The plugin's UI language is set in **Settings → Language**. In-plugin tabs, labels, help texts, and error messages update immediately on every request. Sidebar navigation labels (in NetBox's left nav) are read at startup — they update after the next **NetBox restart**.
@@ -430,17 +591,33 @@ The plugin automatically bypasses enforcement for:
 - Django migration recorder (`migrations.migration`)
 - The plugin's own models (`netbox_force.*`)
 - Unauthenticated requests and management commands
+- Internal sync saves (OS bidirectional sync between VM and Patch Management)
 
 ---
 
 ## Changelog
 
+### v4.6.0
+
+- **Bidirectional OS sync** — `VirtualMachine.platform` and the Patch Management OS field are kept in sync automatically. Changing either one updates the other. Platform objects are created on demand if they don't exist yet. New VMs are auto-added with the current platform as initial OS.
+- **Contact changelog messages** — Adding or removing a contact in the Patch Management form now creates an ObjectChange entry with a human-readable "Nachricht": `Admin hinzugefügt: John Doe; VB entfernt: Jane Smith`. Contact changes via NetBox's native ContactAssignment UI are also captured.
+- **Correct ObjectChange field** — Changelog messages are now stored in the `message` field on `ObjectChange` (NetBox 4.x), which maps to the "Nachricht" column in the changelog UI.
+- **_netbox_force_sync_save bypass** — Internal sync saves (OS sync, contact sync) are now correctly exempt from enforcement to prevent false violations.
+- **ContactAssignment bidirectional sync** — Contacts added/removed via NetBox's native Contacts tab on a VM are mirrored to Patch Management and vice versa.
+
 ### v4.5.0
-- **Explicit feature toggles** — Blocked Phrases and Ticket Reference now each have a dedicated enable/disable checkbox, consistent with Change Window and Webhook. Existing setups are unaffected (both default to enabled).
-- **16 languages** — Added Czech, Danish, French, Italian, Japanese, Latvian, Dutch, Polish, Portuguese, Russian, Turkish, Ukrainian, and Chinese Simplified. All UI strings are fully translated in each language.
+
+- **Patch Management module** — Full VM patch tracking: status (green/yellow/red), OS, administrators, process owners, update history, overdue warning, maintenance window, ticket reference.
+- **Auto-Add VMs** — Automatically add newly created VirtualMachines to Patch Management.
+- **Patch Management dashboard widget** — Home screen widget showing VM counts per status.
+- **ContactRole auto-creation** — Plugin creates the required `Patch-Admin` and `Patch-VB` ContactRole objects on startup.
+- **Patchmanagement i18n** — All Patch Management UI strings translated across all 16 supported languages.
+- **Explicit feature toggles** — Blocked Phrases and Ticket Reference now each have a dedicated enable/disable checkbox.
+- **16 languages** — Added Czech, Danish, French, Italian, Japanese, Latvian, Dutch, Polish, Portuguese, Russian, Turkish, Ukrainian, and Chinese Simplified.
 - **Sidebar localization** — Plugin sidebar navigation labels now follow the configured language (requires NetBox restart after language change).
 
 ### v4.4.0
+
 - **Model Policies** — Per-model enforcement overrides: enable/disable enforcement, set a custom minimum changelog length, and toggle naming/required-field checks per model.
 - **Audit Scan** — Retroactive compliance scan that checks existing database objects against active validation rules without making any changes.
 - **Webhook Notifications** — HTTP POST notifications on every blocked change, with optional HMAC-SHA256 payload signing.
@@ -448,6 +625,7 @@ The plugin automatically bypasses enforcement for:
 - **Inline Toggle Buttons** — Enable/disable Validation Rules and Model Policies directly from the list view.
 
 ### v4.3.x and earlier
+
 - Initial release with changelog enforcement, ticket reference, blocked phrases, change windows, validation rules, audit log, dashboard, import templates, and user guide.
 
 ---
@@ -455,12 +633,14 @@ The plugin automatically bypasses enforcement for:
 ## Troubleshooting
 
 ### Plugin not appearing in the sidebar
+
 - Verify installation: `pip show netbox-force`
 - Verify `'netbox_force'` is listed in `PLUGINS` in `configuration.py`
 - Check NetBox logs for migration errors
 - Confirm you are logged in as a **superuser** (the menu is hidden for non-superusers)
 
 ### Enforcement not working
+
 - Confirm the user is not in the exempt users list (Settings → Exemptions)
 - Confirm the user is not a member of an exempt group
 - Confirm the model is not in the exempt models list
@@ -468,15 +648,31 @@ The plugin automatically bypasses enforcement for:
 - Verify that the relevant feature toggle (Blocked Phrases, Ticket Reference) is enabled in Settings
 - Enable debug logging: add `'netbox.plugins.netbox_force': 'DEBUG'` to `LOGGING` in `configuration.py`
 
+### Patch Management OS not syncing
+
+- Confirm the VM has a linked PatchVM entry (check via Patchmanagement list)
+- Confirm the Platform exists in NetBox (Devices → Platforms)
+- Check that the OS name in Patch Management matches the Platform name exactly (case-sensitive)
+- Check NetBox logs: `sudo docker logs Netbox 2>&1 | grep sync_vm_platform`
+
+### Patch Management contact changes not showing Nachricht
+
+- Ensure you are on NetBox Force 4.6.0 or later
+- Reinstall with `--force-reinstall --no-cache-dir` and restart NetBox
+- The "Nachricht" field in the changelog uses the `message` field on `ObjectChange` (NetBox 4.x)
+
 ### Sidebar labels still in English after changing language
+
 The sidebar navigation is read once at NetBox startup. After changing the language in Settings, restart NetBox for the sidebar labels to update. In-plugin tabs and all UI strings update immediately without a restart.
 
 ### Migration errors on startup
+
 - Ensure the plugin is installed **before** NetBox runs its init process
 - For LinuxServer.io Docker: use `DOCKER_MODS` — never `custom-cont-init.d`
 - For official Docker: install in a `Dockerfile` layer, not at runtime
 
 ### pip installs old version after update
+
 pip caches packages by version number. Use `--force-reinstall --no-cache-dir`:
 
 ```bash
