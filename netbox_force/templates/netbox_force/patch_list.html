@@ -100,12 +100,12 @@
                 {# Bulk action bar — visible only when checkboxes selected #}
                 {% if request.user.is_superuser %}
                 <div id="bulk-bar" class="d-none mb-3 p-2 rounded border border-warning bg-warning bg-opacity-10 d-flex align-items-center gap-3">
-                    <span class="fw-semibold"><span id="bulk-count">0</span> VM(s) ausgewählt</span>
+                    <span class="fw-semibold"><span id="bulk-count">0</span> {{ ui.patch_bulk_vms_selected|default:"VM(s) selected" }}</span>
                     <button type="submit" class="btn btn-warning btn-sm">
-                        <i class="mdi mdi-pencil-box-multiple"></i> Massenbearbeitung
+                        <i class="mdi mdi-pencil-box-multiple"></i> {{ ui.patch_bulk_edit_title|default:"Bulk Edit" }}
                     </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="bulk-deselect">
-                        <i class="mdi mdi-close"></i> Auswahl aufheben
+                        <i class="mdi mdi-close"></i> {{ ui.patch_bulk_deselect|default:"Clear selection" }}
                     </button>
                 </div>
                 {% endif %}
@@ -117,7 +117,7 @@
                                 {% if request.user.is_superuser %}
                                 <th style="width:2.5rem">
                                     <input type="checkbox" id="select-all" class="form-check-input"
-                                           title="Alle auswählen">
+                                           title="{{ ui.patch_select_all|default:'Select all' }}">
                                 </th>
                                 {% endif %}
                                 <th>{{ ui.patch_col_vm|default:"VM / FQDN" }}</th>

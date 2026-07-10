@@ -51,8 +51,8 @@
                                 {{ form.os_info }}
                                 <a href="/dcim/platforms/add/" target="_blank"
                                    class="btn btn-outline-secondary btn-sm text-nowrap"
-                                   title="Neues Betriebssystem in NetBox anlegen">
-                                    <i class="mdi mdi-plus"></i> Neues OS
+                                   title="{{ ui.patch_os_platforms_hint|default:'Create new OS platform in NetBox' }}">
+                                    <i class="mdi mdi-plus"></i> {{ ui.patch_os_new_btn|default:"New OS" }}
                                 </a>
                             </div>
                             <datalist id="platform-datalist">
@@ -60,7 +60,7 @@
                                 <option value="{{ name }}">
                                 {% endfor %}
                             </datalist>
-                            <div class="form-text text-muted">Vorhandene Plattformen werden als Vorschlag angezeigt.</div>
+                            <div class="form-text text-muted">{{ ui.patch_os_platforms_hint|default:"Existing platforms are suggested in the dropdown." }}</div>
                         </div>
 
                         <div class="col-md-6">
@@ -68,7 +68,7 @@
                             <div id="admin-picker">
                                 <div style="position:relative">
                                     <input type="text" id="admin-search" class="form-control form-control-sm"
-                                           placeholder="Kontakt suchen…" autocomplete="off">
+                                           placeholder="{{ ui.patch_contact_search|default:'Search contact…' }}" autocomplete="off">
                                     <ul id="admin-dropdown" class="list-group shadow"
                                         style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
                                 </div>
@@ -82,7 +82,7 @@
                             <div id="vb-picker">
                                 <div style="position:relative">
                                     <input type="text" id="vb-search" class="form-control form-control-sm"
-                                           placeholder="Kontakt suchen…" autocomplete="off">
+                                           placeholder="{{ ui.patch_contact_search|default:'Search contact…' }}" autocomplete="off">
                                     <ul id="vb-dropdown" class="list-group shadow"
                                         style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
                                 </div>

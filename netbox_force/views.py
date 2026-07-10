@@ -1617,11 +1617,11 @@ class PatchVMBulkEditView(SuperuserRequiredMixin, View):
     def get(self, request):
         pks = [int(p) for p in request.GET.getlist('pk') if p.isdigit()]
         if not pks:
-            messages.warning(request, 'Keine VMs ausgewählt.')
+            messages.warning(request, 'No VMs selected.')
             return redirect('plugins:netbox_force:patch_list')
         patch_vms = list(PatchVM.objects.filter(pk__in=pks).order_by('fqdn'))
         if not patch_vms:
-            messages.warning(request, 'Keine gültigen VMs gefunden.')
+            messages.warning(request, 'No valid VMs found.')
             return redirect('plugins:netbox_force:patch_list')
         ctx = _base_context()
         ctx['active_tab'] = 'patch'
@@ -1634,7 +1634,7 @@ class PatchVMBulkEditView(SuperuserRequiredMixin, View):
         pks = [int(p) for p in request.POST.getlist('pk') if p.isdigit()]
         patch_vms = list(PatchVM.objects.filter(pk__in=pks))
         if not patch_vms:
-            messages.warning(request, 'Keine gültigen VMs gefunden.')
+            messages.warning(request, 'No valid VMs found.')
             return redirect('plugins:netbox_force:patch_list')
         form = PatchVMBulkEditForm(request.POST)
         if not form.is_valid():
@@ -1702,7 +1702,7 @@ class PatchVMBulkEditView(SuperuserRequiredMixin, View):
                         PatchVMContact.objects.get_or_create(patch_vm=pvm, contact_id=pk, role='vb')
                 updated += 1
 
-        messages.success(request, f'{updated} VM(s) aktualisiert.')
+        messages.success(request, f'{updated} VM(s) updated.')
         return redirect('plugins:netbox_force:patch_list')
 
 
