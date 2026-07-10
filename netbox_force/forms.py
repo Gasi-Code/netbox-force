@@ -1,4 +1,5 @@
 import ipaddress
+import json
 import re
 
 from django import forms
@@ -531,7 +532,12 @@ class PatchVMForm(forms.ModelForm):
             'vm': forms.Select(attrs={'class': 'form-select'}),
             'fqdn': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.Select(attrs={'class': 'form-select'}),
-            'os_info': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ubuntu 22.04 LTS x64'}),
+            'os_info': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'z.B. Ubuntu 24.04 LTS',
+                'list': 'platform-datalist',
+                'autocomplete': 'off',
+            }),
             'maintenance_window': forms.Select(attrs={'class': 'form-select'}),
             'update_installation': forms.Select(attrs={'class': 'form-select'}),
             'patch_status': forms.Select(attrs={'class': 'form-select'}),
@@ -541,31 +547,46 @@ class PatchVMForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # IP address: set queryset + readable label
+        # IP address: set queryset + label showing IP and DNS name
         try:
-            from django.apps import apps
             IPAddress = apps.get_model('ipam', 'IPAddress')
             self.fields['ip_address'].queryset = IPAddress.objects.order_by('address')
             self.fields['ip_address'].empty_label = '— no IP selected —'
             self.fields['ip_address'].label_from_instance = (
-                lambda obj: str(obj.address).split('/')[0]
+                lambda obj: (
+                    f"{str(obj.address).split('/')[0]}  —  {obj.dns_name}"
+                    if obj.dns_name
+                    else str(obj.address).split('/')[0]
+                )
             )
         except Exception:
             pass
+        # Platform names for OS datalist autocomplete
+        try:
+            Platform = apps.get_model('dcim', 'Platform')
+            self.platform_names = list(Platform.objects.order_by('name').values_list('name', flat=True))
+        except Exception:
+            self.platform_names = []
         # Contact choices
         contact_choices = _get_contact_choices(empty_label=None)
         self.fields['admin_contact_ids'].choices = contact_choices
         self.fields['vb_contact_ids'].choices = contact_choices
-        # Pre-fill selected contacts for existing instance
-        if self.instance and self.instance.pk:
-            admin_pks = list(
-                self.instance.vm_contacts.filter(role='admin').values_list('contact_id', flat=True)
-            )
+        # Contact data for JS search widget (list of {pk, name} dicts)
+        self.contact_data = [{'pk': pk, 'name': name} for pk, name in contact_choices]
+        # Pre-selected contacts — from POST (bound) or DB (unbound)
+        if self.is_bound:
+            self.selected_admin_data = [int(x) for x in self.data.getlist('admin_contact_ids') if x]
+            self.selected_vb_data = [int(x) for x in self.data.getlist('vb_contact_ids') if x]
+        elif self.instance and self.instance.pk:
+            admin_pks = list(self.instance.vm_contacts.filter(role='admin').values_list('contact_id', flat=True))
+            vb_pks = list(self.instance.vm_contacts.filter(role='vb').values_list('contact_id', flat=True))
+            self.selected_admin_data = admin_pks
+            self.selected_vb_data = vb_pks
             self.fields['admin_contact_ids'].initial = [str(p) for p in admin_pks]
-            vb_pks = list(
-                self.instance.vm_contacts.filter(role='vb').values_list('contact_id', flat=True)
-            )
             self.fields['vb_contact_ids'].initial = [str(p) for p in vb_pks]
+        else:
+            self.selected_admin_data = []
+            self.selected_vb_data = []
 
     def save(self, commit=True):
         instance = super().save(commit=False)

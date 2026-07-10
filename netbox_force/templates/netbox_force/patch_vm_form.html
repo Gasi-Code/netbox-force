@@ -7,6 +7,10 @@
 {% endblock tabs %}
 
 {% block content %}
+{{ form.contact_data|json_script:"contact-data" }}
+{{ form.selected_admin_data|json_script:"admin-selected" }}
+{{ form.selected_vb_data|json_script:"vb-selected" }}
+
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
@@ -14,7 +18,7 @@
                 <i class="mdi mdi-server-plus"></i> {{ form_title }}
             </h5>
             <div class="card-body">
-                <form method="post">
+                <form method="post" id="patch-vm-form">
                     {% csrf_token %}
                     {% if form.errors %}
                     <div class="alert alert-danger">
@@ -40,20 +44,53 @@
                             <label class="form-label">{{ ui.label_ip_address|default:"IP Address" }}</label>
                             {{ form.ip_address }}
                         </div>
+
                         <div class="col-12">
                             <label class="form-label">{{ ui.label_os_info|default:"OS" }}</label>
-                            {{ form.os_info }}
+                            <div class="d-flex gap-2 align-items-center">
+                                {{ form.os_info }}
+                                <a href="/dcim/platforms/add/" target="_blank"
+                                   class="btn btn-outline-secondary btn-sm text-nowrap"
+                                   title="Neues Betriebssystem in NetBox anlegen">
+                                    <i class="mdi mdi-plus"></i> Neues OS
+                                </a>
+                            </div>
+                            <datalist id="platform-datalist">
+                                {% for name in form.platform_names %}
+                                <option value="{{ name }}">
+                                {% endfor %}
+                            </datalist>
+                            <div class="form-text text-muted">Vorhandene Plattformen werden als Vorschlag angezeigt.</div>
                         </div>
+
                         <div class="col-md-6">
                             <label class="form-label">{{ ui.label_admins|default:"Administrators" }}</label>
-                            {{ form.admin_contact_ids }}
-                            <div class="form-text text-muted">Ctrl+Click / Cmd+Click für Mehrfachauswahl</div>
+                            <div id="admin-picker">
+                                <div style="position:relative">
+                                    <input type="text" id="admin-search" class="form-control form-control-sm"
+                                           placeholder="Kontakt suchen…" autocomplete="off">
+                                    <ul id="admin-dropdown" class="list-group shadow"
+                                        style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
+                                </div>
+                                <div id="admin-chips" class="d-flex flex-wrap gap-1 mt-2" style="min-height:1.5rem"></div>
+                                <div id="admin-hiddens"></div>
+                            </div>
                         </div>
+
                         <div class="col-md-6">
                             <label class="form-label">{{ ui.label_verfahrensbetreuer|default:"Process Owners" }}</label>
-                            {{ form.vb_contact_ids }}
-                            <div class="form-text text-muted">Ctrl+Click / Cmd+Click für Mehrfachauswahl</div>
+                            <div id="vb-picker">
+                                <div style="position:relative">
+                                    <input type="text" id="vb-search" class="form-control form-control-sm"
+                                           placeholder="Kontakt suchen…" autocomplete="off">
+                                    <ul id="vb-dropdown" class="list-group shadow"
+                                        style="position:absolute;top:100%;left:0;width:100%;z-index:1050;max-height:220px;overflow-y:auto;display:none"></ul>
+                                </div>
+                                <div id="vb-chips" class="d-flex flex-wrap gap-1 mt-2" style="min-height:1.5rem"></div>
+                                <div id="vb-hiddens"></div>
+                            </div>
                         </div>
+
                         <div class="col-md-4">
                             <label class="form-label">{{ ui.label_maintenance_window|default:"Maintenance Window" }}</label>
                             {{ form.maintenance_window }}
@@ -90,4 +127,104 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var ALL_CONTACTS = JSON.parse(document.getElementById('contact-data').textContent);
+    var initAdmin = JSON.parse(document.getElementById('admin-selected').textContent);
+    var initVb = JSON.parse(document.getElementById('vb-selected').textContent);
+
+    var nameMap = {};
+    ALL_CONTACTS.forEach(function (c) { nameMap[c.pk] = c.name; });
+
+    function buildPicker(searchId, dropdownId, chipsId, hiddensId, fieldName, initPks) {
+        var search = document.getElementById(searchId);
+        var dropdown = document.getElementById(dropdownId);
+        var chipsDiv = document.getElementById(chipsId);
+        var hiddensDiv = document.getElementById(hiddensId);
+        var selected = new Set(initPks);
+
+        function renderChips() {
+            chipsDiv.innerHTML = '';
+            hiddensDiv.innerHTML = '';
+            selected.forEach(function (pk) {
+                var name = nameMap[pk] || String(pk);
+
+                var chip = document.createElement('span');
+                chip.className = 'badge bg-primary d-inline-flex align-items-center gap-1';
+                chip.style.cssText = 'font-size:0.82em;padding:0.35em 0.55em;cursor:default';
+
+                var label = document.createElement('span');
+                label.textContent = name;
+                chip.appendChild(label);
+
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-close btn-close-white';
+                btn.style.cssText = 'font-size:0.55em;width:0.75em;height:0.75em;opacity:0.8';
+                btn.setAttribute('aria-label', 'Remove');
+                (function (pkCopy) {
+                    btn.addEventListener('click', function () {
+                        selected.delete(pkCopy);
+                        renderChips();
+                    });
+                }(pk));
+                chip.appendChild(btn);
+                chipsDiv.appendChild(chip);
+
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = fieldName;
+                hidden.value = pk;
+                hiddensDiv.appendChild(hidden);
+            });
+        }
+
+        function renderDropdown(query) {
+            var q = query.toLowerCase().trim();
+            dropdown.innerHTML = '';
+            if (!q) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            var matches = ALL_CONTACTS.filter(function (c) {
+                return !selected.has(c.pk) && c.name.toLowerCase().indexOf(q) !== -1;
+            });
+            if (matches.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            matches.slice(0, 30).forEach(function (c) {
+                var li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action py-1 px-2';
+                li.style.cursor = 'pointer';
+                li.textContent = c.name;
+                (function (contact) {
+                    li.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        selected.add(contact.pk);
+                        renderChips();
+                        search.value = '';
+                        dropdown.style.display = 'none';
+                        search.focus();
+                    });
+                }(c));
+                dropdown.appendChild(li);
+            });
+            dropdown.style.display = 'block';
+        }
+
+        search.addEventListener('input', function () { renderDropdown(search.value); });
+        search.addEventListener('focus', function () { if (search.value) renderDropdown(search.value); });
+        search.addEventListener('blur', function () {
+            setTimeout(function () { dropdown.style.display = 'none'; }, 200);
+        });
+
+        renderChips();
+    }
+
+    buildPicker('admin-search', 'admin-dropdown', 'admin-chips', 'admin-hiddens', 'admin_contact_ids', initAdmin);
+    buildPicker('vb-search', 'vb-dropdown', 'vb-chips', 'vb-hiddens', 'vb_contact_ids', initVb);
+}());
+</script>
 {% endblock content %}
