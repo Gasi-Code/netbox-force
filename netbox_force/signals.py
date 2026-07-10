@@ -1,6 +1,7 @@
 import logging
 import re
 
+from django.apps import apps
 from django.db.models.signals import pre_save, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -1192,7 +1193,7 @@ def _log_patchvm_contact_change(patch_vm, pre_contacts, post_contacts):
     try:
         import uuid
         from django.contrib.contenttypes.models import ContentType
-        from extras.models import ObjectChange
+        ObjectChange = apps.get_model('extras', 'ObjectChange')
         from .middleware import get_current_request
         request = get_current_request()
         user = None
