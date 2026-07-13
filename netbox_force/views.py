@@ -63,8 +63,17 @@ class PatchPermRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if not (request.user.is_superuser or _mb.has_perm(request.user, self.permission_required)):
-            raise PermissionDenied
+        if not request.user.is_superuser:
+            from django.contrib.auth.models import Permission
+            from django.db.models import Q
+            app_label, codename = self.permission_required.split('.', 1)
+            has_it = Permission.objects.filter(
+                Q(user=request.user) | Q(group__user=request.user),
+                content_type__app_label=app_label,
+                codename=codename,
+            ).exists()
+            if not has_it:
+                raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -83,20 +92,28 @@ def _get_ui_context(settings_obj=None):
 
 
 def _patch_perms(user):
-    """Compute patch permission flags via ModelBackend directly.
-    Works regardless of NetBox's AUTHENTICATION_BACKENDS configuration.
+    """Compute patch permission flags via direct auth.Permission DB query.
+    Bypasses AUTHENTICATION_BACKENDS entirely — works with any NetBox config.
+    Permissions must be assigned via Django Admin → Groups/Users (auth.Permission).
     """
     if user.is_superuser:
         return {k: True for k in ('can_add', 'can_change', 'can_delete',
                                    'can_change_status', 'can_bulk_edit', 'can_import')}
-    chk = lambda p: _mb.has_perm(user, p)
+    from django.contrib.auth.models import Permission
+    from django.db.models import Q
+    granted = set(
+        Permission.objects.filter(
+            Q(user=user) | Q(group__user=user),
+            content_type__app_label='netbox_force',
+        ).values_list('codename', flat=True)
+    )
     return {
-        'can_add':           chk('netbox_force.add_patchvm'),
-        'can_change':        chk('netbox_force.change_patchvm'),
-        'can_delete':        chk('netbox_force.delete_patchvm'),
-        'can_change_status': chk('netbox_force.change_patch_status'),
-        'can_bulk_edit':     chk('netbox_force.bulk_edit_patchvm'),
-        'can_import':        chk('netbox_force.import_patchvm'),
+        'can_add':           'add_patchvm' in granted,
+        'can_change':        'change_patchvm' in granted,
+        'can_delete':        'delete_patchvm' in granted,
+        'can_change_status': 'change_patch_status' in granted,
+        'can_bulk_edit':     'bulk_edit_patchvm' in granted,
+        'can_import':        'import_patchvm' in granted,
     }
 
 
