@@ -9,7 +9,9 @@ logger = logging.getLogger('netbox.plugins.netbox_force')
 
 from django.apps import apps
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.backends import ModelBackend as _ModelBackend
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -48,12 +50,22 @@ class AuthenticatedRequiredMixin(LoginRequiredMixin):
     pass
 
 
-class PatchPermRequiredMixin(LoginRequiredMixin, PermissionRequiredMixin):
-    """Permission check for patch management views.
-    Superusers pass automatically (Django ModelBackend grants all perms to superusers).
-    Non-superusers without the required permission receive a 403.
+_mb = _ModelBackend()
+
+
+class PatchPermRequiredMixin(LoginRequiredMixin):
+    """Permission check for patch management views using ModelBackend directly.
+    Bypasses NetBox's ObjectPermissionBackend which does not handle custom codenames.
+    Superusers always pass. Non-superusers without the required permission get 403.
     """
-    raise_exception = True
+    permission_required = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if not (request.user.is_superuser or _mb.has_perm(request.user, self.permission_required)):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 
 # =============================================================================
@@ -68,6 +80,24 @@ def _get_ui_context(settings_obj=None):
         s = ForceSettings.get_settings()
         language = getattr(s, 'language', 'de') if s else 'de'
     return get_all_ui_strings(language)
+
+
+def _patch_perms(user):
+    """Compute patch permission flags via ModelBackend directly.
+    Works regardless of NetBox's AUTHENTICATION_BACKENDS configuration.
+    """
+    if user.is_superuser:
+        return {k: True for k in ('can_add', 'can_change', 'can_delete',
+                                   'can_change_status', 'can_bulk_edit', 'can_import')}
+    chk = lambda p: _mb.has_perm(user, p)
+    return {
+        'can_add':           chk('netbox_force.add_patchvm'),
+        'can_change':        chk('netbox_force.change_patchvm'),
+        'can_delete':        chk('netbox_force.delete_patchvm'),
+        'can_change_status': chk('netbox_force.change_patch_status'),
+        'can_bulk_edit':     chk('netbox_force.bulk_edit_patchvm'),
+        'can_import':        chk('netbox_force.import_patchvm'),
+    }
 
 
 def _base_context(settings_obj=None):
@@ -1515,6 +1545,7 @@ class PatchVMListView(LoginRequiredMixin, View):
         ctx['overdue_days'] = overdue_days
         ctx['q'] = q
         ctx['status_filter'] = status_filter
+        ctx['pp'] = _patch_perms(request.user)
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 
@@ -1543,6 +1574,7 @@ class PatchVMDetailView(LoginRequiredMixin, View):
         ctx['patch_vm'] = patch_vm
         ctx['entries'] = entries
         ctx['status_form'] = PatchStatusForm(initial={'patch_status': patch_vm.patch_status})
+        ctx['pp'] = _patch_perms(request.user)
         return render(request, 'netbox_force/patch_detail.html', ctx)
 
 

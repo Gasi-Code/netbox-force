@@ -92,13 +92,13 @@
                 </table>
             </div>
             <div class="card-footer d-flex gap-2">
-                {% if perms.netbox_force.change_patchvm %}
+                {% if pp.can_change %}
                 <a href="{% url 'plugins:netbox_force:patch_vm_edit' pk=patch_vm.pk %}"
                    class="btn btn-sm btn-primary">
                     <i class="mdi mdi-pencil"></i> {{ ui.btn_edit|default:"Edit" }}
                 </a>
                 {% endif %}
-                {% if perms.netbox_force.delete_patchvm %}
+                {% if pp.can_delete %}
                 <a href="{% url 'plugins:netbox_force:patch_vm_delete' pk=patch_vm.pk %}"
                    class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-trash-can-outline"></i> {{ ui.btn_delete|default:"Delete" }}
@@ -111,7 +111,7 @@
             </div>
         </div>
 
-        {% if perms.netbox_force.change_patch_status %}
+        {% if pp.can_change_status %}
         <!-- Status Quick-Update -->
         <div class="card mb-3">
             <h6 class="card-header"><i class="mdi mdi-traffic-light"></i> {{ ui.patch_status_title|default:"Set Patch Status" }}</h6>
@@ -134,7 +134,7 @@
         <div class="card">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="mdi mdi-history"></i> {{ ui.patch_history_title|default:"Update History" }}</span>
-                {% if perms.netbox_force.change_patch_status %}
+                {% if pp.can_change_status %}
                 <a href="{% url 'plugins:netbox_force:patch_entry_add' vm_pk=patch_vm.pk %}"
                    class="btn btn-sm btn-success">
                     <i class="mdi mdi-plus"></i> {{ ui.btn_add_entry|default:"Add Entry" }}
@@ -153,7 +153,7 @@
                                 <th>{{ ui.patch_entry_version_after|default:"After" }}</th>
                                 <th>{{ ui.patch_entry_software|default:"Software / Updates" }}</th>
                                 <th>{{ ui.patch_entry_info|default:"Notes" }}</th>
-                                {% if perms.netbox_force.change_patch_status %}
+                                {% if pp.can_change_status %}
                                 <th>{{ ui.patch_entry_actions|default:"Actions" }}</th>
                                 {% endif %}
                             </tr>
@@ -179,7 +179,7 @@
                                     <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
-                                {% if perms.netbox_force.change_patch_status %}
+                                {% if pp.can_change_status %}
                                 <td class="text-nowrap">
                                     <a href="{% url 'plugins:netbox_force:patch_entry_edit' pk=entry.pk %}"
                                        class="btn btn-sm btn-outline-primary" title="{{ ui.btn_edit|default:'Edit' }}">
@@ -200,7 +200,7 @@
                 <div class="text-center text-muted py-4">
                     <i class="mdi mdi-history mdi-24px"></i>
                     <p class="mt-2">{{ ui.patch_entry_empty|default:"No update entries yet." }}</p>
-                    {% if perms.netbox_force.change_patch_status %}
+                    {% if pp.can_change_status %}
                     <a href="{% url 'plugins:netbox_force:patch_entry_add' vm_pk=patch_vm.pk %}"
                        class="btn btn-success btn-sm">
                         <i class="mdi mdi-plus"></i> {{ ui.btn_add_entry|default:"Add Entry" }}
