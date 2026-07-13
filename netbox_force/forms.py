@@ -52,6 +52,8 @@ class ForceSettingsForm(forms.ModelForm):
             'patchmanagement_enabled',
             'auto_add_vms_to_patch',
             'patch_overdue_days',
+            'patch_editor_groups',
+            'patch_import_groups',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -165,6 +167,14 @@ class ForceSettingsForm(forms.ModelForm):
                 'min': 0,
                 'max': 3650,
                 'style': 'width: 8rem;',
+            }),
+            'patch_editor_groups': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Patch-Editoren, Patch-Team',
+            }),
+            'patch_import_groups': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Patch-Admins',
             }),
         }
 

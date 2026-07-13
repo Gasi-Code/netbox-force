@@ -206,6 +206,18 @@ class ForceSettings(models.Model):
         verbose_name='Overdue threshold (days)',
         help_text='VMs not patched within this many days are marked overdue. Set 0 to disable.',
     )
+    patch_editor_groups = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Patch editor groups',
+        help_text='Comma-separated NetBox group names. Members can add, edit, delete VMs, set patch status, and bulk-edit. Leave empty to allow superusers only.',
+    )
+    patch_import_groups = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Patch import/admin groups',
+        help_text='Comma-separated NetBox group names. Members have all editor rights plus VM import and contact sync.',
+    )
 
     # --- Webhook Notifications ---
     webhook_enabled = models.BooleanField(

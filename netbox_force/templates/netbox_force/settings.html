@@ -284,6 +284,16 @@
                         {{ form.patch_overdue_days }}
                         <div class="form-text">{{ ui.help_patch_overdue_days|default:"VMs not patched within this many days are shown with an overdue warning. Set 0 to disable." }}</div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="id_patch_editor_groups">{{ ui.label_patch_editor_groups|default:"Patch editor groups" }}</label>
+                        {{ form.patch_editor_groups }}
+                        <div class="form-text">{{ ui.help_patch_editor_groups|default:"Comma-separated NetBox group names. Members can add, edit, delete VMs, set patch status, and bulk-edit. Superusers always have full access." }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="id_patch_import_groups">{{ ui.label_patch_import_groups|default:"Patch import/admin groups" }}</label>
+                        {{ form.patch_import_groups }}
+                        <div class="form-text">{{ ui.help_patch_import_groups|default:"Comma-separated NetBox group names. Members have all editor rights plus VM import and contact sync." }}</div>
+                    </div>
                 </div>
             </div>
 

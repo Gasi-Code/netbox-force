@@ -9,7 +9,6 @@ logger = logging.getLogger('netbox.plugins.netbox_force')
 
 from django.apps import apps
 from django.contrib import messages
-from django.contrib.auth.backends import ModelBackend as _ModelBackend
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -50,13 +49,22 @@ class AuthenticatedRequiredMixin(LoginRequiredMixin):
     pass
 
 
-_mb = _ModelBackend()
+_PATCH_IMPORT_CODENAMES = {'import_patchvm'}
+
+
+def _user_in_patch_groups(user, csv_field):
+    """Return True if user is member of any group listed in csv_field."""
+    if not csv_field:
+        return False
+    names = {n.strip() for n in csv_field.split(',') if n.strip()}
+    return bool(names) and user.groups.filter(name__in=names).exists()
 
 
 class PatchPermRequiredMixin(LoginRequiredMixin):
-    """Permission check for patch management views using ModelBackend directly.
-    Bypasses NetBox's ObjectPermissionBackend which does not handle custom codenames.
-    Superusers always pass. Non-superusers without the required permission get 403.
+    """Group-based permission check for patch management views.
+    Groups are configured in ForceSettings.patch_editor_groups /
+    patch_import_groups — no Django Admin required.
+    Superusers always pass.
     """
     permission_required = None
 
@@ -64,16 +72,18 @@ class PatchPermRequiredMixin(LoginRequiredMixin):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         if not request.user.is_superuser:
-            from django.contrib.auth.models import Permission
-            from django.db.models import Q
-            app_label, codename = self.permission_required.split('.', 1)
-            has_it = Permission.objects.filter(
-                Q(user=request.user) | Q(group__user=request.user),
-                content_type__app_label=app_label,
-                codename=codename,
-            ).exists()
-            if not has_it:
-                raise PermissionDenied
+            settings_obj = ForceSettings.get_settings()
+            codename = self.permission_required.split('.', 1)[1]
+            is_import_admin = _user_in_patch_groups(
+                request.user, getattr(settings_obj, 'patch_import_groups', ''))
+            if codename in _PATCH_IMPORT_CODENAMES:
+                if not is_import_admin:
+                    raise PermissionDenied
+            else:
+                is_editor = is_import_admin or _user_in_patch_groups(
+                    request.user, getattr(settings_obj, 'patch_editor_groups', ''))
+                if not is_editor:
+                    raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -92,28 +102,23 @@ def _get_ui_context(settings_obj=None):
 
 
 def _patch_perms(user):
-    """Compute patch permission flags via direct auth.Permission DB query.
-    Bypasses AUTHENTICATION_BACKENDS entirely — works with any NetBox config.
-    Permissions must be assigned via Django Admin → Groups/Users (auth.Permission).
+    """Compute patch permission flags from ForceSettings group configuration.
+    Groups configured in patch_editor_groups / patch_import_groups.
+    Superusers always get all permissions.
     """
     if user.is_superuser:
         return {k: True for k in ('can_add', 'can_change', 'can_delete',
                                    'can_change_status', 'can_bulk_edit', 'can_import')}
-    from django.contrib.auth.models import Permission
-    from django.db.models import Q
-    granted = set(
-        Permission.objects.filter(
-            Q(user=user) | Q(group__user=user),
-            content_type__app_label='netbox_force',
-        ).values_list('codename', flat=True)
-    )
+    settings_obj = ForceSettings.get_settings()
+    is_import = _user_in_patch_groups(user, getattr(settings_obj, 'patch_import_groups', ''))
+    is_editor = is_import or _user_in_patch_groups(user, getattr(settings_obj, 'patch_editor_groups', ''))
     return {
-        'can_add':           'add_patchvm' in granted,
-        'can_change':        'change_patchvm' in granted,
-        'can_delete':        'delete_patchvm' in granted,
-        'can_change_status': 'change_patch_status' in granted,
-        'can_bulk_edit':     'bulk_edit_patchvm' in granted,
-        'can_import':        'import_patchvm' in granted,
+        'can_add':           is_editor,
+        'can_change':        is_editor,
+        'can_delete':        is_editor,
+        'can_change_status': is_editor,
+        'can_bulk_edit':     is_editor,
+        'can_import':        is_import,
     }
 
 
