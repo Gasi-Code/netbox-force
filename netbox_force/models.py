@@ -1,9 +1,11 @@
 import threading
 import time
+from datetime import timedelta
 
 from django.db import models
 from django.db.utils import OperationalError, ProgrammingError
 from django.urls import reverse
+from django.utils import timezone
 
 try:
     from netbox.models import ChangeLoggingMixin
@@ -217,6 +219,13 @@ class ForceSettings(models.Model):
         default='',
         verbose_name='Patch import/admin groups',
         help_text='Comma-separated NetBox group names. Members have all editor rights plus VM import and contact sync.',
+    )
+    checkmk_webhook_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='CheckMK webhook secret',
+        help_text='Secret token for validating incoming CheckMK webhooks (Authorization: Bearer <secret>).',
     )
 
     # --- Webhook Notifications ---
@@ -891,6 +900,18 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     )
     ticket_number = models.CharField(max_length=100, blank=True, default='', verbose_name='Ticket Number')
     comment = models.TextField(blank=True, default='', verbose_name='Comment')
+    last_checked = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Last CheckMK check',
+    )
+    first_warned = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='First warned (CheckMK)',
+    )
+    update_details = models.TextField(
+        blank=True, default='',
+        verbose_name='Update details (CheckMK)',
+    )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -912,6 +933,13 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     @property
     def status_css_class(self):
         return {'green': 'success', 'yellow': 'warning', 'red': 'danger'}.get(self.patch_status, 'secondary')
+
+    @property
+    def checkmk_escalated(self):
+        """True when status is yellow and first_warned is older than 30 days."""
+        if self.patch_status != 'yellow' or not self.first_warned:
+            return False
+        return (timezone.now() - self.first_warned) > timedelta(days=30)
 
     @property
     def ip_display(self):

@@ -9,6 +9,10 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="alert">
+            <i class="mdi mdi-alert fs-5 mt-1 flex-shrink-0"></i>
+            <span>{{ ui.patch_warning_banner|default:"⚠️ Important notice: This patch management only tracks official OS updates (System Updates). Third-party software and applications are not covered here and must be audited separately!" }}</span>
+        </div>
         <div class="card">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span>
@@ -130,6 +134,7 @@
                                 <th>{{ ui.patch_col_admins|default:"Administrators" }}</th>
                                 <th>{{ ui.patch_col_verfahrensbetreuer|default:"Process Owners" }}</th>
                                 <th>{{ ui.patch_col_status|default:"Patch Status" }}</th>
+                                <th>{{ ui.patch_col_last_checked|default:"Last checked (CheckMK)" }}</th>
                                 <th>{{ ui.patch_col_maintenance|default:"Maintenance Window" }}</th>
                                 <th>{{ ui.patch_col_update_mode|default:"Update Installation" }}</th>
                                 <th>{{ ui.patch_col_actions|default:"Actions" }}</th>
@@ -184,6 +189,27 @@
                                     <br><small class="text-warning mt-1">
                                         <i class="mdi mdi-alert"></i> {{ ui.patch_overdue_badge|default:"Overdue" }}
                                     </small>
+                                    {% endif %}
+                                    {% if pvm.checkmk_escalated %}
+                                    <br><small class="text-danger mt-1">
+                                        <i class="mdi mdi-clock-alert"></i> &gt;30d
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if pvm.last_checked %}
+                                    <span title="{{ pvm.last_checked|date:'Y-m-d H:i' }}">
+                                        <i class="mdi mdi-check-circle-outline text-success"></i>
+                                        {{ pvm.last_checked|timesince }} ago
+                                    </span>
+                                    {% if pvm.update_details %}
+                                    <br><small class="text-muted" title="{{ pvm.update_details }}">
+                                        <i class="mdi mdi-information-outline"></i>
+                                        {{ pvm.update_details|truncatechars:40 }}
+                                    </small>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">{{ ui.patch_checkmk_never|default:"Never" }}</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ pvm.get_maintenance_window_display }}</td>

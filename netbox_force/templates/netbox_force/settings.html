@@ -297,6 +297,26 @@
                 </div>
             </div>
 
+            {# CheckMK Integration #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-webhook"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="id_checkmk_webhook_secret">{{ ui.label_checkmk_webhook_secret|default:"CheckMK webhook secret" }}</label>
+                        {{ form.checkmk_webhook_secret }}
+                        <div class="form-text">{{ ui.help_checkmk_webhook_secret|default:"Secret token for validating incoming CheckMK webhooks. Use the same value in the CheckMK notification script (Authorization: Bearer &lt;secret&gt;)." }}</div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="mdi mdi-information-outline"></i>
+                        Webhook-Endpoint: <code>{{ request.scheme }}://{{ request.get_host }}/api/plugins/netbox-force/webhook-receiver/</code>
+                        <br>
+                        <small class="text-muted">POST &middot; JSON &middot; Header: <code>Authorization: Bearer &lt;secret&gt;</code></small>
+                    </div>
+                </div>
+            </div>
+
             <div class="text-end">
                 <button type="submit" class="btn btn-primary">
                     <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}

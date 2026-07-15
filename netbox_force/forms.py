@@ -54,6 +54,7 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_overdue_days',
             'patch_editor_groups',
             'patch_import_groups',
+            'checkmk_webhook_secret',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -175,6 +176,11 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_import_groups': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Patch-Admins',
+            }),
+            'checkmk_webhook_secret': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'mysecrettoken123',
+                'autocomplete': 'off',
             }),
         }
 
