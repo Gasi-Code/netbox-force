@@ -10,11 +10,19 @@ from django.core.validators import FileExtensionValidator
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage,
     LANGUAGE_CHOICES, PatchVM, PatchVMContact, PatchUpdateEntry, PATCH_STATUS_CHOICES,
-    AUTO_CHANGELOG_APP_CHOICES,
+    AUTO_CHANGELOG_CORE_APPS,
 )
 
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
+
+
+def _app_config(app_label):
+    """AppConfig for an app label, or None when the app is not installed."""
+    try:
+        return apps.get_app_config(app_label)
+    except LookupError:
+        return None
 
 
 class ForceSettingsForm(forms.ModelForm):
@@ -208,15 +216,29 @@ class ForceSettingsForm(forms.ModelForm):
 
     @staticmethod
     def _area_choices():
-        """App labels paired with their NetBox verbose names, installed apps only."""
-        choices = []
-        for app_label in AUTO_CHANGELOG_APP_CHOICES:
-            try:
-                config = apps.get_app_config(app_label)
-            except LookupError:
-                continue
-            choices.append((app_label, str(config.verbose_name)))
-        return choices
+        """
+        Selectable areas: NetBox core apps first, then every installed plugin.
+
+        Plugins are discovered at runtime rather than hardcoded, so a newly
+        installed plugin — including this one — becomes selectable without a
+        code change.
+        """
+        labels = [
+            label for label in AUTO_CHANGELOG_CORE_APPS
+            if _app_config(label) is not None
+        ]
+
+        try:
+            from netbox.plugins import PluginConfig
+            plugin_labels = sorted(
+                config.label for config in apps.get_app_configs()
+                if isinstance(config, PluginConfig) and config.label not in labels
+            )
+            labels.extend(plugin_labels)
+        except Exception:
+            pass
+
+        return [(label, str(_app_config(label).verbose_name)) for label in labels]
 
     def clean_auto_changelog_scope_areas(self):
         return '\n'.join(self.cleaned_data.get('auto_changelog_scope_areas', []))

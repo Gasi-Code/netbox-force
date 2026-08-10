@@ -34,18 +34,20 @@ LANGUAGE_CHOICES = [
     ('zh-hans', '中文'),
 ]
 
-# NetBox areas selectable as auto-changelog scope, as Django app labels.
-# Labels shown in the UI come from each AppConfig.verbose_name, which NetBox
-# already translates.
-AUTO_CHANGELOG_APP_CHOICES = [
+# NetBox core areas selectable as auto-changelog scope, as Django app labels,
+# in the order they should appear. Installed plugins are appended at runtime —
+# see ForceSettingsForm._area_choices(). Labels shown in the UI come from each
+# AppConfig.verbose_name, which NetBox already translates.
+AUTO_CHANGELOG_CORE_APPS = [
     'dcim',
     'ipam',
     'virtualization',
     'circuits',
     'tenancy',
-    'extras',
     'wireless',
     'vpn',
+    'extras',
+    'users',
     'core',
 ]
 
