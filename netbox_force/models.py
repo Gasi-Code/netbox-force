@@ -34,6 +34,21 @@ LANGUAGE_CHOICES = [
     ('zh-hans', '中文'),
 ]
 
+# NetBox areas selectable as auto-changelog scope, as Django app labels.
+# Labels shown in the UI come from each AppConfig.verbose_name, which NetBox
+# already translates.
+AUTO_CHANGELOG_APP_CHOICES = [
+    'dcim',
+    'ipam',
+    'virtualization',
+    'circuits',
+    'tenancy',
+    'extras',
+    'wireless',
+    'vpn',
+    'core',
+]
+
 
 class ForceSettings(models.Model):
     """
@@ -193,6 +208,15 @@ class ForceSettings(models.Model):
             'message, it is always used as-is.'
         ),
     )
+    auto_changelog_scope = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Auto-changelog scope',
+        help_text=(
+            'Restrict auto-generated changelog messages to these NetBox areas. '
+            'One app label per line. Leave empty to apply to all areas.'
+        ),
+    )
     patchmanagement_enabled = models.BooleanField(
         default=True,
         verbose_name='Enable Patch Management',
@@ -226,6 +250,14 @@ class ForceSettings(models.Model):
         default='',
         verbose_name='CheckMK webhook secret',
         help_text='Secret token for validating incoming CheckMK webhooks (Authorization: Bearer <secret>).',
+    )
+    checkmk_escalation_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name='CheckMK escalation threshold (days)',
+        help_text=(
+            'A VM that stays in WARNING for this many days is automatically '
+            'escalated to CRITICAL. Set 0 to disable escalation.'
+        ),
     )
 
     # --- Webhook Notifications ---
@@ -355,6 +387,22 @@ class ForceSettings(models.Model):
         if not self.exempt_groups:
             return []
         return [g.strip() for g in self.exempt_groups.splitlines() if g.strip()]
+
+    def get_auto_changelog_scope_list(self):
+        """
+        App labels the auto-changelog is restricted to.
+        An empty list means 'all areas' — see auto_changelog_applies_to().
+        """
+        if not self.auto_changelog_scope:
+            return []
+        return [a.strip() for a in self.auto_changelog_scope.splitlines() if a.strip()]
+
+    def auto_changelog_applies_to(self, app_label):
+        """True when auto-changelog generation is in scope for this app label."""
+        scope = self.get_auto_changelog_scope_list()
+        if not scope:
+            return True
+        return app_label in scope
 
 
 # =============================================================================
@@ -915,6 +963,11 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
+    # Cooldown for escalate_overdue_throttled()
+    _last_escalation_run = 0
+    _ESCALATION_COOLDOWN = 300
+    _escalation_lock = threading.Lock()
+
     class Meta:
         verbose_name = 'Patchmanagement'
         verbose_name_plural = 'Patchmanagement VMs'
@@ -935,11 +988,63 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         return {'green': 'success', 'yellow': 'warning', 'red': 'danger'}.get(self.patch_status, 'secondary')
 
     @property
+    def warned_days(self):
+        """Days since the current WARNING period started, or None."""
+        if not self.first_warned:
+            return None
+        return (timezone.now() - self.first_warned).days
+
+    @property
     def checkmk_escalated(self):
-        """True when status is yellow and first_warned is older than 30 days."""
-        if self.patch_status != 'yellow' or not self.first_warned:
-            return False
-        return (timezone.now() - self.first_warned) > timedelta(days=30)
+        """
+        True when this VM reached CRITICAL through the WARNING-age rule rather
+        than through a CRIT report from CheckMK.
+
+        first_warned marks the start of an ongoing WARNING period. A genuine
+        CRIT report clears it, so 'red with first_warned set' unambiguously
+        identifies an auto-escalated entry.
+        """
+        return self.patch_status == 'red' and self.first_warned is not None
+
+    @classmethod
+    def escalate_overdue(cls):
+        """
+        Flip every VM that has been in WARNING longer than the configured
+        threshold to CRITICAL, and return the number of rows changed.
+
+        CheckMK notifications only fire on state *transitions*, so a host that
+        stays in WARNING never sends a second webhook. Without this sweep the
+        escalation would never happen. Uses a queryset update so no changelog
+        enforcement signal fires.
+        """
+        settings = ForceSettings.get_settings()
+        days = getattr(settings, 'checkmk_escalation_days', 30) if settings else 30
+        if not days:
+            return 0
+        cutoff = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(
+            patch_status='yellow',
+            first_warned__isnull=False,
+            first_warned__lte=cutoff,
+        ).update(patch_status='red', updated=timezone.now())
+
+    @classmethod
+    def escalate_overdue_throttled(cls):
+        """
+        escalate_overdue() guarded by a process-wide cooldown so it can be
+        called from request paths (list view, dashboard widget) without adding
+        a write to every single page load.
+        """
+        now = time.monotonic()
+        with cls._escalation_lock:
+            if now - cls._last_escalation_run < cls._ESCALATION_COOLDOWN:
+                return 0
+            cls._last_escalation_run = now
+        try:
+            return cls.escalate_overdue()
+        except Exception:
+            # Best-effort sweep on a read path — never break the page over it
+            return 0
 
     @property
     def ip_display(self):

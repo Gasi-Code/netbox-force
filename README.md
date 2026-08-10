@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-4.6.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-4.7.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,15 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v4.7.0
+
+- **CheckMK escalation now actually fires** — CheckMK notifications only trigger on state *transitions*, so a host that stayed in WARNING never sent a second webhook and was never escalated. A sweep (`PatchVM.escalate_overdue()`) now runs from the patch list and dashboard widget, so the stored status, the status counters and the `?status=red` filter all agree.
+- **Escalation no longer undone** — a repeated WARN report used to reset `first_warned`, dropping an already-escalated VM back to yellow. `first_warned` now marks the start of an ongoing WARNING period and survives repeated WARN reports.
+- **Configurable escalation threshold** — Settings → CheckMK Integration → *Escalation threshold (days)*, default 30, `0` disables escalation.
+- **Webhook fails closed** — with no `checkmk_webhook_secret` configured the endpoint returned `200` and accepted writes from anyone. It now returns `503` until a secret is set. Secret comparison also tolerates non-ASCII values instead of raising a `500`.
+- **CheckMK data on the VM detail page** — last check, warning age, auto-escalation badge and the raw CheckMK output.
+- **Auto-changelog scope** — Settings → *Areas*: restrict auto-generated changelog messages to selected NetBox areas (DCIM, IPAM, Virtualization, …). Selecting nothing keeps the previous behaviour of applying everywhere.
 
 ### v4.6.0
 

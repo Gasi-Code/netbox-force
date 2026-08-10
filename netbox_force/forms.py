@@ -10,6 +10,7 @@ from django.core.validators import FileExtensionValidator
 from .models import (
     ForceSettings, ModelPolicy, ValidationRule, ImportTemplate, GuidePage,
     LANGUAGE_CHOICES, PatchVM, PatchVMContact, PatchUpdateEntry, PATCH_STATUS_CHOICES,
+    AUTO_CHANGELOG_APP_CHOICES,
 )
 
 # Valid model label pattern: app_label.model_name
@@ -55,6 +56,7 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_editor_groups',
             'patch_import_groups',
             'checkmk_webhook_secret',
+            'checkmk_escalation_days',
         ]
         widgets = {
             'language': forms.Select(attrs={'class': 'form-select'}),
@@ -182,7 +184,49 @@ class ForceSettingsForm(forms.ModelForm):
                 'placeholder': 'mysecrettoken123',
                 'autocomplete': 'off',
             }),
+            'checkmk_escalation_days': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'max': 3650,
+                'style': 'width: 8rem;',
+            }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # auto_changelog_scope is stored as newline-separated app labels but
+        # edited as a checkbox group, so it is handled outside Meta.fields.
+        self.fields['auto_changelog_scope_areas'] = forms.MultipleChoiceField(
+            required=False,
+            choices=self._area_choices(),
+            widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            label='Auto-changelog areas',
+        )
+        if self.instance and self.instance.pk:
+            self.initial['auto_changelog_scope_areas'] = \
+                self.instance.get_auto_changelog_scope_list()
+
+    @staticmethod
+    def _area_choices():
+        """App labels paired with their NetBox verbose names, installed apps only."""
+        choices = []
+        for app_label in AUTO_CHANGELOG_APP_CHOICES:
+            try:
+                config = apps.get_app_config(app_label)
+            except LookupError:
+                continue
+            choices.append((app_label, str(config.verbose_name)))
+        return choices
+
+    def clean_auto_changelog_scope_areas(self):
+        return '\n'.join(self.cleaned_data.get('auto_changelog_scope_areas', []))
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        obj.auto_changelog_scope = self.cleaned_data.get('auto_changelog_scope_areas', '')
+        if commit:
+            obj.save()
+        return obj
 
     def clean_extra_exempt_models(self):
         """Validate that each line matches the app.model format."""

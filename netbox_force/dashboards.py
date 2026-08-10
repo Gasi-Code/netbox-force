@@ -465,6 +465,8 @@ class PatchStatusWidget(DashboardWidget):
         try:
             from .models import PatchVM
             from django.db.models import Count
+            # Keep the tiles consistent with the list view's escalated statuses
+            PatchVM.escalate_overdue_throttled()
             counts = dict(
                 PatchVM.objects.values_list('patch_status').annotate(c=Count('pk')).values_list('patch_status', 'c')
             )

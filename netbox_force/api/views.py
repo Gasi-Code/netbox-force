@@ -21,7 +21,12 @@ _STATE_MAP = {
     'UNKNOWN': 'yellow',
 }
 
-_ESCALATION_DAYS = 30
+_DEFAULT_ESCALATION_DAYS = 30
+
+
+def _secrets_match(expected, provided):
+    """Constant-time comparison that tolerates non-ASCII secrets."""
+    return hmac.compare_digest(expected.encode('utf-8'), provided.encode('utf-8'))
 
 
 class CheckmkWebhookView(APIView):
@@ -48,14 +53,22 @@ class CheckmkWebhookView(APIView):
         settings_obj = ForceSettings.get_settings()
         secret = getattr(settings_obj, 'checkmk_webhook_secret', '') if settings_obj else ''
 
-        if secret:
-            provided = (
-                request.headers.get('X-NetBox-Force-Secret', '')
-                or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
+        # Fail closed: an unconfigured secret must not leave the endpoint open,
+        # since it can write patch status for any VM.
+        if not secret:
+            logger.warning('CheckMK webhook: rejected request — no secret configured')
+            return Response(
+                {'error': 'Webhook secret is not configured in NetBox Force settings'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-            if not hmac.compare_digest(secret, provided):
-                logger.warning('CheckMK webhook: rejected request — invalid secret')
-                return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        provided = (
+            request.headers.get('X-NetBox-Force-Secret', '')
+            or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
+        )
+        if not _secrets_match(secret, provided):
+            logger.warning('CheckMK webhook: rejected request — invalid secret')
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         data = request.data
         host_name = (data.get('host_name') or '').strip()
@@ -84,29 +97,35 @@ class CheckmkWebhookView(APIView):
 
         now = timezone.now()
         old_status = pvm.patch_status
+        escalation_days = (
+            getattr(settings_obj, 'checkmk_escalation_days', _DEFAULT_ESCALATION_DAYS)
+            if settings_obj else _DEFAULT_ESCALATION_DAYS
+        )
 
+        # first_warned marks the start of an ongoing WARNING period. It survives
+        # repeated WARN reports (so the clock keeps running) and is cleared by
+        # both OK and a genuine CRIT — a CRIT is its own reason for red and must
+        # not be mistaken for an age-based escalation later on.
         if new_status == 'green':
             final_status = 'green'
             first_warned = None
-        elif new_status == 'yellow':
-            if old_status != 'yellow' or pvm.first_warned is None:
-                first_warned = now
-            else:
-                first_warned = pvm.first_warned
-
-            if first_warned and (now - first_warned) > timedelta(days=_ESCALATION_DAYS):
-                final_status = 'red'
-            else:
-                final_status = 'yellow'
-        else:
+        elif new_status == 'red':
             final_status = 'red'
-            first_warned = pvm.first_warned if pvm.first_warned else now
+            first_warned = None
+        else:
+            first_warned = pvm.first_warned or now
+            escalated = (
+                escalation_days > 0
+                and (now - first_warned) >= timedelta(days=escalation_days)
+            )
+            final_status = 'red' if escalated else 'yellow'
 
         PatchVM.objects.filter(pk=pvm.pk).update(
             patch_status=final_status,
             first_warned=first_warned,
             last_checked=now,
             update_details=output,
+            updated=now,
         )
 
         logger.info(
@@ -120,6 +139,8 @@ class CheckmkWebhookView(APIView):
                 'checkmk_state': checkmk_state,
                 'patch_status': final_status,
                 'previous_status': old_status,
+                'escalated': final_status == 'red' and new_status == 'yellow',
+                'warned_since': first_warned.isoformat() if first_warned else None,
                 'last_checked': now.isoformat(),
             },
             status=status.HTTP_200_OK,

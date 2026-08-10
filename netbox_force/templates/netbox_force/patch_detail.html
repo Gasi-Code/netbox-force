@@ -111,6 +111,50 @@
             </div>
         </div>
 
+        <!-- CheckMK Integration -->
+        <div class="card mb-3">
+            <h6 class="card-header"><i class="mdi mdi-webhook"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}</h6>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th style="width:45%">{{ ui.patch_col_last_checked|default:"Last checked (CheckMK)" }}</th>
+                        <td>
+                            {% if patch_vm.last_checked %}
+                            <i class="mdi mdi-check-circle-outline text-success"></i>
+                            {{ patch_vm.last_checked|date:'Y-m-d H:i' }}
+                            <small class="text-muted">({{ patch_vm.last_checked|timesince }})</small>
+                            {% else %}
+                            <span class="text-muted">{{ ui.patch_checkmk_never|default:"Never" }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if patch_vm.first_warned %}
+                    <tr>
+                        <th>{{ ui.patch_warned_since|default:"Warning since" }}</th>
+                        <td>
+                            {{ patch_vm.first_warned|date:'Y-m-d H:i' }}
+                            <small class="text-muted">({{ patch_vm.warned_days }}d)</small>
+                            {% if patch_vm.checkmk_escalated %}
+                            <br><span class="badge bg-danger text-white mt-1">
+                                <i class="mdi mdi-clock-alert"></i>
+                                {{ ui.patch_escalated_badge|default:"Auto-escalated" }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>{{ ui.patch_col_update_details|default:"Update details (CheckMK)" }}</th>
+                        <td>
+                            {% if patch_vm.update_details %}
+                            <pre class="mb-0 small text-wrap">{{ patch_vm.update_details }}</pre>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
         {% if pp.can_change_status %}
         <!-- Status Quick-Update -->
         <div class="card mb-3">

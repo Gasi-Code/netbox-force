@@ -269,6 +269,20 @@
                         <label class="form-check-label" for="id_auto_changelog_enabled">{{ ui.label_auto_changelog_enabled|default:"Auto-generate changelog" }}</label>
                         <div class="form-text">{{ ui.help_auto_changelog_enabled|default:"Automatically generates a changelog message from changed fields when the user leaves the field empty. User-provided messages always take priority." }}</div>
                     </div>
+                    <div class="mb-3 ps-4">
+                        <label class="form-label">{{ ui.label_auto_changelog_scope|default:"Areas" }}</label>
+                        <div class="row row-cols-2 row-cols-lg-3 g-1">
+                            {% for choice in form.auto_changelog_scope_areas %}
+                            <div class="col">
+                                <div class="form-check">
+                                    {{ choice.tag }}
+                                    <label class="form-check-label" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">{{ ui.help_auto_changelog_scope|default:"Restrict auto-generated messages to these NetBox areas. Select nothing to apply everywhere." }}</div>
+                    </div>
                     <div class="mb-3 form-check">
                         {{ form.patchmanagement_enabled }}
                         <label class="form-check-label" for="id_patchmanagement_enabled">{{ ui.label_patchmanagement_enabled|default:"Enable Patch Management" }}</label>
@@ -308,6 +322,11 @@
                         {{ form.checkmk_webhook_secret }}
                         <div class="form-text">{{ ui.help_checkmk_webhook_secret|default:"Secret token for validating incoming CheckMK webhooks. Use the same value in the CheckMK notification script (Authorization: Bearer &lt;secret&gt;)." }}</div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="id_checkmk_escalation_days">{{ ui.label_checkmk_escalation_days|default:"Escalation threshold (days)" }}</label>
+                        {{ form.checkmk_escalation_days }}
+                        <div class="form-text">{{ ui.help_checkmk_escalation_days|default:"A VM stuck in WARNING for this many days is automatically escalated to CRITICAL. Set 0 to disable." }}</div>
+                    </div>
                     <div class="alert alert-info mb-0">
                         <i class="mdi mdi-information-outline"></i>
                         Webhook-Endpoint: <code>{{ request.scheme }}://{{ request.get_host }}/api/plugins/netbox-force/webhook-receiver/</code>
@@ -339,7 +358,7 @@
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
-                        <td>4.6.0</td>
+                        <td>4.7.0</td>
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>

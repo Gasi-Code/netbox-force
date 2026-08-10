@@ -191,8 +191,15 @@
                                     </small>
                                     {% endif %}
                                     {% if pvm.checkmk_escalated %}
-                                    <br><small class="text-danger mt-1">
-                                        <i class="mdi mdi-clock-alert"></i> &gt;30d
+                                    <br><small class="text-danger mt-1"
+                                               title="{{ ui.patch_warned_since|default:'Warning since' }}: {{ pvm.first_warned|date:'Y-m-d' }}">
+                                        <i class="mdi mdi-clock-alert"></i>
+                                        {{ ui.patch_escalated_badge|default:"Auto-escalated" }} ({{ pvm.warned_days }}d)
+                                    </small>
+                                    {% elif pvm.patch_status == 'yellow' and pvm.warned_days %}
+                                    <br><small class="text-muted mt-1">
+                                        <i class="mdi mdi-clock-outline"></i>
+                                        {{ ui.patch_warned_since|default:"Warning since" }} {{ pvm.warned_days }}d
                                     </small>
                                     {% endif %}
                                 </td>

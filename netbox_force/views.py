@@ -1514,6 +1514,10 @@ class PatchVMListView(LoginRequiredMixin, View):
         settings = ForceSettings.get_settings()
         overdue_days = getattr(settings, 'patch_overdue_days', 0) if settings else 0
 
+        # CheckMK only notifies on state transitions, so long-running WARNINGs
+        # would never escalate on their own. Sweep before reading.
+        PatchVM.escalate_overdue_throttled()
+
         q = request.GET.get('q', '').strip()
         status_filter = request.GET.get('status', '').strip()
 

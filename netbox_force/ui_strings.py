@@ -441,6 +441,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Zuletzt geprüft (CheckMK)',
         'patch_col_update_details': 'Update-Details',
         'patch_checkmk_never': 'Nie',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Eskalationsschwelle (Tage)',
+        'help_checkmk_escalation_days': 'Eine VM, die so viele Tage im Status WARNUNG verbleibt, wird automatisch auf KRITISCH hochgestuft. 0 = deaktiviert.',
+        'patch_escalated_badge': 'Automatisch eskaliert',
+        'patch_warned_since': 'Warnung seit',
+        'label_auto_changelog_scope': 'Bereiche',
+        'help_auto_changelog_scope': 'Automatisch erzeugte Changelog-Nachrichten auf diese NetBox-Bereiche beschränken. Nichts auswählen = überall aktiv.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Alle auswählen',
         'patch_bulk_edit_title': 'Massenbearbeitung',
@@ -898,6 +905,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Last checked (CheckMK)',
         'patch_col_update_details': 'Update details',
         'patch_checkmk_never': 'Never',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Escalation threshold (days)',
+        'help_checkmk_escalation_days': 'A VM that stays in WARNING for this many days is automatically escalated to CRITICAL. Set 0 to disable.',
+        'patch_escalated_badge': 'Auto-escalated',
+        'patch_warned_since': 'Warning since',
+        'label_auto_changelog_scope': 'Areas',
+        'help_auto_changelog_scope': 'Restrict auto-generated changelog messages to these NetBox areas. Select nothing to apply everywhere.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Select all',
         'patch_bulk_edit_title': 'Bulk Edit',
@@ -1336,6 +1350,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Última comprobación (CheckMK)',
         'patch_col_update_details': 'Detalles de actualización',
         'patch_checkmk_never': 'Nunca',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Umbral de escalado (días)',
+        'help_checkmk_escalation_days': 'Una VM que permanece en ADVERTENCIA durante estos días se escala automáticamente a CRÍTICO. Establecer 0 para deshabilitar.',
+        'patch_escalated_badge': 'Escalado automáticamente',
+        'patch_warned_since': 'Advertencia desde',
+        'label_auto_changelog_scope': 'Áreas',
+        'help_auto_changelog_scope': 'Limitar los mensajes de changelog generados automáticamente a estas áreas de NetBox. No seleccionar nada para aplicar en todas partes.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Seleccionar todo',
         'patch_bulk_edit_title': 'Edición masiva',
@@ -1743,6 +1764,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Poslední kontrola (CheckMK)',
         'patch_col_update_details': 'Podrobnosti aktualizace',
         'patch_checkmk_never': 'Nikdy',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Práh eskalace (dny)',
+        'help_checkmk_escalation_days': 'VM, která zůstane ve stavu VAROVÁNÍ tento počet dní, je automaticky eskalována na KRITICKÝ. Nastavte 0 pro deaktivaci.',
+        'patch_escalated_badge': 'Automaticky eskalováno',
+        'patch_warned_since': 'Varování od',
+        'label_auto_changelog_scope': 'Oblasti',
+        'help_auto_changelog_scope': 'Omezit automaticky generované zprávy changelogu na tyto oblasti NetBoxu. Nevybrat nic znamená použít všude.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Vybrat vše',
         'patch_bulk_edit_title': 'Hromadná úprava',
@@ -2150,6 +2178,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Sidst tjekket (CheckMK)',
         'patch_col_update_details': 'Opdateringsdetaljer',
         'patch_checkmk_never': 'Aldrig',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Eskaleringstærskel (dage)',
+        'help_checkmk_escalation_days': 'En VM, der forbliver i ADVARSEL i dette antal dage, eskaleres automatisk til KRITISK. Sæt til 0 for at deaktivere.',
+        'patch_escalated_badge': 'Automatisk eskaleret',
+        'patch_warned_since': 'Advarsel siden',
+        'label_auto_changelog_scope': 'Områder',
+        'help_auto_changelog_scope': 'Begræns automatisk genererede changelog-beskeder til disse NetBox-områder. Vælg intet for at anvende overalt.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Vælg alle',
         'patch_bulk_edit_title': 'Masseredigering',
@@ -2557,6 +2592,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Dernière vérification (CheckMK)',
         'patch_col_update_details': 'Détails de mise à jour',
         'patch_checkmk_never': 'Jamais',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': "Seuil d'escalade (jours)",
+        'help_checkmk_escalation_days': 'Une VM qui reste en AVERTISSEMENT pendant ce nombre de jours est automatiquement escaladée en CRITIQUE. Définir 0 pour désactiver.',
+        'patch_escalated_badge': 'Escaladé automatiquement',
+        'patch_warned_since': 'Avertissement depuis',
+        'label_auto_changelog_scope': 'Domaines',
+        'help_auto_changelog_scope': 'Limiter les messages de changelog générés automatiquement à ces domaines NetBox. Ne rien sélectionner pour appliquer partout.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Tout sélectionner',
         'patch_bulk_edit_title': 'Modification en masse',
@@ -2964,6 +3006,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Ultimo controllo (CheckMK)',
         'patch_col_update_details': 'Dettagli aggiornamento',
         'patch_checkmk_never': 'Mai',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Soglia di escalation (giorni)',
+        'help_checkmk_escalation_days': 'Una VM che rimane in AVVISO per questo numero di giorni viene automaticamente portata a CRITICO. Impostare 0 per disabilitare.',
+        'patch_escalated_badge': 'Escalation automatica',
+        'patch_warned_since': 'Avviso dal',
+        'label_auto_changelog_scope': 'Aree',
+        'help_auto_changelog_scope': 'Limitare i messaggi di changelog generati automaticamente a queste aree di NetBox. Non selezionare nulla per applicare ovunque.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Seleziona tutto',
         'patch_bulk_edit_title': 'Modifica multipla',
@@ -3371,6 +3420,13 @@ UI_STRINGS = {
         'patch_col_last_checked': '最終確認 (CheckMK)',
         'patch_col_update_details': '更新詳細',
         'patch_checkmk_never': 'なし',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'エスカレーション閾値（日数）',
+        'help_checkmk_escalation_days': 'この日数以上「警告」状態が続く VM は自動的に「重大」へエスカレーションされます。0 で無効化。',
+        'patch_escalated_badge': '自動エスカレーション',
+        'patch_warned_since': '警告開始',
+        'label_auto_changelog_scope': '対象領域',
+        'help_auto_changelog_scope': '自動生成される変更ログメッセージを、これらの NetBox 領域に限定します。何も選択しない場合はすべての領域に適用されます。',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'すべて選択',
         'patch_bulk_edit_title': '一括編集',
@@ -3778,6 +3834,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Pēdējā pārbaude (CheckMK)',
         'patch_col_update_details': 'Atjauninājuma detaļas',
         'patch_checkmk_never': 'Nekad',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Eskalācijas slieksnis (dienas)',
+        'help_checkmk_escalation_days': 'VM, kas paliek BRĪDINĀJUMA stāvoklī šādu dienu skaitu, tiek automātiski paaugstināta uz KRITISKU. Iestatiet 0, lai atspējotu.',
+        'patch_escalated_badge': 'Automātiski eskalēts',
+        'patch_warned_since': 'Brīdinājums kopš',
+        'label_auto_changelog_scope': 'Jomas',
+        'help_auto_changelog_scope': 'Ierobežot automātiski ģenerētos izmaiņu žurnāla ziņojumus līdz šīm NetBox jomām. Neizvēlieties neko, lai piemērotu visur.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Atlasīt visus',
         'patch_bulk_edit_title': 'Lielapjoma rediģēšana',
@@ -4185,6 +4248,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Laatst gecontroleerd (CheckMK)',
         'patch_col_update_details': 'Updatedetails',
         'patch_checkmk_never': 'Nooit',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Escalatiedrempel (dagen)',
+        'help_checkmk_escalation_days': 'Een VM die dit aantal dagen in WAARSCHUWING blijft, wordt automatisch geëscaleerd naar KRITIEK. Stel 0 in om uit te schakelen.',
+        'patch_escalated_badge': 'Automatisch geëscaleerd',
+        'patch_warned_since': 'Waarschuwing sinds',
+        'label_auto_changelog_scope': 'Gebieden',
+        'help_auto_changelog_scope': 'Beperk automatisch gegenereerde changelog-berichten tot deze NetBox-gebieden. Selecteer niets om overal toe te passen.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Alles selecteren',
         'patch_bulk_edit_title': 'Bulkbewerking',
@@ -4592,6 +4662,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Ostatnio sprawdzono (CheckMK)',
         'patch_col_update_details': 'Szczegóły aktualizacji',
         'patch_checkmk_never': 'Nigdy',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Próg eskalacji (dni)',
+        'help_checkmk_escalation_days': 'Maszyna wirtualna pozostająca w stanie OSTRZEŻENIE przez tyle dni jest automatycznie eskalowana do stanu KRYTYCZNY. Ustaw 0, aby wyłączyć.',
+        'patch_escalated_badge': 'Eskalowano automatycznie',
+        'patch_warned_since': 'Ostrzeżenie od',
+        'label_auto_changelog_scope': 'Obszary',
+        'help_auto_changelog_scope': 'Ogranicz automatycznie generowane komunikaty dziennika zmian do tych obszarów NetBox. Nie wybieraj nic, aby stosować wszędzie.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Zaznacz wszystko',
         'patch_bulk_edit_title': 'Masowa edycja',
@@ -4999,6 +5076,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Última verificação (CheckMK)',
         'patch_col_update_details': 'Detalhes da atualização',
         'patch_checkmk_never': 'Nunca',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Limite de escalonamento (dias)',
+        'help_checkmk_escalation_days': 'Uma VM que permanece em AVISO por este número de dias é automaticamente escalonada para CRÍTICO. Defina 0 para desabilitar.',
+        'patch_escalated_badge': 'Escalonado automaticamente',
+        'patch_warned_since': 'Aviso desde',
+        'label_auto_changelog_scope': 'Áreas',
+        'help_auto_changelog_scope': 'Restringir mensagens de changelog geradas automaticamente a estas áreas do NetBox. Não selecionar nada para aplicar em todos os lugares.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Selecionar tudo',
         'patch_bulk_edit_title': 'Edição em massa',
@@ -5406,6 +5490,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Последняя проверка (CheckMK)',
         'patch_col_update_details': 'Подробности обновления',
         'patch_checkmk_never': 'Никогда',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Порог эскалации (дни)',
+        'help_checkmk_escalation_days': 'ВМ, остающаяся в состоянии ПРЕДУПРЕЖДЕНИЕ указанное число дней, автоматически переводится в состояние КРИТИЧНО. Установите 0 для отключения.',
+        'patch_escalated_badge': 'Автоматическая эскалация',
+        'patch_warned_since': 'Предупреждение с',
+        'label_auto_changelog_scope': 'Области',
+        'help_auto_changelog_scope': 'Ограничить автоматически создаваемые сообщения журнала изменений этими областями NetBox. Ничего не выбирайте, чтобы применять везде.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Выбрать всё',
         'patch_bulk_edit_title': 'Массовое редактирование',
@@ -5813,6 +5904,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Son kontrol (CheckMK)',
         'patch_col_update_details': 'Güncelleme ayrıntıları',
         'patch_checkmk_never': 'Hiç',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Yükseltme eşiği (gün)',
+        'help_checkmk_escalation_days': 'Bu gün sayısı boyunca UYARI durumunda kalan bir VM otomatik olarak KRİTİK seviyesine yükseltilir. Devre dışı bırakmak için 0 girin.',
+        'patch_escalated_badge': 'Otomatik yükseltildi',
+        'patch_warned_since': 'Uyarı başlangıcı',
+        'label_auto_changelog_scope': 'Alanlar',
+        'help_auto_changelog_scope': 'Otomatik oluşturulan değişiklik günlüğü mesajlarını bu NetBox alanlarıyla sınırlayın. Her yerde uygulamak için hiçbir şey seçmeyin.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Tümünü seç',
         'patch_bulk_edit_title': 'Toplu düzenleme',
@@ -6220,6 +6318,13 @@ UI_STRINGS = {
         'patch_col_last_checked': 'Остання перевірка (CheckMK)',
         'patch_col_update_details': 'Деталі оновлення',
         'patch_checkmk_never': 'Ніколи',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': 'Поріг ескалації (дні)',
+        'help_checkmk_escalation_days': 'ВМ, яка залишається у стані ПОПЕРЕДЖЕННЯ вказану кількість днів, автоматично переводиться у стан КРИТИЧНО. Встановіть 0 для вимкнення.',
+        'patch_escalated_badge': 'Автоматична ескалація',
+        'patch_warned_since': 'Попередження з',
+        'label_auto_changelog_scope': 'Області',
+        'help_auto_changelog_scope': 'Обмежити автоматично створювані повідомлення журналу змін цими областями NetBox. Нічого не обирайте, щоб застосовувати всюди.',
         # Bulk edit / contact picker / OS field
         'patch_select_all': 'Вибрати все',
         'patch_bulk_edit_title': 'Масове редагування',
@@ -6628,6 +6733,13 @@ UI_STRINGS = {
         'patch_col_last_checked': '上次检查（CheckMK）',
         'patch_col_update_details': '更新详情',
         'patch_checkmk_never': '从未',
+        # CheckMK escalation / auto-changelog scope
+        'label_checkmk_escalation_days': '升级阈值（天）',
+        'help_checkmk_escalation_days': '处于「警告」状态超过此天数的虚拟机将自动升级为「严重」。设为 0 则禁用。',
+        'patch_escalated_badge': '自动升级',
+        'patch_warned_since': '警告开始于',
+        'label_auto_changelog_scope': '范围',
+        'help_auto_changelog_scope': '将自动生成的变更日志消息限制在这些 NetBox 范围内。不选择任何项则应用于全部范围。',
         # Bulk edit / contact picker / OS field
         'patch_select_all': '全选',
         'patch_bulk_edit_title': '批量编辑',

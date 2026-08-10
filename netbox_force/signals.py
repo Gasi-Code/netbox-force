@@ -174,6 +174,22 @@ def get_model_label(instance):
     return f"{instance._meta.app_label}.{instance._meta.model_name}"
 
 
+def _auto_changelog_in_scope(instance):
+    """
+    True when auto-generated changelog text is allowed for this object's area.
+    An empty scope means all areas, which keeps pre-existing installations
+    behaving exactly as before.
+    """
+    settings = _get_settings()
+    if settings is None:
+        return True
+    try:
+        return settings.auto_changelog_applies_to(instance._meta.app_label)
+    except AttributeError:
+        # Settings row predates the scope field (migration not yet applied)
+        return True
+
+
 def is_exempt_model(instance):
     label = get_model_label(instance)
     if label in EXEMPT_MODELS:
@@ -772,6 +788,11 @@ def _try_inject_auto_changelog(request, instance):
     if not auto_enabled and not ticket_enabled:
         return False
 
+    # Both cases below produce auto-generated description text, so the
+    # configured area scope gates them together.
+    if not _auto_changelog_in_scope(instance):
+        return False
+
     # On first call for this request, store the original user input.
     # Subsequent calls within a bulk edit (same request, multiple objects) must
     # read the original input — not the auto-generated value injected for a
@@ -1063,7 +1084,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     # --- Auto-changelog: inject "deleted: Name" if field is empty or ticket-only ---
     _auto_enabled_del   = _get_setting('auto_changelog_enabled', False)
     _ticket_enabled_del = _get_setting('ticket_enabled', True)
-    if _auto_enabled_del or _ticket_enabled_del:
+    if (_auto_enabled_del or _ticket_enabled_del) and _auto_changelog_in_scope(instance):
         raw = ''
         for fname in ('changelog_message', 'comments', '_changelog_message'):
             if hasattr(request, 'data') and isinstance(request.data, dict):
