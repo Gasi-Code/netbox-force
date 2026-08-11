@@ -191,11 +191,17 @@ def _perform(settings_obj, run):
     now = timezone.now()
     escalation_days = settings_obj.checkmk_escalation_days or 0
     seen_pks = set()
+    escalated_inline = 0
 
     for host_name, host_rows in by_host.items():
         state, services, details = _worst(host_rows)
         pvm = _match_existing(host_name, by_checkmk, by_fqdn, by_vm_name)
         status, first_warned = _resolve_status(state, pvm, escalation_days, now)
+
+        # Age-based escalation happens here, per host, before the sweep below
+        # ever sees the row. Counting only the sweep would always report zero.
+        if status == 'red' and STATE_MAP.get(state, 'yellow') == 'yellow':
+            escalated_inline += 1
 
         values = {
             'patch_status': status,
@@ -237,4 +243,6 @@ def _perform(settings_obj, run):
         .update(checkmk_monitored=False, updated=now)
     )
 
-    run.escalated = PatchVM.escalate_overdue()
+    # The sweep only reaches entries CheckMK did not report in this run;
+    # everything it reported was already resolved above.
+    run.escalated = escalated_inline + PatchVM.escalate_overdue()

@@ -277,8 +277,10 @@ class ForceSettings(models.Model):
         verbose_name='Verify TLS certificate',
     )
     checkmk_timeout = models.PositiveIntegerField(
-        default=10,
+        default=30,
         verbose_name='Timeout (seconds)',
+        help_text='A CheckMK site with many services can take well over ten '
+                  'seconds to answer the service query.',
     )
     checkmk_service_pattern = models.CharField(
         max_length=200,
