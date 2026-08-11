@@ -533,6 +533,7 @@ class CheckmkSyncNowView(SuperuserRequiredMixin, View):
             'updated': run.hosts_updated,
             'stale': run.hosts_stale,
             'escalated': run.escalated,
+            'ips_linked': run.ips_linked,
         })
 
 

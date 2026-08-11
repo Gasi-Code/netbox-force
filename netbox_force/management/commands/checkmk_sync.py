@@ -51,5 +51,6 @@ class Command(BaseCommand):
                 f'  entries created  : {run.hosts_created}\n'
                 f'  entries updated  : {run.hosts_updated}\n'
                 f'  no longer in CMK : {run.hosts_stale}\n'
+                f'  IPs linked       : {run.ips_linked}\n'
                 f'  auto-escalated   : {run.escalated}'
             )

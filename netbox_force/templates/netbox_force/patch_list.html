@@ -182,6 +182,20 @@
                                 <td>
                                     {% if pvm.ip_address %}
                                     <a href="{{ pvm.ip_address.get_absolute_url }}" target="_blank">{{ pvm.ip_display }}</a>
+                                    {% if pvm.checkmk_ip_mismatch %}
+                                    <br><small class="text-warning"
+                                               title="{{ ui.patch_ip_mismatch_hint|default:'CheckMK monitors a different address than the one linked here.' }}">
+                                        <i class="mdi mdi-alert-outline"></i>
+                                        CheckMK: {{ pvm.checkmk_ip }}
+                                    </small>
+                                    {% endif %}
+                                    {% elif pvm.checkmk_ip %}
+                                    <span class="text-muted">{{ pvm.checkmk_ip }}</span>
+                                    <br><small class="text-warning"
+                                               title="{{ ui.patch_ip_missing_hint|default:'Create this address in NetBox IPAM to link it.' }}">
+                                        <i class="mdi mdi-help-circle-outline"></i>
+                                        {{ ui.patch_ip_missing|default:"not in NetBox" }}
+                                    </small>
                                     {% else %}—{% endif %}
                                 </td>
                                 <td>{{ pvm.os_info|default:"—" }}</td>
@@ -232,6 +246,12 @@
                                             <br>{{ ui.patch_last_seen|default:"last seen" }}
                                             {{ pvm.checkmk_last_seen|date:"Y-m-d" }}
                                         {% endif %}
+                                    </small>
+                                    {% elif pvm.checkmk_host_down %}
+                                    <br><small class="text-danger fw-bold mt-1"
+                                               title="{{ ui.patch_host_down_hint|default:'The patch status below is from the last successful check.' }}">
+                                        <i class="mdi mdi-lan-disconnect"></i>
+                                        {{ ui.patch_host_down|default:"Host unreachable in CheckMK" }}
                                     </small>
                                     {% endif %}
                                 </td>

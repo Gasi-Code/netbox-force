@@ -238,6 +238,56 @@ class CheckmkClient:
 
         raise last_error or CheckmkError('no_flavor')
 
+    def fetch_hosts(self):
+        """
+        Return {host_name: {'address', 'alias', 'state'}} from the monitoring
+        API.
+
+        Deliberately not host_config: that is the Setup/WATO API, which a
+        read-only 'guest' automation user cannot see — it answers with an
+        empty collection rather than an error. The Livestatus 'address'
+        column carries the same IP and is readable.
+        """
+        columns = ('name', 'address', 'alias', 'state')
+        attempts = (
+            [('columns', c) for c in columns],
+            None,  # some releases reject explicit columns; take the defaults
+        )
+
+        data = None
+        last_error = None
+        for params in attempts:
+            try:
+                data = self._get('/domain-types/host/collections/all', params=params)
+                break
+            except CheckmkError as exc:
+                if exc.code in ('auth', 'unreachable', 'timeout', 'tls',
+                                'redirect_login', 'not_found'):
+                    raise
+                last_error = exc
+        if data is None:
+            raise last_error or CheckmkError('bad_response', 'host collection')
+
+        hosts = {}
+        for item in (data.get('value') or []):
+            if not isinstance(item, dict):
+                continue
+            ext = item.get('extensions')
+            src = ext if isinstance(ext, dict) else item
+            name = (src.get('name') or '').strip()
+            if not name:
+                continue
+            try:
+                state = int(src.get('state'))
+            except (TypeError, ValueError):
+                state = None
+            hosts[name] = {
+                'address': (src.get('address') or '').strip(),
+                'alias': (src.get('alias') or '').strip(),
+                'state': state,
+            }
+        return hosts
+
     @staticmethod
     def _parse_services(data):
         """

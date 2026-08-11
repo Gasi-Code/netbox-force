@@ -151,6 +151,38 @@
                             {% endif %}
                         </td>
                     </tr>
+                    <tr>
+                        <th>{{ ui.label_checkmk_ip|default:"IP in CheckMK" }}</th>
+                        <td>
+                            {% if patch_vm.checkmk_ip %}
+                            <code>{{ patch_vm.checkmk_ip }}</code>
+                                {% if patch_vm.checkmk_ip_unlinked %}
+                                <br><small class="text-warning">
+                                    <i class="mdi mdi-help-circle-outline"></i>
+                                    {{ ui.patch_ip_missing|default:"not in NetBox" }} —
+                                    {{ ui.patch_ip_missing_hint|default:"Create this address in NetBox IPAM to link it." }}
+                                </small>
+                                {% elif patch_vm.checkmk_ip_mismatch %}
+                                <br><small class="text-warning">
+                                    <i class="mdi mdi-alert-outline"></i>
+                                    {{ ui.patch_ip_mismatch_hint|default:"CheckMK monitors a different address than the one linked here." }}
+                                </small>
+                                {% endif %}
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% if patch_vm.checkmk_host_down %}
+                    <tr>
+                        <th>{{ ui.label_checkmk_host_state|default:"Host state" }}</th>
+                        <td>
+                            <span class="badge bg-danger text-white">
+                                <i class="mdi mdi-lan-disconnect"></i>
+                                {{ ui.patch_host_down|default:"Host unreachable in CheckMK" }}
+                            </span>
+                            <br><small class="text-muted">{{ ui.patch_host_down_hint|default:"The patch status below is from the last successful check." }}</small>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% endif %}
                     <tr>
                         <th style="width:45%">{{ ui.patch_col_last_checked|default:"Last checked (CheckMK)" }}</th>

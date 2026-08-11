@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-5.0.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.1.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,14 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v5.1.0
+
+- **Host data from CheckMK** — each sync now also reads the monitored IP address and the host's up/down state from the CheckMK monitoring API. A host CheckMK cannot reach is flagged in the patch list, because its patch status is by definition stale.
+- **IP linking without double maintenance** — when CheckMK reports an address that already exists in NetBox IPAM and the Patch Management entry has no IP linked yet, the link is created automatically. An existing link is never changed or removed; if CheckMK monitors a different address, that is shown as a warning rather than silently corrected.
+- **Addresses NetBox does not know** are marked *not in NetBox* instead of being created. A monitoring system is not the source of truth for IPAM — the gap is surfaced so a person decides what it should become.
+- **Discovery no longer depends on auto-changelog** — creating a Patch Management entry during a sync went through the plugin's own enforcement and only succeeded because auto-changelog happened to be enabled. It now uses the internal sync bypass.
+- **Complete translations** — eleven keys reachable from the patch list and the patch dashboard widget existed only in English and German. `Warning` and `Critical` were untranslated even in German.
 
 ### v5.0.0 — CheckMK integration rebuilt as a pull
 

@@ -996,10 +996,17 @@ CHECKMK_SYNC_FIELDS = (
     'checkmk_host_name',
     'checkmk_service',
     'checkmk_state',
+    'checkmk_ip',
+    'checkmk_host_state',
     'checkmk_monitored',
     'checkmk_last_seen',
     'updated',
 )
+
+# ip_address is intentionally absent from the whitelist above: it is a
+# hand-maintained link into NetBox IPAM. The sync fills it only while it is
+# empty and a matching IPAddress already exists — see sync._link_ip_address().
+# It never changes or clears an existing link.
 
 
 class PatchVM(ChangeLoggingMixin, models.Model):
@@ -1078,6 +1085,17 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         verbose_name='CheckMK raw state',
         help_text='0=OK, 1=WARN, 2=CRIT, 3=UNKNOWN',
     )
+    checkmk_ip = models.CharField(
+        max_length=64, blank=True, default='',
+        verbose_name='IP address in CheckMK',
+        help_text='Address CheckMK monitors this host on. Read-only mirror — '
+                  'the NetBox IP link is the authoritative one.',
+    )
+    checkmk_host_state = models.SmallIntegerField(
+        null=True, blank=True,
+        verbose_name='CheckMK host state',
+        help_text='0=UP, 1=DOWN, 2=UNREACHABLE',
+    )
     checkmk_monitored = models.BooleanField(
         default=False,
         verbose_name='Monitored in CheckMK',
@@ -1143,6 +1161,23 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         Its patch status is frozen at the last known value.
         """
         return bool(self.checkmk_host_name) and not self.checkmk_monitored
+
+    @property
+    def checkmk_host_down(self):
+        """CheckMK cannot reach the host — the patch data below is stale."""
+        return self.checkmk_host_state is not None and self.checkmk_host_state != 0
+
+    @property
+    def checkmk_ip_unlinked(self):
+        """CheckMK reports an address that has no NetBox IPAddress behind it."""
+        return bool(self.checkmk_ip) and not self.ip_address_id
+
+    @property
+    def checkmk_ip_mismatch(self):
+        """The linked NetBox IP differs from the address CheckMK monitors."""
+        if not self.checkmk_ip or not self.ip_address_id:
+            return False
+        return self.ip_display != self.checkmk_ip
 
     @property
     def unmonitored_days(self):
@@ -1342,6 +1377,7 @@ class CheckmkSyncRun(models.Model):
     hosts_updated = models.PositiveIntegerField(default=0)
     hosts_stale = models.PositiveIntegerField(default=0)
     escalated = models.PositiveIntegerField(default=0)
+    ips_linked = models.PositiveIntegerField(default=0)
 
     # Number of runs kept; older rows are pruned after each sync.
     HISTORY_LIMIT = 50

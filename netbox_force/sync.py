@@ -60,6 +60,42 @@ def _match_existing(host_name, by_checkmk, by_fqdn, by_vm_name):
     return by_checkmk.get(key) or by_fqdn.get(key) or by_vm_name.get(key)
 
 
+def _find_netbox_ip(address):
+    """
+    An existing NetBox IPAddress for this bare address, or None.
+
+    Nothing is ever created here — a monitoring system is not the source of
+    truth for IPAM. An address CheckMK knows and NetBox does not is surfaced
+    in the UI so a human can decide what it should become.
+    """
+    if not address:
+        return None
+    try:
+        from django.apps import apps
+        IPAddress = apps.get_model('ipam', 'IPAddress')
+        return IPAddress.objects.filter(address__net_host=address).first()
+    except Exception:
+        logger.debug('IP lookup failed for %s', address, exc_info=True)
+        return None
+
+
+def _link_ip_address(pvm, address):
+    """
+    Fill an empty ip_address link, and only that.
+
+    Returns True when a link was written. An existing link is never changed
+    or cleared: it may have been set deliberately, and CheckMK monitoring a
+    different address is information, not a correction.
+    """
+    if not address or pvm.ip_address_id:
+        return False
+    ip = _find_netbox_ip(address)
+    if ip is None:
+        return False
+    PatchVM.objects.filter(pk=pvm.pk, ip_address__isnull=True).update(ip_address=ip)
+    return True
+
+
 def _find_netbox_vm(host_name):
     """
     Best-effort link to a NetBox VirtualMachine, matched on name — with and
@@ -183,6 +219,14 @@ def _perform(settings_obj, run):
         by_host.setdefault(row['host_name'], []).append(row)
     run.hosts_seen = len(by_host)
 
+    # Host attributes are supplementary. Losing them must not cost us the
+    # patch status, which is the reason the sync exists.
+    try:
+        host_info = client.fetch_hosts()
+    except CheckmkError as exc:
+        logger.warning('CheckMK host attributes unavailable: %s', exc)
+        host_info = {}
+
     existing = list(PatchVM.objects.all().select_related('vm'))
     by_checkmk = {p.checkmk_host_name.lower(): p for p in existing if p.checkmk_host_name}
     by_fqdn = {p.fqdn.lower(): p for p in existing if p.fqdn}
@@ -203,6 +247,7 @@ def _perform(settings_obj, run):
         if status == 'red' and STATE_MAP.get(state, 'yellow') == 'yellow':
             escalated_inline += 1
 
+        info = host_info.get(host_name) or {}
         values = {
             'patch_status': status,
             'first_warned': first_warned,
@@ -211,6 +256,8 @@ def _perform(settings_obj, run):
             'checkmk_host_name': host_name,
             'checkmk_service': services[:255],
             'checkmk_state': state,
+            'checkmk_ip': (info.get('address') or '')[:64],
+            'checkmk_host_state': info.get('state'),
             'checkmk_monitored': True,
             'checkmk_last_seen': now,
             'updated': now,
@@ -219,17 +266,26 @@ def _perform(settings_obj, run):
         values = {k: v for k, v in values.items() if k in CHECKMK_SYNC_FIELDS}
 
         if pvm is None:
-            pvm = PatchVM.objects.create(
+            pvm = PatchVM(
                 fqdn=host_name,
                 vm=_find_netbox_vm(host_name),
                 source='checkmk',
                 **values,
             )
+            # Creating a row goes through save() and therefore through this
+            # plugin's own enforcement. Without the bypass, discovering a new
+            # host would be blocked for want of a changelog message the sync
+            # has no way to supply.
+            pvm._netbox_force_sync_save = True
+            pvm.save()
             by_checkmk[host_name.lower()] = pvm
             run.hosts_created += 1
         else:
             PatchVM.objects.filter(pk=pvm.pk).update(**values)
             run.hosts_updated += 1
+
+        if _link_ip_address(pvm, values['checkmk_ip']):
+            run.ips_linked += 1
 
         seen_pks.add(pvm.pk)
 
