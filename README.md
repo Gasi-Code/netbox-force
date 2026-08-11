@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-5.1.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.2.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,13 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v5.2.0
+
+- **Relative times no longer mix languages.** Django's `timesince` renders in NetBox's locale while every other label comes from the plugin's own language setting, which produced output like *"5 Minuten ago"*. A `force_age` filter now reads the plugin language and uses a compact unit form (`5 Min.`, `2 Std.`, `3 T`) that needs no preposition or plural rule in any of the sixteen languages.
+- **Create missing IP addresses in one click.** Where CheckMK reports an address NetBox does not know, the patch list offers a button straight into NetBox's IPAM form, prefilled with the address and the host name as DNS name.
+- **The mask is derived, not guessed** — it comes from the most specific NetBox prefix containing the address. Only when no prefix matches is a host mask prefilled, and the button says so instead of pretending to know.
+- Removed the leftover `wizard_*.html` templates of the withdrawn wizard feature.
 
 ### v5.1.0
 

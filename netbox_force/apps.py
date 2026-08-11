@@ -133,7 +133,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.1.0'
+    version = '5.2.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'

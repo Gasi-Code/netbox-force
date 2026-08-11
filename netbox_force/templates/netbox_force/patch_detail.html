@@ -1,4 +1,5 @@
 {% extends 'base/layout.html' %}
+{% load netbox_force_extras %}
 
 {% block title %}NetBox Force — {{ patch_vm }}{% endblock %}
 
@@ -162,6 +163,23 @@
                                     {{ ui.patch_ip_missing|default:"not in NetBox" }} —
                                     {{ ui.patch_ip_missing_hint|default:"Create this address in NetBox IPAM to link it." }}
                                 </small>
+                                {% if patch_vm.ip_create_url %}
+                                <br><a href="{{ patch_vm.ip_create_url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="mdi mdi-plus"></i>
+                                    {{ ui.btn_create_ip|default:"Create in IPAM" }}
+                                </a>
+                                <div class="form-text">
+                                    {% if patch_vm.ip_prefix_known %}
+                                        {{ ui.patch_ip_create_hint_prefix|default:"Mask taken from the matching NetBox prefix." }}
+                                    {% else %}
+                                        <span class="text-warning">
+                                            <i class="mdi mdi-alert-outline"></i>
+                                            {{ ui.patch_ip_create_hint_guess|default:"No matching NetBox prefix — a host mask is prefilled, correct it in the form." }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                                 {% elif patch_vm.checkmk_ip_mismatch %}
                                 <br><small class="text-warning">
                                     <i class="mdi mdi-alert-outline"></i>
@@ -190,7 +208,7 @@
                             {% if patch_vm.last_checked %}
                             <i class="mdi mdi-check-circle-outline text-success"></i>
                             {{ patch_vm.last_checked|date:'Y-m-d H:i' }}
-                            <small class="text-muted">({{ patch_vm.last_checked|timesince }})</small>
+                            <small class="text-muted">({{ patch_vm.last_checked|force_age }})</small>
                             {% else %}
                             <span class="text-muted">{{ ui.patch_checkmk_never|default:"Never" }}</span>
                             {% endif %}

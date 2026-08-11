@@ -431,6 +431,67 @@ def _checkmk_error_text(code, ui, detail=''):
     return f'{text} ({detail})' if detail else text
 
 
+def _suggest_prefix_length(address):
+    """
+    Mask length of the most specific NetBox prefix containing this address,
+    or None when NetBox does not know the network.
+    """
+    try:
+        Prefix = apps.get_model('ipam', 'Prefix')
+        candidates = list(Prefix.objects.filter(prefix__net_contains=address)[:20])
+    except Exception:
+        logger.debug('prefix lookup failed for %s', address, exc_info=True)
+        return None
+    if not candidates:
+        return None
+    try:
+        return max(p.prefix.prefixlen for p in candidates)
+    except Exception:
+        return None
+
+
+def _ip_create_url(address, dns_name='', prefix_length=None):
+    """
+    Link to NetBox's IP address form, prefilled.
+
+    The mask is the part CheckMK cannot supply — it only ever reports a bare
+    address. Taking it from the containing NetBox prefix produces the right
+    answer whenever NetBox knows the network. Where it does not, a host mask
+    is prefilled: the field is visible and editable in the form, which beats
+    handing the user a form that refuses to submit.
+    """
+    if not address:
+        return ''
+    from urllib.parse import urlencode
+
+    if prefix_length is None:
+        prefix_length = 128 if ':' in address else 32
+    params = {'address': f'{address}/{prefix_length}'}
+    if dns_name:
+        params['dns_name'] = dns_name[:255]
+    try:
+        return f"{reverse('ipam:ipaddress_add')}?{urlencode(params)}"
+    except Exception:
+        return ''
+
+
+def _annotate_ip_actions(patch_vms):
+    """
+    Attach a prefilled IPAM link to every entry whose CheckMK address has no
+    NetBox counterpart, plus a flag for whether the mask was derived or
+    guessed — the template says which, so nobody saves a wrong /32 unaware.
+    """
+    for pvm in patch_vms:
+        if not pvm.checkmk_ip_unlinked:
+            pvm.ip_create_url = ''
+            pvm.ip_prefix_known = False
+            continue
+        length = _suggest_prefix_length(pvm.checkmk_ip)
+        pvm.ip_prefix_known = length is not None
+        pvm.ip_create_url = _ip_create_url(
+            pvm.checkmk_ip, pvm.fqdn or pvm.checkmk_host_name, length)
+
+
 def _checkmk_context(settings_obj):
     """Extra context for the CheckMK card on the settings page."""
     from .models import CheckmkSyncRun
@@ -1740,6 +1801,8 @@ class PatchVMListView(LoginRequiredMixin, View):
         ctx['checkmk_enabled'] = bool(settings_obj and settings_obj.checkmk_enabled)
         ctx['checkmk_last_run'] = CheckmkSyncRun.latest() if ctx['checkmk_enabled'] else None
         ctx['stale_count'] = sum(1 for p in patch_vms if p.checkmk_stale)
+        if ctx['checkmk_enabled']:
+            _annotate_ip_actions(patch_vms)
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 
@@ -1762,6 +1825,8 @@ class PatchVMDetailView(LoginRequiredMixin, View):
             entry_contacts = {}
         for e in entries:
             e.updated_by_contact_resolved = entry_contacts.get(e.updated_by_contact_id)
+
+        _annotate_ip_actions([patch_vm])
 
         ctx = _base_context()
         ctx['active_tab'] = 'patch'

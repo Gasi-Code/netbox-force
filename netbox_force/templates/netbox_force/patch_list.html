@@ -1,4 +1,5 @@
 {% extends 'base/layout.html' %}
+{% load netbox_force_extras %}
 
 {% block title %}NetBox Force — {{ ui.tab_patch|default:"Patchmanagement" }}{% endblock %}
 
@@ -106,7 +107,7 @@
                     <div class="flex-grow-1 small">
                         {% if checkmk_last_run %}
                             {{ ui.checkmk_last_sync|default:"Last CheckMK sync" }}:
-                            {{ checkmk_last_run.started|timesince }}
+                            {{ checkmk_last_run.started|force_age }}
                             {% if checkmk_last_run.success %}
                                 &middot; {{ checkmk_last_run.hosts_seen }} {{ ui.checkmk_stat_hosts|default:"hosts" }}
                             {% else %}
@@ -191,11 +192,21 @@
                                     {% endif %}
                                     {% elif pvm.checkmk_ip %}
                                     <span class="text-muted">{{ pvm.checkmk_ip }}</span>
-                                    <br><small class="text-warning"
-                                               title="{{ ui.patch_ip_missing_hint|default:'Create this address in NetBox IPAM to link it.' }}">
+                                    <br><small class="text-warning">
                                         <i class="mdi mdi-help-circle-outline"></i>
                                         {{ ui.patch_ip_missing|default:"not in NetBox" }}
                                     </small>
+                                    {% if pvm.ip_create_url %}
+                                    <br><a href="{{ pvm.ip_create_url }}" target="_blank"
+                                           class="btn btn-sm btn-outline-primary mt-1 py-0"
+                                           title="{% if pvm.ip_prefix_known %}{{ ui.patch_ip_create_hint_prefix|default:'Mask taken from the matching NetBox prefix.' }}{% else %}{{ ui.patch_ip_create_hint_guess|default:'No matching NetBox prefix — a host mask is prefilled, correct it in the form.' }}{% endif %}">
+                                        <i class="mdi mdi-plus"></i>
+                                        {{ ui.btn_create_ip|default:"Create in IPAM" }}
+                                        {% if not pvm.ip_prefix_known %}
+                                        <i class="mdi mdi-alert-outline text-warning"></i>
+                                        {% endif %}
+                                    </a>
+                                    {% endif %}
                                     {% else %}—{% endif %}
                                 </td>
                                 <td>{{ pvm.os_info|default:"—" }}</td>
@@ -259,7 +270,7 @@
                                     {% if pvm.last_checked %}
                                     <span title="{{ pvm.last_checked|date:'Y-m-d H:i' }}">
                                         <i class="mdi mdi-check-circle-outline text-success"></i>
-                                        {{ pvm.last_checked|timesince }} ago
+                                        {{ pvm.last_checked|force_age }}
                                     </span>
                                     {% if pvm.update_details %}
                                     <br><small class="text-muted" title="{{ pvm.update_details }}">
