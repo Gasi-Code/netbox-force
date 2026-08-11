@@ -7,6 +7,131 @@
 {% endblock tabs %}
 
 {% block content %}
+{% load netbox_force_extras %}
+
+{% if patch_dashboard %}
+{# Sync health first: every figure below it is worthless if data stopped arriving #}
+{% if checkmk_on %}
+<div class="alert {% if checkmk_overdue %}alert-danger{% elif checkmk_last_run.success %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-start gap-2 mb-3">
+    <i class="mdi {% if checkmk_overdue %}mdi-alert{% else %}mdi-lan-connect{% endif %} fs-5 mt-1"></i>
+    <div class="flex-grow-1">
+        {% if checkmk_overdue %}
+        <strong>{{ ui.dash_checkmk_stalled|default:"CheckMK sync is overdue" }}</strong>
+        <div class="small">{{ ui.dash_checkmk_stalled_hint|default:"The patch status below is no longer being refreshed. Run a sync from the settings page and check the background worker." }}</div>
+        {% else %}
+        <strong>{{ ui.dash_checkmk_title|default:"CheckMK synchronisation" }}</strong>
+        {% endif %}
+        <div class="small mt-1">
+            {% if checkmk_last_run %}
+                {{ ui.checkmk_last_sync|default:"Last sync" }}:
+                <strong>{{ checkmk_last_run.started|force_age }}</strong>
+                {% if checkmk_last_run.success %}
+                    &middot; {{ checkmk_last_run.hosts_seen }} {{ ui.checkmk_stat_hosts|default:"hosts" }}
+                    &middot; {{ checkmk_last_run.hosts_updated }} {{ ui.checkmk_stat_updated|default:"updated" }}
+                {% else %}
+                    &middot; <span class="fw-bold">{{ ui.checkmk_sync_failed|default:"failed" }}: {{ checkmk_last_run.error_code }}</span>
+                {% endif %}
+            {% else %}
+                {{ ui.checkmk_never_synced|default:"Never synchronised yet." }}
+            {% endif %}
+            {% if checkmk_interval %}
+                &middot; {{ ui.label_checkmk_sync_interval|default:"Sync interval (min)" }}: {{ checkmk_interval }}
+            {% endif %}
+            {% if not checkmk_auto_sync %}
+                <br><span class="text-warning">
+                    <i class="mdi mdi-alert-outline"></i>
+                    {{ ui.checkmk_auto_sync_inactive|default:"No background worker found." }}
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    <a href="{% url 'plugins:netbox_force:settings' %}" class="btn btn-sm btn-outline-secondary flex-shrink-0">
+        <i class="mdi mdi-cog"></i>
+    </a>
+</div>
+{% endif %}
+
+<div class="row mb-3">
+    {# Patch status distribution #}
+    <div class="col-md-7">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-wrench-clock"></i> {{ ui.dash_patch_title|default:"Patch status" }}
+                <span class="float-end text-muted fs-5">{{ patch_total }}</span>
+            </h5>
+            <div class="card-body">
+                {% if patch_total %}
+                <div class="progress mb-3" style="height: 1.6rem;">
+                    {% widthratio patch_green patch_total 100 as pct_green %}
+                    {% widthratio patch_yellow patch_total 100 as pct_yellow %}
+                    {% widthratio patch_red patch_total 100 as pct_red %}
+                    <div class="progress-bar bg-success" style="width: {{ pct_green }}%">{{ patch_green }}</div>
+                    <div class="progress-bar bg-warning text-dark" style="width: {{ pct_yellow }}%">{{ patch_yellow }}</div>
+                    <div class="progress-bar bg-danger" style="width: {{ pct_red }}%">{{ patch_red }}</div>
+                </div>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}?status=green" class="text-decoration-none">
+                        <span class="badge bg-success">{{ patch_green }}</span>
+                        <span class="text-muted">{{ ui.patch_status_green|default:"OK" }}</span>
+                    </a>
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}?status=yellow" class="text-decoration-none">
+                        <span class="badge bg-warning text-dark">{{ patch_yellow }}</span>
+                        <span class="text-muted">{{ ui.patch_status_yellow|default:"Warning" }}</span>
+                    </a>
+                    <a href="{% url 'plugins:netbox_force:patch_list' %}?status=red" class="text-decoration-none">
+                        <span class="badge bg-danger">{{ patch_red }}</span>
+                        <span class="text-muted">{{ ui.patch_status_red|default:"Critical" }}</span>
+                    </a>
+                    {% if patch_escalated %}
+                    <span>
+                        <span class="badge bg-danger"><i class="mdi mdi-clock-alert"></i> {{ patch_escalated }}</span>
+                        <span class="text-muted">{{ ui.patch_escalated_badge|default:"Auto-escalated" }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">{{ ui.widget_patch_empty|default:"No VMs in patch management." }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Open gaps — the work list produced by the CheckMK sync #}
+    <div class="col-md-5">
+        <div class="card h-100">
+            <h5 class="card-header">
+                <i class="mdi mdi-clipboard-alert-outline"></i> {{ ui.dash_gaps_title|default:"Open gaps" }}
+            </h5>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td>{{ ui.dash_gap_unlinked|default:"Entries without a NetBox object" }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if patch_unlinked %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ patch_unlinked }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ ui.dash_gap_ip|default:"CheckMK addresses missing in IPAM" }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if patch_ip_gaps %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ patch_ip_gaps }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ ui.patch_not_monitored|default:"No longer monitored in CheckMK" }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if patch_stale %}bg-danger{% else %}bg-success{% endif %}">{{ patch_stale }}</span>
+                        </td>
+                    </tr>
+                </table>
+                <a href="{% url 'plugins:netbox_force:patch_list' %}" class="btn btn-sm btn-outline-primary mt-3">
+                    <i class="mdi mdi-format-list-bulleted"></i> {{ ui.tab_patch|default:"Patchmanagement" }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-end gap-2 mb-3">
     <a href="{% url 'plugins:netbox_force:dashboard_export' %}" class="btn btn-outline-primary btn-sm">
         <i class="mdi mdi-download"></i> {{ ui.btn_export_dashboard|default:"Export Statistics" }}

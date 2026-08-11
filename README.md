@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-5.3.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.4.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,13 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v5.4.0
+
+- **The scheduled sync no longer stalls silently.** The scheduled entry lives in Redis while the job row lives in Postgres; a container restart could lose the former and keep the latter, and `enqueue_once()` then saw a job it believed was already scheduled and created nothing. Rows overdue by more than twice the interval are now discarded and re-enqueued at startup.
+- **A stalled sync is visible.** The dashboard states outright when the last successful sync is older than twice the configured interval, instead of showing a patch status that quietly stopped being true.
+- **Dashboard covers Patch Management.** Patch status distribution with counts of auto-escalated entries, and an *Open gaps* panel listing entries without a NetBox object, CheckMK addresses missing from IPAM, and hosts CheckMK no longer reports.
+- **Model Policies reachable from the sidebar.** The page, its views and its translations all existed; only the navigation entry was missing, so it could be found by typing the URL and no other way.
 
 ### v5.3.0
 

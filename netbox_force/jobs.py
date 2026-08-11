@@ -60,6 +60,42 @@ if JOBRUNNER_AVAILABLE:
             return (f'{run.hosts_seen} hosts, {run.hosts_created} created, '
                     f'{run.hosts_updated} updated, {run.hosts_stale} stale')
 
+    def _drop_stale_jobs(interval):
+        """
+        Remove scheduled job rows whose due time has long passed.
+
+        The scheduled entry lives in Redis while the Job row lives in
+        Postgres. A container restart can lose the former and keep the
+        latter, and enqueue_once() then sees a job it believes is already
+        scheduled and creates nothing — the sync stops for good, silently.
+
+        Only rows overdue by more than twice the interval are removed, so a
+        job that is merely due-but-not-yet-picked-up is left alone.
+        """
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        try:
+            from core.models import Job
+        except Exception:
+            return 0
+
+        cutoff = timezone.now() - timedelta(minutes=max(interval * 2, 5))
+        try:
+            stale = Job.objects.filter(
+                name=JOB_NAME, status='scheduled', scheduled__lt=cutoff)
+            count = stale.count()
+            if count:
+                logger.warning(
+                    'netbox_force: discarding %s stale CheckMK sync job(s) '
+                    'overdue since before %s', count, cutoff)
+                stale.delete()
+            return count
+        except Exception:
+            logger.debug('stale job cleanup failed', exc_info=True)
+            return 0
+
     def schedule():
         """
         (Re)register the recurring job using the configured interval.
@@ -76,10 +112,38 @@ if JOBRUNNER_AVAILABLE:
         if not settings_obj.checkmk_enabled or interval <= 0:
             return
 
+        _drop_stale_jobs(interval)
+
         try:
             CheckmkSyncJob.enqueue_once(interval=interval)
         except Exception:
             logger.debug('CheckMK sync job could not be scheduled', exc_info=True)
+
+    def sync_overdue():
+        """
+        True when the last successful sync is older than twice the interval.
+
+        A stalled background job is the failure mode that hurts most: the
+        page keeps showing a patch status, it is just quietly out of date.
+        The UI asks this so it can say so out loud.
+        """
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .models import CheckmkSyncRun, ForceSettings
+
+        settings_obj = ForceSettings.get_settings()
+        if settings_obj is None or not settings_obj.checkmk_enabled:
+            return False
+        interval = settings_obj.checkmk_sync_interval or 0
+        if interval <= 0:
+            return False
+
+        run = CheckmkSyncRun.objects.filter(success=True).order_by('-started').first()
+        if run is None:
+            return True
+        return (timezone.now() - run.started) > timedelta(minutes=interval * 2)
 
 else:
 
@@ -87,3 +151,6 @@ else:
 
     def schedule():
         return
+
+    def sync_overdue():
+        return False

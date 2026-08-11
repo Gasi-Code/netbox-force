@@ -1078,6 +1078,54 @@ class ViolationExportCSVView(SuperuserRequiredMixin, View):
 # DASHBOARD VIEW
 # =============================================================================
 
+def _patch_dashboard_context(settings_obj):
+    """
+    Patch Management and CheckMK figures for the dashboard.
+
+    Three questions, in the order they matter: is the data still arriving,
+    what does it say, and what is left to clean up. A stalled sync comes
+    first — every number below it is worthless if the answer is no.
+    """
+    from .models import CheckmkSyncRun
+
+    if not getattr(settings_obj, 'patchmanagement_enabled', False):
+        return {'patch_dashboard': False}
+
+    counts = dict(
+        PatchVM.objects.values_list('patch_status')
+        .annotate(c=Count('pk')).values_list('patch_status', 'c')
+    )
+    entries = list(PatchVM.objects.all().only(
+        'patch_status', 'first_warned', 'checkmk_host_name', 'checkmk_monitored',
+        'checkmk_ip', 'ip_address', 'vm', 'device',
+    ))
+
+    checkmk_on = bool(getattr(settings_obj, 'checkmk_enabled', False))
+    try:
+        from .jobs import jobs_available, sync_overdue
+        overdue = sync_overdue() if checkmk_on else False
+        auto = jobs_available()
+    except Exception:
+        overdue, auto = False, False
+
+    return {
+        'patch_dashboard': True,
+        'patch_total': len(entries),
+        'patch_green': counts.get('green', 0),
+        'patch_yellow': counts.get('yellow', 0),
+        'patch_red': counts.get('red', 0),
+        'patch_escalated': sum(1 for p in entries if p.checkmk_escalated),
+        'patch_stale': sum(1 for p in entries if p.checkmk_stale),
+        'patch_unlinked': sum(1 for p in entries if p.netbox_unlinked),
+        'patch_ip_gaps': sum(1 for p in entries if p.checkmk_ip_unlinked),
+        'checkmk_on': checkmk_on,
+        'checkmk_last_run': CheckmkSyncRun.latest() if checkmk_on else None,
+        'checkmk_overdue': overdue,
+        'checkmk_auto_sync': auto,
+        'checkmk_interval': getattr(settings_obj, 'checkmk_sync_interval', 0),
+    }
+
+
 class DashboardView(SuperuserRequiredMixin, View):
     """Dashboard with violation statistics and feature status."""
 
@@ -1139,6 +1187,7 @@ class DashboardView(SuperuserRequiredMixin, View):
         ctx = _base_context(settings)
         top_users_label = ctx['ui'].get('dashboard_top_users', 'Top {count} Users').format(count=top_count)
 
+        ctx.update(_patch_dashboard_context(settings))
         ctx.update({
             'settings': settings,
             'total_violations': total_violations,

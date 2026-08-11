@@ -19,6 +19,11 @@ _menu = PluginMenu(
                 permissions=['netbox_force.view_validationrule'],
             ),
             PluginMenuItem(
+                link='plugins:netbox_force:policy_list',
+                link_text='Model Policies',
+                permissions=['netbox_force.view_modelpolicy'],
+            ),
+            PluginMenuItem(
                 link='plugins:netbox_force:violation_list',
                 link_text='Violations',
                 permissions=['netbox_force.view_violation'],
@@ -89,6 +94,11 @@ def _localize_menu():
                         permissions=['netbox_force.view_validationrule'],
                     ),
                     PluginMenuItem(
+                        link='plugins:netbox_force:policy_list',
+                        link_text=ui.get('tab_policies', 'Model Policies'),
+                        permissions=['netbox_force.view_modelpolicy'],
+                    ),
+                    PluginMenuItem(
                         link='plugins:netbox_force:violation_list',
                         link_text=ui.get('tab_violations', 'Violations'),
                         permissions=['netbox_force.view_violation'],
@@ -133,7 +143,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.3.0'
+    version = '5.4.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
