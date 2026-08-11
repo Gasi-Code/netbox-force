@@ -133,7 +133,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '4.7.0'
+    version = '5.0.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
@@ -152,6 +152,9 @@ class NetboxForceConfig(PluginConfig):
         'enforce_on_create': False,
         'enforce_on_delete': True,
         'extra_exempt_models': [],
+        # Optional: setting this keeps the CheckMK automation secret out of
+        # the database entirely. It then takes precedence over the UI field.
+        'checkmk_secret': '',
     }
 
     def ready(self):
@@ -159,6 +162,17 @@ class NetboxForceConfig(PluginConfig):
         from . import signals  # noqa: F401
         from . import dashboards  # noqa: F401 — registers @register_widget
         _localize_menu()
+
+        # Registering the recurring CheckMK sync must never keep the plugin
+        # from loading — no worker, an older NetBox, or an unmigrated DB all
+        # end up here during normal operation.
+        try:
+            from .jobs import schedule
+            schedule()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug(
+                'netbox_force: CheckMK job scheduling skipped: %s', exc)
 
 
 config = NetboxForceConfig

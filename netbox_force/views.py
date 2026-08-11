@@ -377,6 +377,157 @@ class CsvHeadersAPIView(SuperuserRequiredMixin, View):
 # SETTINGS VIEW
 # =============================================================================
 
+# Error codes raised by checkmk.py / sync.py mapped to ui_strings keys, so the
+# UI can explain a failure instead of showing an HTTP status number.
+CHECKMK_ERROR_KEYS = {
+    'unreachable': 'checkmk_err_unreachable',
+    'timeout': 'checkmk_err_timeout',
+    'tls': 'checkmk_err_tls',
+    'auth': 'checkmk_err_auth',
+    'redirect_login': 'checkmk_err_redirect_login',
+    'unexpected_redirect': 'checkmk_err_redirect_login',
+    'not_found': 'checkmk_err_not_found',
+    'bad_response': 'checkmk_err_bad_response',
+    'http_error': 'checkmk_err_http',
+    'request_failed': 'checkmk_err_unreachable',
+    'no_credentials': 'checkmk_err_no_credentials',
+    'no_url': 'checkmk_err_no_url',
+    'bad_url': 'checkmk_err_no_url',
+    'bad_scheme': 'checkmk_err_no_url',
+    'missing_site': 'checkmk_err_missing_site',
+    'bad_pattern': 'checkmk_err_bad_pattern',
+    'no_flavor': 'checkmk_err_bad_response',
+    'no_settings': 'checkmk_err_not_configured',
+    'no_flavour': 'checkmk_err_bad_response',
+    'disabled': 'checkmk_err_disabled',
+    'not_configured': 'checkmk_err_not_configured',
+    'already_running': 'checkmk_err_already_running',
+    'internal': 'checkmk_err_internal',
+}
+
+CHECKMK_ERROR_FALLBACKS = {
+    'checkmk_err_unreachable': 'CheckMK could not be reached. Check the URL and the network path.',
+    'checkmk_err_timeout': 'CheckMK did not answer within the configured timeout.',
+    'checkmk_err_tls': 'The TLS certificate was rejected. Use a trusted certificate or disable verification.',
+    'checkmk_err_auth': 'Login rejected. Check the automation user and secret.',
+    'checkmk_err_redirect_login': 'CheckMK redirected to its login page — the credentials or the site URL are wrong.',
+    'checkmk_err_not_found': 'The API path was not found. Check the site name in the URL.',
+    'checkmk_err_bad_response': 'CheckMK returned an unexpected response.',
+    'checkmk_err_http': 'CheckMK returned an error.',
+    'checkmk_err_no_credentials': 'Automation user or secret is missing.',
+    'checkmk_err_no_url': 'The CheckMK URL is missing or invalid.',
+    'checkmk_err_missing_site': 'The URL must include the CheckMK site, e.g. https://host/mysite',
+    'checkmk_err_bad_pattern': 'The service filter is not a valid regular expression.',
+    'checkmk_err_disabled': 'The CheckMK integration is disabled.',
+    'checkmk_err_not_configured': 'The CheckMK integration is not fully configured.',
+    'checkmk_err_already_running': 'A synchronisation is already running.',
+    'checkmk_err_internal': 'The synchronisation failed unexpectedly. See the NetBox log.',
+}
+
+
+def _checkmk_error_text(code, ui, detail=''):
+    key = CHECKMK_ERROR_KEYS.get(code, 'checkmk_err_internal')
+    text = ui.get(key) or CHECKMK_ERROR_FALLBACKS.get(key, code)
+    return f'{text} ({detail})' if detail else text
+
+
+def _checkmk_context(settings_obj):
+    """Extra context for the CheckMK card on the settings page."""
+    from .models import CheckmkSyncRun
+    from .secretstore import crypto_available
+
+    try:
+        from .jobs import jobs_available, worker_count
+        workers = worker_count()
+        auto = jobs_available()
+    except Exception:
+        workers, auto = 0, False
+
+    return {
+        'checkmk_last_run': CheckmkSyncRun.latest(),
+        'checkmk_recent_runs': list(CheckmkSyncRun.objects.all()[:10]),
+        'checkmk_auto_sync': auto,
+        'checkmk_worker_count': workers,
+        'checkmk_crypto_available': crypto_available(),
+        'checkmk_secret_from_config': bool(
+            settings_obj and settings_obj.checkmk_secret_is_from_config),
+    }
+
+
+class CheckmkTestView(SuperuserRequiredMixin, View):
+    """
+    Verify the stored CheckMK credentials and report what was found, in plain
+    language. Read-only — it never writes patch data.
+    """
+
+    def post(self, request):
+        from .checkmk import CheckmkError, build_client
+
+        ui = _get_ui_context()
+        settings_obj = ForceSettings.get_settings()
+
+        try:
+            client = build_client(settings_obj)
+            version, edition = client.get_version()
+            rows = client.fetch_update_services(settings_obj.checkmk_service_pattern)
+        except CheckmkError as exc:
+            return JsonResponse({
+                'ok': False,
+                'message': _checkmk_error_text(exc.code, ui, exc.detail[:200]),
+            })
+        except Exception as exc:
+            logger.exception('CheckMK test failed')
+            return JsonResponse({
+                'ok': False,
+                'message': _checkmk_error_text('internal', ui, str(exc)[:200]),
+            })
+
+        hosts = sorted({r['host_name'] for r in rows})
+        services = sorted({r['description'] for r in rows})
+        return JsonResponse({
+            'ok': True,
+            'version': f'{version} ({edition})',
+            'flavor': client.detected_flavor or '',
+            'hosts': len(hosts),
+            'services': len(rows),
+            'service_names': services[:10],
+            'sample_hosts': hosts[:10],
+        })
+
+
+class CheckmkSyncNowView(SuperuserRequiredMixin, View):
+    """Run one synchronisation on demand and report the counters."""
+
+    def post(self, request):
+        from .sync import SyncSkipped, run_sync
+
+        ui = _get_ui_context()
+        try:
+            run = run_sync(triggered_by='manual')
+        except SyncSkipped as exc:
+            return JsonResponse({'ok': False,
+                                 'message': _checkmk_error_text(exc.code, ui)})
+
+        if not run.success:
+            return JsonResponse({
+                'ok': False,
+                'message': _checkmk_error_text(run.error_code, ui, run.message[:200]),
+            })
+
+        return JsonResponse({
+            'ok': True,
+            'version': run.checkmk_version,
+            'flavor': run.api_flavor,
+            'duration_ms': run.duration_ms,
+            'services': run.services_found,
+            'hosts': run.hosts_seen,
+            'created': run.hosts_created,
+            'updated': run.hosts_updated,
+            'stale': run.hosts_stale,
+            'escalated': run.escalated,
+        })
+
+
 class ForceSettingsView(SuperuserRequiredMixin, View):
     """Settings page for the NetBox Force plugin."""
 
@@ -391,6 +542,7 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             'settings': settings,
             'active_tab': 'settings',
             'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
+            **_checkmk_context(settings),
         })
         return render(request, 'netbox_force/settings.html', ctx)
 
@@ -409,6 +561,7 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             'settings': settings,
             'active_tab': 'settings',
             'ticket_suggestions': json.dumps(TICKET_PATTERN_SUGGESTIONS),
+            **_checkmk_context(settings),
         })
         return render(request, 'netbox_force/settings.html', ctx)
 
@@ -1572,6 +1725,12 @@ class PatchVMListView(LoginRequiredMixin, View):
         ctx['q'] = q
         ctx['status_filter'] = status_filter
         ctx['pp'] = _patch_perms(request.user)
+
+        from .models import CheckmkSyncRun
+        settings_obj = ForceSettings.get_settings()
+        ctx['checkmk_enabled'] = bool(settings_obj and settings_obj.checkmk_enabled)
+        ctx['checkmk_last_run'] = CheckmkSyncRun.latest() if ctx['checkmk_enabled'] else None
+        ctx['stale_count'] = sum(1 for p in patch_vms if p.checkmk_stale)
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 

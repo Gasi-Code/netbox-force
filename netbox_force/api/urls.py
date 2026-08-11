@@ -1,7 +1,10 @@
-from django.urls import path
+"""
+No public API endpoints.
 
-from . import views
+The CheckMK integration used to expose an inbound webhook receiver here. It
+was replaced by an outbound pull (see netbox_force/sync.py), which removes the
+unauthenticated endpoint entirely — NetBox now only ever calls CheckMK, never
+the other way around.
+"""
 
-urlpatterns = [
-    path('webhook-receiver/', views.CheckmkWebhookView.as_view(), name='checkmk_webhook'),
-]
+urlpatterns = []

@@ -63,7 +63,13 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_overdue_days',
             'patch_editor_groups',
             'patch_import_groups',
-            'checkmk_webhook_secret',
+            'checkmk_enabled',
+            'checkmk_url',
+            'checkmk_username',
+            'checkmk_verify_ssl',
+            'checkmk_timeout',
+            'checkmk_service_pattern',
+            'checkmk_sync_interval',
             'checkmk_escalation_days',
         ]
         widgets = {
@@ -187,10 +193,30 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Patch-Admins',
             }),
-            'checkmk_webhook_secret': forms.TextInput(attrs={
+            'checkmk_url': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'mysecrettoken123',
+                'placeholder': 'https://checkmk.example.com/mysite',
+            }),
+            'checkmk_username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'netbox_force',
                 'autocomplete': 'off',
+            }),
+            'checkmk_service_pattern': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Updates?',
+            }),
+            'checkmk_timeout': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 300,
+                'style': 'width: 8rem;',
+            }),
+            'checkmk_sync_interval': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'max': 1440,
+                'style': 'width: 8rem;',
             }),
             'checkmk_escalation_days': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -213,6 +239,20 @@ class ForceSettingsForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.initial['auto_changelog_scope_areas'] = \
                 self.instance.get_auto_changelog_scope_list()
+
+        # The CheckMK secret is never rendered back. An empty field means
+        # 'keep the stored value', so the secret cannot be read out of the
+        # settings page and cannot be wiped by an unrelated save.
+        self.fields['checkmk_secret'] = forms.CharField(
+            required=False,
+            widget=forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'new-password',
+            }, render_value=False),
+            label='Automation secret',
+        )
+        if self.instance and self.instance.checkmk_secret_is_from_config:
+            self.fields['checkmk_secret'].disabled = True
 
     @staticmethod
     def _area_choices():
@@ -243,9 +283,46 @@ class ForceSettingsForm(forms.ModelForm):
     def clean_auto_changelog_scope_areas(self):
         return '\n'.join(self.cleaned_data.get('auto_changelog_scope_areas', []))
 
+    def clean_checkmk_url(self):
+        """Accept a pasted browser URL and reduce it to the site base."""
+        raw = (self.cleaned_data.get('checkmk_url') or '').strip()
+        if not raw:
+            return ''
+        from .checkmk import CheckmkError, normalize_base_url
+        try:
+            return normalize_base_url(raw)
+        except CheckmkError as exc:
+            raise forms.ValidationError(
+                {
+                    'missing_site': 'The URL must include the CheckMK site, '
+                                    'e.g. https://checkmk.example.com/mysite',
+                    'bad_scheme': 'Only http:// and https:// are supported.',
+                }.get(exc.code, 'This is not a valid CheckMK site URL.')
+            )
+
+    def clean_checkmk_service_pattern(self):
+        import re
+        pattern = (self.cleaned_data.get('checkmk_service_pattern') or '').strip()
+        if not pattern:
+            return 'Updates?'
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise forms.ValidationError(f'Invalid regular expression: {exc}')
+        return pattern
+
     def save(self, commit=True):
         obj = super().save(commit=False)
         obj.auto_changelog_scope = self.cleaned_data.get('auto_changelog_scope_areas', '')
+
+        secret = self.cleaned_data.get('checkmk_secret')
+        if secret and not obj.checkmk_secret_is_from_config:
+            obj.set_checkmk_secret(secret)
+
+        # A changed URL, user or query form invalidates the probed flavor.
+        if 'checkmk_url' in self.changed_data or 'checkmk_username' in self.changed_data:
+            obj.checkmk_api_flavor = 'auto'
+
         if commit:
             obj.save()
         return obj
@@ -316,7 +393,7 @@ class ForceSettingsForm(forms.ModelForm):
         return value
 
     def clean(self):
-        """Cross-field validation: require start/end when change window is enabled."""
+        """Cross-field validation for the change window and CheckMK block."""
         cleaned = super().clean()
         if cleaned.get('change_window_enabled'):
             if not cleaned.get('change_window_start'):
@@ -325,6 +402,20 @@ class ForceSettingsForm(forms.ModelForm):
             if not cleaned.get('change_window_end'):
                 self.add_error('change_window_end',
                                'End time is required when the change window is enabled.')
+
+        if cleaned.get('checkmk_enabled'):
+            for name in ('checkmk_url', 'checkmk_username'):
+                if not cleaned.get(name):
+                    self.add_error(
+                        name, 'Required when the CheckMK integration is enabled.')
+            # A stored secret counts — the field stays empty on every reload.
+            has_secret = bool(
+                cleaned.get('checkmk_secret')
+                or (self.instance.pk and self.instance.checkmk_has_secret)
+            )
+            if not has_secret:
+                self.add_error('checkmk_secret',
+                               'Required when the CheckMK integration is enabled.')
         return cleaned
 
 

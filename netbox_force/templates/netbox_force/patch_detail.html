@@ -113,9 +113,45 @@
 
         <!-- CheckMK Integration -->
         <div class="card mb-3">
-            <h6 class="card-header"><i class="mdi mdi-webhook"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}</h6>
+            <h6 class="card-header"><i class="mdi mdi-lan-connect"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}</h6>
             <div class="card-body">
+                {% if patch_vm.checkmk_stale %}
+                <div class="alert alert-danger py-2">
+                    <i class="mdi mdi-eye-off"></i>
+                    <strong>{{ ui.patch_not_monitored|default:"No longer monitored in CheckMK" }}</strong>
+                    <br>
+                    <small>
+                        {% if patch_vm.checkmk_last_seen %}
+                            {{ ui.patch_last_seen|default:"last seen" }}
+                            {{ patch_vm.checkmk_last_seen|date:'Y-m-d H:i' }}
+                            ({{ patch_vm.unmonitored_days }}d)
+                            &middot;
+                        {% endif %}
+                        {{ ui.patch_status_frozen|default:"The status below is the last known value and is no longer being updated." }}
+                    </small>
+                </div>
+                {% endif %}
                 <table class="table table-sm mb-0">
+                    {% if patch_vm.checkmk_host_name %}
+                    <tr>
+                        <th style="width:45%">{{ ui.label_checkmk_host|default:"CheckMK host" }}</th>
+                        <td>
+                            <code>{{ patch_vm.checkmk_host_name }}</code>
+                            {% if patch_vm.source == 'checkmk' %}
+                            <span class="badge bg-secondary ms-1">{{ ui.patch_source_checkmk|default:"discovered" }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>{{ ui.label_checkmk_service_field|default:"Service" }}</th>
+                        <td>
+                            {{ patch_vm.checkmk_service|default:"—" }}
+                            {% if patch_vm.checkmk_state is not None %}
+                            <small class="text-muted">(state {{ patch_vm.checkmk_state }})</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th style="width:45%">{{ ui.patch_col_last_checked|default:"Last checked (CheckMK)" }}</th>
                         <td>

@@ -246,12 +246,56 @@ class ForceSettings(models.Model):
         verbose_name='Patch import/admin groups',
         help_text='Comma-separated NetBox group names. Members have all editor rights plus VM import and contact sync.',
     )
-    checkmk_webhook_secret = models.CharField(
-        max_length=255,
+    # --- CheckMK Integration (pull) ---
+    checkmk_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable CheckMK integration',
+        help_text='Read patch status from CheckMK instead of maintaining it by hand.',
+    )
+    checkmk_url = models.CharField(
+        max_length=500,
         blank=True,
         default='',
-        verbose_name='CheckMK webhook secret',
-        help_text='Secret token for validating incoming CheckMK webhooks (Authorization: Bearer <secret>).',
+        verbose_name='CheckMK URL',
+        help_text='Site URL, e.g. https://checkmk.example.com/mysite',
+    )
+    checkmk_username = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Automation user',
+        help_text='CheckMK user with an automation secret and read-only (guest) role.',
+    )
+    checkmk_secret_encrypted = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Automation secret',
+        help_text='Stored encrypted. Never rendered back into the form.',
+    )
+    checkmk_verify_ssl = models.BooleanField(
+        default=True,
+        verbose_name='Verify TLS certificate',
+    )
+    checkmk_timeout = models.PositiveIntegerField(
+        default=10,
+        verbose_name='Timeout (seconds)',
+    )
+    checkmk_service_pattern = models.CharField(
+        max_length=200,
+        default='Updates?',
+        verbose_name='Service filter',
+        help_text='Regular expression matched against CheckMK service names, e.g. Updates?',
+    )
+    checkmk_sync_interval = models.PositiveIntegerField(
+        default=15,
+        verbose_name='Sync interval (minutes)',
+        help_text='How often the background job pulls from CheckMK. Set 0 to sync only on demand.',
+    )
+    checkmk_api_flavor = models.CharField(
+        max_length=20,
+        default='auto',
+        verbose_name='API query form',
+        help_text='Detected automatically. Reset to "auto" after a CheckMK upgrade.',
     )
     checkmk_escalation_days = models.PositiveIntegerField(
         default=30,
@@ -361,6 +405,40 @@ class ForceSettings(models.Model):
         obj.extra_exempt_models = '\n'.join(extra) if isinstance(extra, list) else ''
 
         obj.save()
+
+    # --- CheckMK secret handling ---
+    #
+    # Resolution order: PLUGINS_CONFIG wins over the database. That lets an
+    # installation keep the secret out of the DB entirely without forcing
+    # every other installation to edit configuration.py.
+
+    @staticmethod
+    def _checkmk_secret_from_config():
+        try:
+            from netbox.plugins import get_plugin_config
+            return (get_plugin_config('netbox_force', 'checkmk_secret') or '').strip()
+        except Exception:
+            return ''
+
+    @property
+    def checkmk_secret_is_from_config(self):
+        return bool(self._checkmk_secret_from_config())
+
+    def get_checkmk_secret(self):
+        from .secretstore import decrypt
+        return self._checkmk_secret_from_config() or decrypt(self.checkmk_secret_encrypted)
+
+    def set_checkmk_secret(self, value):
+        from .secretstore import encrypt
+        self.checkmk_secret_encrypted = encrypt(value)
+
+    @property
+    def checkmk_has_secret(self):
+        return bool(self.get_checkmk_secret())
+
+    @property
+    def checkmk_configured(self):
+        return bool(self.checkmk_url and self.checkmk_username and self.checkmk_has_secret)
 
     def get_exempt_users_list(self):
         if not self.exempt_users:
@@ -900,6 +978,27 @@ UPDATE_INSTALLATION_CHOICES = [
     ('unknown', 'Not detected'),
 ]
 
+PATCH_SOURCE_CHOICES = [
+    ('manual', 'Created manually'),
+    ('checkmk', 'Discovered in CheckMK'),
+]
+
+# Fields the CheckMK sync is allowed to write. Everything else on PatchVM is
+# hand-maintained and must survive every sync run — the whitelist is applied
+# to the queryset update, so a future field cannot leak in by accident.
+CHECKMK_SYNC_FIELDS = (
+    'patch_status',
+    'first_warned',
+    'last_checked',
+    'update_details',
+    'checkmk_host_name',
+    'checkmk_service',
+    'checkmk_state',
+    'checkmk_monitored',
+    'checkmk_last_seen',
+    'updated',
+)
+
 
 class PatchVM(ChangeLoggingMixin, models.Model):
     """
@@ -962,6 +1061,33 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         blank=True, default='',
         verbose_name='Update details (CheckMK)',
     )
+    checkmk_host_name = models.CharField(
+        max_length=255, blank=True, default='', db_index=True,
+        verbose_name='CheckMK host name',
+        help_text='Exact host name in CheckMK. Filled by the sync; kept separate '
+                  'from FQDN so renaming one does not break the other.',
+    )
+    checkmk_service = models.CharField(
+        max_length=255, blank=True, default='',
+        verbose_name='CheckMK service',
+    )
+    checkmk_state = models.SmallIntegerField(
+        null=True, blank=True,
+        verbose_name='CheckMK raw state',
+        help_text='0=OK, 1=WARN, 2=CRIT, 3=UNKNOWN',
+    )
+    checkmk_monitored = models.BooleanField(
+        default=False,
+        verbose_name='Monitored in CheckMK',
+    )
+    checkmk_last_seen = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Last seen in CheckMK',
+    )
+    source = models.CharField(
+        max_length=10, choices=PATCH_SOURCE_CHOICES, default='manual',
+        verbose_name='Source',
+    )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -1008,16 +1134,32 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         """
         return self.patch_status == 'red' and self.first_warned is not None
 
+    @property
+    def checkmk_stale(self):
+        """
+        True for an entry that CheckMK used to report but no longer does.
+        Its patch status is frozen at the last known value.
+        """
+        return bool(self.checkmk_host_name) and not self.checkmk_monitored
+
+    @property
+    def unmonitored_days(self):
+        if not self.checkmk_stale or not self.checkmk_last_seen:
+            return None
+        return (timezone.now() - self.checkmk_last_seen).days
+
     @classmethod
     def escalate_overdue(cls):
         """
         Flip every VM that has been in WARNING longer than the configured
         threshold to CRITICAL, and return the number of rows changed.
 
-        CheckMK notifications only fire on state *transitions*, so a host that
-        stays in WARNING never sends a second webhook. Without this sweep the
-        escalation would never happen. Uses a queryset update so no changelog
-        enforcement signal fires.
+        CheckMK reports the current state, not the age of it — the age rule is
+        entirely ours. Uses a queryset update so no changelog enforcement
+        signal fires.
+
+        Entries that vanished from CheckMK are skipped: without fresh data,
+        escalating them would assert something we no longer know.
         """
         settings = ForceSettings.get_settings()
         days = getattr(settings, 'checkmk_escalation_days', 30) if settings else 30
@@ -1028,6 +1170,8 @@ class PatchVM(ChangeLoggingMixin, models.Model):
             patch_status='yellow',
             first_warned__isnull=False,
             first_warned__lte=cutoff,
+        ).exclude(
+            models.Q(checkmk_monitored=False) & ~models.Q(checkmk_host_name='')
         ).update(patch_status='red', updated=timezone.now())
 
     @classmethod
@@ -1166,3 +1310,60 @@ class PatchUpdateEntry(ChangeLoggingMixin, models.Model):
     def __str__(self):
         return f'{self.date} — {self.software[:50]}'
 
+
+
+class CheckmkSyncRun(models.Model):
+    """
+    One CheckMK sync attempt. Kept as history because a sync that silently
+    stops working is the failure mode of any pull integration — without a
+    visible record of the last runs there is nothing to look at.
+    """
+
+    TRIGGER_CHOICES = [
+        ('manual', 'Manual'),
+        ('job', 'Scheduled job'),
+        ('command', 'Management command'),
+    ]
+
+    started = models.DateTimeField(auto_now_add=True, db_index=True)
+    finished = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(default=0)
+    triggered_by = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default='manual')
+    success = models.BooleanField(default=False)
+    error_code = models.CharField(max_length=50, blank=True, default='')
+    message = models.TextField(blank=True, default='')
+    checkmk_version = models.CharField(max_length=50, blank=True, default='')
+    api_flavor = models.CharField(max_length=20, blank=True, default='')
+    services_found = models.PositiveIntegerField(default=0)
+    hosts_seen = models.PositiveIntegerField(default=0)
+    hosts_created = models.PositiveIntegerField(default=0)
+    hosts_updated = models.PositiveIntegerField(default=0)
+    hosts_stale = models.PositiveIntegerField(default=0)
+    escalated = models.PositiveIntegerField(default=0)
+
+    # Number of runs kept; older rows are pruned after each sync.
+    HISTORY_LIMIT = 50
+
+    class Meta:
+        verbose_name = 'CheckMK Sync Run'
+        verbose_name_plural = 'CheckMK Sync Runs'
+        ordering = ['-started']
+
+    def __str__(self):
+        state = 'OK' if self.success else f'FAIL ({self.error_code})'
+        return f'{self.started:%Y-%m-%d %H:%M} — {state}'
+
+    @classmethod
+    def latest(cls):
+        try:
+            return cls.objects.order_by('-started').first()
+        except Exception:
+            return None
+
+    @classmethod
+    def prune(cls):
+        try:
+            keep = cls.objects.order_by('-started').values_list('pk', flat=True)[:cls.HISTORY_LIMIT]
+            cls.objects.exclude(pk__in=list(keep)).delete()
+        except Exception:
+            pass

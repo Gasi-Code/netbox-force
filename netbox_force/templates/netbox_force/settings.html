@@ -314,24 +314,122 @@
             {# CheckMK Integration #}
             <div class="card mb-4">
                 <h5 class="card-header">
-                    <i class="mdi mdi-webhook"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}
+                    <i class="mdi mdi-lan-connect"></i> {{ ui.section_checkmk|default:"CheckMK Integration" }}
                 </h5>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label" for="id_checkmk_webhook_secret">{{ ui.label_checkmk_webhook_secret|default:"CheckMK webhook secret" }}</label>
-                        {{ form.checkmk_webhook_secret }}
-                        <div class="form-text">{{ ui.help_checkmk_webhook_secret|default:"Secret token for validating incoming CheckMK webhooks. Use the same value in the CheckMK notification script (Authorization: Bearer &lt;secret&gt;)." }}</div>
+
+                    <div class="form-check form-switch mb-3">
+                        {{ form.checkmk_enabled }}
+                        <label class="form-check-label" for="id_checkmk_enabled">
+                            <strong>{{ ui.label_checkmk_enabled|default:"Enable CheckMK integration" }}</strong>
+                        </label>
+                        <div class="form-text">{{ ui.help_checkmk_enabled|default:"NetBox reads the patch status from CheckMK. Nothing is sent to CheckMK and nothing is changed there." }}</div>
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label" for="id_checkmk_escalation_days">{{ ui.label_checkmk_escalation_days|default:"Escalation threshold (days)" }}</label>
-                        {{ form.checkmk_escalation_days }}
-                        <div class="form-text">{{ ui.help_checkmk_escalation_days|default:"A VM stuck in WARNING for this many days is automatically escalated to CRITICAL. Set 0 to disable." }}</div>
+                        <label class="form-label" for="id_checkmk_url">{{ ui.label_checkmk_url|default:"CheckMK URL" }}</label>
+                        {{ form.checkmk_url }}
+                        {% if form.checkmk_url.errors %}<div class="text-danger small">{{ form.checkmk_url.errors.0 }}</div>{% endif %}
+                        <div class="form-text">{{ ui.help_checkmk_url|default:"Site URL including the site name, e.g. https://checkmk.example.com/mysite. Pasting a full browser URL works — it is shortened automatically." }}</div>
                     </div>
-                    <div class="alert alert-info mb-0">
-                        <i class="mdi mdi-information-outline"></i>
-                        Webhook-Endpoint: <code>{{ request.scheme }}://{{ request.get_host }}/api/plugins/netbox-force/webhook-receiver/</code>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_checkmk_username">{{ ui.label_checkmk_username|default:"Automation user" }}</label>
+                            {{ form.checkmk_username }}
+                            {% if form.checkmk_username.errors %}<div class="text-danger small">{{ form.checkmk_username.errors.0 }}</div>{% endif %}
+                            <div class="form-text">{{ ui.help_checkmk_username|default:"CheckMK user with an automation secret and the read-only guest role." }}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_checkmk_secret">{{ ui.label_checkmk_secret|default:"Automation secret" }}</label>
+                            {{ form.checkmk_secret }}
+                            {% if form.checkmk_secret.errors %}<div class="text-danger small">{{ form.checkmk_secret.errors.0 }}</div>{% endif %}
+                            {% if checkmk_secret_from_config %}
+                                <div class="form-text text-info">
+                                    <i class="mdi mdi-file-lock"></i>
+                                    {{ ui.help_checkmk_secret_from_config|default:"Set in configuration.py — that value takes precedence and cannot be changed here." }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">{{ ui.help_checkmk_secret|default:"Leave empty to keep the stored secret. It is never shown again." }}</div>
+                                {% if not checkmk_crypto_available %}
+                                    <div class="form-text text-warning">
+                                        <i class="mdi mdi-alert"></i>
+                                        {{ ui.warn_checkmk_no_crypto|default:"The cryptography package is missing — the secret is stored unencrypted." }}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        {{ form.checkmk_verify_ssl }}
+                        <label class="form-check-label" for="id_checkmk_verify_ssl">
+                            {{ ui.label_checkmk_verify_ssl|default:"Verify TLS certificate" }}
+                        </label>
+                        <div class="form-text">{{ ui.help_checkmk_verify_ssl|default:"Only disable for an internal certificate authority. Disabling allows an attacker on the network path to read the secret." }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="id_checkmk_service_pattern">{{ ui.label_checkmk_service_pattern|default:"Service filter" }}</label>
+                        {{ form.checkmk_service_pattern }}
+                        {% if form.checkmk_service_pattern.errors %}<div class="text-danger small">{{ form.checkmk_service_pattern.errors.0 }}</div>{% endif %}
+                        <div class="form-text">{{ ui.help_checkmk_service_pattern|default:"Regular expression matched against CheckMK service names. The default Updates? matches System Updates, APT Updates and Windows Updates." }}</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="id_checkmk_sync_interval">{{ ui.label_checkmk_sync_interval|default:"Sync interval (min)" }}</label>
+                            {{ form.checkmk_sync_interval }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="id_checkmk_escalation_days">{{ ui.label_checkmk_escalation_days|default:"Escalation threshold (days)" }}</label>
+                            {{ form.checkmk_escalation_days }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="id_checkmk_timeout">{{ ui.label_checkmk_timeout|default:"Timeout (s)" }}</label>
+                            {{ form.checkmk_timeout }}
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">{{ ui.help_checkmk_escalation_days|default:"A VM stuck in WARNING for this many days is automatically escalated to CRITICAL. Set 0 to disable." }}</div>
+
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary" id="cmk-test-btn"
+                                data-url="{% url 'plugins:netbox_force:checkmk_test' %}">
+                            <i class="mdi mdi-connection"></i> {{ ui.btn_checkmk_test|default:"Test connection" }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="cmk-sync-btn"
+                                data-url="{% url 'plugins:netbox_force:checkmk_sync' %}">
+                            <i class="mdi mdi-sync"></i> {{ ui.btn_checkmk_sync|default:"Sync now" }}
+                        </button>
+                    </div>
+                    <div id="cmk-result" class="mb-3"></div>
+
+                    <div class="alert {% if checkmk_auto_sync %}alert-success{% else %}alert-warning{% endif %} mb-0 py-2">
+                        {% if checkmk_auto_sync %}
+                            <i class="mdi mdi-check-circle-outline"></i>
+                            {{ ui.checkmk_auto_sync_active|default:"Automatic sync active — a background worker is running." }}
+                        {% else %}
+                            <i class="mdi mdi-alert-outline"></i>
+                            {{ ui.checkmk_auto_sync_inactive|default:"No background worker found. Use the button above or a cron job running: manage.py checkmk_sync" }}
+                        {% endif %}
                         <br>
-                        <small class="text-muted">POST &middot; JSON &middot; Header: <code>Authorization: Bearer &lt;secret&gt;</code></small>
+                        <small>
+                            {% if checkmk_last_run %}
+                                {{ ui.checkmk_last_sync|default:"Last sync" }}:
+                                {{ checkmk_last_run.started|date:"Y-m-d H:i" }}
+                                ({{ checkmk_last_run.started|timesince }})
+                                &middot;
+                                {% if checkmk_last_run.success %}
+                                    <span class="text-success">OK</span>
+                                    &middot; {{ checkmk_last_run.hosts_seen }} {{ ui.checkmk_stat_hosts|default:"hosts" }}
+                                    &middot; {{ checkmk_last_run.hosts_updated }} {{ ui.checkmk_stat_updated|default:"updated" }}
+                                {% else %}
+                                    <span class="text-danger">{{ checkmk_last_run.error_code }}</span>
+                                {% endif %}
+                            {% else %}
+                                {{ ui.checkmk_never_synced|default:"Never synchronised yet." }}
+                            {% endif %}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -358,7 +456,7 @@
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_version|default:"Version" }}</strong></td>
-                        <td>4.7.0</td>
+                        <td>5.0.0</td>
                     </tr>
                     <tr>
                         <td><strong>{{ ui.info_author|default:"Author" }}</strong></td>
@@ -441,6 +539,88 @@
                     ticketHint.innerHTML = 'Example match: <code>' + match.example + '</code>';
                 }
             }
+        });
+    }
+})();
+
+// CheckMK: test connection / sync now.
+// Both report in plain language rather than status codes, because the common
+// failures here (wrong site in the URL, missing API permission) are otherwise
+// indistinguishable from each other.
+(function () {
+    const box = document.getElementById('cmk-result');
+    if (!box) return;
+
+    function token() {
+        const el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+    }
+
+    function show(cls, html) {
+        box.innerHTML = '<div class="alert alert-' + cls + ' py-2 mb-0">' + html + '</div>';
+    }
+
+    function busy(btn, on, label) {
+        btn.disabled = on;
+        if (on) {
+            btn.dataset.label = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + label;
+        } else if (btn.dataset.label) {
+            btn.innerHTML = btn.dataset.label;
+        }
+    }
+
+    function post(btn, busyLabel, render) {
+        busy(btn, true, busyLabel);
+        box.innerHTML = '';
+        fetch(btn.dataset.url, {
+            method: 'POST',
+            headers: {'X-CSRFToken': token(), 'X-Requested-With': 'XMLHttpRequest'},
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) {
+                    show('danger', '<i class="mdi mdi-close-circle"></i> ' + data.message);
+                } else {
+                    render(data);
+                }
+            })
+            .catch(err => show('danger', '<i class="mdi mdi-close-circle"></i> ' + err))
+            .finally(() => busy(btn, false));
+    }
+
+    const testBtn = document.getElementById('cmk-test-btn');
+    if (testBtn) {
+        testBtn.addEventListener('click', function () {
+            post(testBtn, '{{ ui.checkmk_testing|default:"Testing…"|escapejs }}', function (d) {
+                let html = '<i class="mdi mdi-check-circle"></i> <strong>CheckMK ' + d.version + '</strong>';
+                html += ' &middot; ' + d.hosts + ' {{ ui.checkmk_stat_hosts|default:"hosts"|escapejs }}';
+                html += ' &middot; ' + d.services + ' {{ ui.checkmk_stat_services|default:"matching services"|escapejs }}';
+                if (d.service_names && d.service_names.length) {
+                    html += '<br><small>' + d.service_names.join(', ') + '</small>';
+                }
+                if (!d.services) {
+                    show('warning', html + '<br><small>{{ ui.checkmk_no_services|default:"No service matched the filter. Check the service filter or whether an update check is deployed."|escapejs }}</small>');
+                    return;
+                }
+                show('success', html);
+            });
+        });
+    }
+
+    const syncBtn = document.getElementById('cmk-sync-btn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', function () {
+            post(syncBtn, '{{ ui.checkmk_syncing|default:"Synchronising…"|escapejs }}', function (d) {
+                let html = '<i class="mdi mdi-check-circle"></i> ';
+                html += d.hosts + ' {{ ui.checkmk_stat_hosts|default:"hosts"|escapejs }}';
+                html += ' &middot; ' + d.created + ' {{ ui.checkmk_stat_created|default:"created"|escapejs }}';
+                html += ' &middot; ' + d.updated + ' {{ ui.checkmk_stat_updated|default:"updated"|escapejs }}';
+                html += ' &middot; ' + d.stale + ' {{ ui.checkmk_stat_stale|default:"no longer monitored"|escapejs }}';
+                html += ' &middot; ' + d.escalated + ' {{ ui.checkmk_stat_escalated|default:"escalated"|escapejs }}';
+                html += '<br><small>' + d.duration_ms + ' ms</small>';
+                show('success', html);
+            });
         });
     }
 })();

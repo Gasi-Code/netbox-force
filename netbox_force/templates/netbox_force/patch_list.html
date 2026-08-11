@@ -100,6 +100,28 @@
                     </div>
                 </form>
 
+                {% if checkmk_enabled %}
+                <div class="alert {% if checkmk_last_run.success %}alert-light{% else %}alert-danger{% endif %} py-2 d-flex align-items-center gap-2">
+                    <i class="mdi mdi-lan-connect"></i>
+                    <div class="flex-grow-1 small">
+                        {% if checkmk_last_run %}
+                            {{ ui.checkmk_last_sync|default:"Last CheckMK sync" }}:
+                            {{ checkmk_last_run.started|timesince }}
+                            {% if checkmk_last_run.success %}
+                                &middot; {{ checkmk_last_run.hosts_seen }} {{ ui.checkmk_stat_hosts|default:"hosts" }}
+                            {% else %}
+                                &middot; <span class="fw-bold">{{ ui.checkmk_sync_failed|default:"failed" }}: {{ checkmk_last_run.error_code }}</span>
+                            {% endif %}
+                        {% else %}
+                            {{ ui.checkmk_never_synced|default:"Never synchronised yet." }}
+                        {% endif %}
+                        {% if stale_count %}
+                            &middot; <span class="text-danger fw-bold">{{ stale_count }} {{ ui.checkmk_stat_stale|default:"no longer monitored" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
                 {% if patch_vms %}
                 {% if pp.can_bulk_edit %}
                 <form method="get" action="{% url 'plugins:netbox_force:patch_vm_bulk_edit' %}" id="bulk-form">
@@ -200,6 +222,16 @@
                                     <br><small class="text-muted mt-1">
                                         <i class="mdi mdi-clock-outline"></i>
                                         {{ ui.patch_warned_since|default:"Warning since" }} {{ pvm.warned_days }}d
+                                    </small>
+                                    {% endif %}
+                                    {% if pvm.checkmk_stale %}
+                                    <br><small class="text-danger fw-bold mt-1">
+                                        <i class="mdi mdi-eye-off"></i>
+                                        {{ ui.patch_not_monitored|default:"No longer monitored in CheckMK" }}
+                                        {% if pvm.checkmk_last_seen %}
+                                            <br>{{ ui.patch_last_seen|default:"last seen" }}
+                                            {{ pvm.checkmk_last_seen|date:"Y-m-d" }}
+                                        {% endif %}
                                     </small>
                                     {% endif %}
                                 </td>

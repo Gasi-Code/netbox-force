@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-4.7.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.0.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,21 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v5.0.0 — CheckMK integration rebuilt as a pull
+
+**Breaking:** the inbound webhook receiver (`/api/plugins/netbox-force/webhook-receiver/`) is gone, and with it the `checkmk_webhook_secret` setting. Existing CheckMK notification rules pointing at that URL will start returning 404 and can be deleted once the sync is verified.
+
+- **NetBox now reads from CheckMK instead of waiting to be told.** Configure the site URL, an automation user and its secret once; Patch Management is populated and kept current from the CheckMK service data. Nothing is ever written back to CheckMK.
+- **No unauthenticated endpoint.** The plugin only makes outbound calls, which removes the entire attack surface the webhook had.
+- **Read-only by design.** Only the monitoring API is used, never the Setup/WATO configuration API — a CheckMK user with the `guest` role is enough.
+- **Hosts are discovered automatically.** Every CheckMK host with a service matching the configurable filter (default `Updates?`, matching *System Updates*, *APT Updates*, *Windows Updates*) gets an entry, linked to a NetBox VirtualMachine when the name matches.
+- **Hand-maintained fields are protected.** The sync writes only status, timestamps and CheckMK provenance. Ticket number, comment, maintenance window, contacts and the VM link survive every run.
+- **Hosts that vanish are flagged, not deleted.** An entry that CheckMK stops reporting is marked *No longer monitored in CheckMK* in red, its status frozen at the last known value, and it is excluded from age-based escalation.
+- **Version-tolerant API access.** The service query is probed across several forms and the working one is remembered, so the plugin does not need updating for each CheckMK release. Verified against 2.3.0p48 Raw Edition.
+- **Secret stored encrypted**, with `PLUGINS_CONFIG['netbox_force']['checkmk_secret']` taking precedence when set, so the secret can be kept out of the database entirely.
+- **Test connection / Sync now** buttons on the settings page report in plain language, plus a history of the last 50 sync runs.
+- **Three ways to run it:** the button, `manage.py checkmk_sync` (for cron), and a recurring background job when an RQ worker is available. The settings page states which one is actually active.
 
 ### v4.7.0
 
