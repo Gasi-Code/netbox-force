@@ -146,8 +146,12 @@ def run_sync(triggered_by='manual'):
 
         run.finished = timezone.now()
         run.duration_ms = int((time.monotonic() - started) * 1000)
-        run.save()
-        CheckmkSyncRun.prune()
+        # Bookkeeping must never invalidate a sync that already did its work.
+        try:
+            run.save()
+            CheckmkSyncRun.prune()
+        except Exception:
+            logger.exception('CheckMK sync ran but its history entry could not be saved')
         return run
     finally:
         _sync_lock.release()

@@ -507,6 +507,14 @@ class CheckmkSyncNowView(SuperuserRequiredMixin, View):
         except SyncSkipped as exc:
             return JsonResponse({'ok': False,
                                  'message': _checkmk_error_text(exc.code, ui)})
+        except Exception as exc:
+            # This endpoint is consumed by fetch(); an HTML error page would
+            # surface as an unreadable JSON parse error in the browser.
+            logger.exception('CheckMK sync view failed')
+            return JsonResponse({
+                'ok': False,
+                'message': _checkmk_error_text('internal', ui, str(exc)[:200]),
+            })
 
         if not run.success:
             return JsonResponse({

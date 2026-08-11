@@ -64,6 +64,9 @@ EXEMPT_MODELS = {
     'netbox_force.importtemplate',
     'netbox_force.guidepage',
     'netbox_force.widgetimage',
+    # Written by the CheckMK sync itself, including from a request context
+    # (the "Sync now" button). Enforcing a changelog on it aborts the sync.
+    'netbox_force.checkmksyncrun',
 }
 
 # HTTP methods that require a changelog (save)
