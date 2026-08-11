@@ -96,30 +96,39 @@ def _link_ip_address(pvm, address):
     return True
 
 
-def _find_netbox_vm(host_name):
-    """
-    Best-effort link to a NetBox VirtualMachine, matched on name — with and
-    without the domain part. Only ever used when creating a new entry, so an
-    existing manual link is never overwritten.
-    """
-    try:
-        from django.apps import apps
-        VirtualMachine = apps.get_model('virtualization', 'VirtualMachine')
-    except Exception:
-        return None
-
-    candidates = [host_name]
+def _name_candidates(host_name):
+    """The host name with and without its domain part."""
+    names = [host_name]
     if '.' in host_name:
-        candidates.append(host_name.split('.', 1)[0])
+        names.append(host_name.split('.', 1)[0])
+    return names
 
-    for name in candidates:
+
+def _find_netbox_object(host_name):
+    """
+    Best-effort link to a NetBox VirtualMachine or Device, matched on name.
+
+    A CheckMK host is one or the other and the name alone cannot say which,
+    so both are tried — virtual first, since that is the common case. Only
+    ever used when creating a new entry, so an existing manual link is never
+    overwritten, and an object already claimed by another entry is skipped.
+    """
+    from django.apps import apps
+
+    for app, model, field in (('virtualization', 'VirtualMachine', 'vm'),
+                              ('dcim', 'Device', 'device')):
         try:
-            vm = VirtualMachine.objects.filter(name__iexact=name).first()
+            Model = apps.get_model(app, model)
         except Exception:
-            return None
-        if vm and not PatchVM.objects.filter(vm=vm).exists():
-            return vm
-    return None
+            continue
+        for name in _name_candidates(host_name):
+            try:
+                obj = Model.objects.filter(name__iexact=name).first()
+            except Exception:
+                break
+            if obj and not PatchVM.objects.filter(**{field: obj}).exists():
+                return field, obj
+    return None, None
 
 
 def _resolve_status(state, existing, escalation_days, now):
@@ -227,10 +236,13 @@ def _perform(settings_obj, run):
         logger.warning('CheckMK host attributes unavailable: %s', exc)
         host_info = {}
 
-    existing = list(PatchVM.objects.all().select_related('vm'))
+    existing = list(PatchVM.objects.all().select_related('vm', 'device'))
     by_checkmk = {p.checkmk_host_name.lower(): p for p in existing if p.checkmk_host_name}
     by_fqdn = {p.fqdn.lower(): p for p in existing if p.fqdn}
     by_vm_name = {p.vm.name.lower(): p for p in existing if p.vm_id and p.vm}
+    for p in existing:
+        if p.device_id and p.device and p.device.name:
+            by_vm_name.setdefault(p.device.name.lower(), p)
 
     now = timezone.now()
     escalation_days = settings_obj.checkmk_escalation_days or 0
@@ -266,10 +278,11 @@ def _perform(settings_obj, run):
         values = {k: v for k, v in values.items() if k in CHECKMK_SYNC_FIELDS}
 
         if pvm is None:
+            link_field, link_obj = _find_netbox_object(host_name)
             pvm = PatchVM(
                 fqdn=host_name,
-                vm=_find_netbox_vm(host_name),
                 source='checkmk',
+                **({link_field: link_obj} if link_obj else {}),
                 **values,
             )
             # Creating a row goes through save() and therefore through this

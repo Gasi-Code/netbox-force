@@ -1023,6 +1023,16 @@ class PatchVM(ChangeLoggingMixin, models.Model):
         verbose_name='NetBox VM',
         db_constraint=False,
     )
+    device = models.ForeignKey(
+        'dcim.Device',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patch_entries',
+        verbose_name='NetBox Device',
+        db_constraint=False,
+        help_text='Physical server this entry belongs to. Use instead of NetBox VM.',
+    )
     fqdn = models.CharField(max_length=255, blank=True, default='', verbose_name='FQDN')
     ip_address = models.ForeignKey(
         'ipam.IPAddress',
@@ -1129,7 +1139,22 @@ class PatchVM(ChangeLoggingMixin, models.Model):
     def __str__(self):
         if self.vm:
             return self.vm.name
+        if self.device_id and self.device:
+            return self.device.name
         return self.fqdn or f'VM #{self.pk}'
+
+    @property
+    def netbox_object(self):
+        """The linked NetBox object, whichever kind it is, or None."""
+        if self.vm_id and self.vm:
+            return self.vm
+        if self.device_id and self.device:
+            return self.device
+        return None
+
+    @property
+    def netbox_unlinked(self):
+        return self.netbox_object is None
 
     @property
     def status_css_class(self):

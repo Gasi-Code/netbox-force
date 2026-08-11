@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-5.2.0-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.3.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 ---
 
@@ -596,6 +596,12 @@ The plugin automatically bypasses enforcement for:
 ---
 
 ## Changelog
+
+### v5.3.0
+
+- **Physical servers can be linked.** Patch Management entries had only a link to `virtualization.VirtualMachine`, so a bare-metal host could never be more than a standalone record. A `device` link to `dcim.Device` was added, and the CheckMK sync fills whichever of the two matches the host name.
+- **One-click creation of the missing object.** An entry tied to no NetBox object now offers *As device* / *As VM* buttons that open the corresponding NetBox form with the name prefilled. Both are offered because a host name does not say whether it is metal or virtual — and the site, role, device type or cluster are decisions the plugin has no basis to make.
+- **Repairs `netbox_force_modelpolicy`** on installations that applied both migration generations (`0002_v4_features…` and `0002_v43_features…`). The table was created with the old column layout and the later `CreateModel` never corrected it, so the Model Policies page failed with *column check_required_fields_rules does not exist*. The repair is idempotent and does nothing on a healthy database. Obsolete columns are made nullable rather than dropped, so no data is lost.
 
 ### v5.2.0
 

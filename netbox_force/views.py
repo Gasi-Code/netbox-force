@@ -475,21 +475,53 @@ def _ip_create_url(address, dns_name='', prefix_length=None):
         return ''
 
 
+def _object_create_urls(name):
+    """
+    Prefilled links to NetBox's Device and VirtualMachine forms.
+
+    Both are offered because a host name alone does not say whether it is
+    metal or virtual — that is a decision only a person can make, and making
+    it means filling in a site or cluster the plugin has no way to know.
+    """
+    from urllib.parse import urlencode
+
+    if not name:
+        return '', ''
+    query = urlencode({'name': name})
+    urls = []
+    for route in ('dcim:device_add', 'virtualization:virtualmachine_add'):
+        try:
+            urls.append(f'{reverse(route)}?{query}')
+        except Exception:
+            urls.append('')
+    return urls[0], urls[1]
+
+
 def _annotate_ip_actions(patch_vms):
     """
-    Attach a prefilled IPAM link to every entry whose CheckMK address has no
-    NetBox counterpart, plus a flag for whether the mask was derived or
-    guessed — the template says which, so nobody saves a wrong /32 unaware.
+    Attach prefilled NetBox links to entries that are missing a counterpart:
+    an IPAM link for an unknown CheckMK address, and Device/VM links for an
+    entry that is not tied to any NetBox object.
+
+    The IP link also carries a flag for whether the mask was derived from a
+    prefix or guessed — the template says which, so nobody saves a wrong /32
+    unaware.
     """
     for pvm in patch_vms:
-        if not pvm.checkmk_ip_unlinked:
+        if pvm.checkmk_ip_unlinked:
+            length = _suggest_prefix_length(pvm.checkmk_ip)
+            pvm.ip_prefix_known = length is not None
+            pvm.ip_create_url = _ip_create_url(
+                pvm.checkmk_ip, pvm.fqdn or pvm.checkmk_host_name, length)
+        else:
             pvm.ip_create_url = ''
             pvm.ip_prefix_known = False
-            continue
-        length = _suggest_prefix_length(pvm.checkmk_ip)
-        pvm.ip_prefix_known = length is not None
-        pvm.ip_create_url = _ip_create_url(
-            pvm.checkmk_ip, pvm.fqdn or pvm.checkmk_host_name, length)
+
+        if pvm.netbox_unlinked:
+            name = pvm.checkmk_host_name or pvm.fqdn
+            pvm.device_create_url, pvm.vm_create_url = _object_create_urls(name)
+        else:
+            pvm.device_create_url = pvm.vm_create_url = ''
 
 
 def _checkmk_context(settings_obj):

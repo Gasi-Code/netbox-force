@@ -28,8 +28,30 @@
                                 <a href="{{ patch_vm.vm.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-info">
                                     <i class="mdi mdi-open-in-new"></i> {{ patch_vm.vm.name }}
                                 </a>
+                                {% elif patch_vm.device %}
+                                <a href="{{ patch_vm.device.get_absolute_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="mdi mdi-server"></i> {{ patch_vm.device.name }}
+                                </a>
+                                <div class="form-text">{{ ui.patch_link_device|default:"Device" }}</div>
                                 {% else %}
                                 <span class="text-muted">—</span>
+                                {% if patch_vm.device_create_url or patch_vm.vm_create_url %}
+                                <div class="mt-2 d-flex gap-2">
+                                    {% if patch_vm.device_create_url %}
+                                    <a href="{{ patch_vm.device_create_url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="mdi mdi-plus"></i> {{ ui.btn_create_device|default:"As device" }}
+                                    </a>
+                                    {% endif %}
+                                    {% if patch_vm.vm_create_url %}
+                                    <a href="{{ patch_vm.vm_create_url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="mdi mdi-plus"></i> {{ ui.btn_create_vm|default:"As VM" }}
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                <div class="form-text">{{ ui.patch_create_object_hint|default:"The name is prefilled; site, role and device type or cluster still need to be chosen." }}</div>
+                                {% endif %}
                                 {% endif %}
                             </td>
                         </tr>

@@ -176,8 +176,34 @@
                                     <a href="{% url 'plugins:netbox_force:patch_detail' pk=pvm.pk %}">
                                         <strong>{{ pvm }}</strong>
                                     </a>
-                                    {% if pvm.fqdn and pvm.vm %}
+                                    {% if pvm.fqdn and pvm.netbox_object %}
                                     <br><small class="text-muted">{{ pvm.fqdn }}</small>
+                                    {% endif %}
+                                    {% if pvm.device_id %}
+                                    <br><small class="text-muted">
+                                        <i class="mdi mdi-server"></i>
+                                        {{ ui.patch_link_device|default:"Device" }}
+                                    </small>
+                                    {% elif pvm.device_create_url or pvm.vm_create_url %}
+                                    <br><small class="text-warning">
+                                        <i class="mdi mdi-link-off"></i>
+                                        {{ ui.patch_not_in_netbox|default:"not in NetBox" }}
+                                    </small>
+                                    <br>
+                                    {% if pvm.device_create_url %}
+                                    <a href="{{ pvm.device_create_url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-primary mt-1 py-0"
+                                       title="{{ ui.patch_create_device_hint|default:'Physical server — site, role and device type still need to be chosen.' }}">
+                                        <i class="mdi mdi-plus"></i> {{ ui.btn_create_device|default:"As device" }}
+                                    </a>
+                                    {% endif %}
+                                    {% if pvm.vm_create_url %}
+                                    <a href="{{ pvm.vm_create_url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-primary mt-1 py-0"
+                                       title="{{ ui.patch_create_vm_hint|default:'Virtual machine — cluster or site still needs to be chosen.' }}">
+                                        <i class="mdi mdi-plus"></i> {{ ui.btn_create_vm|default:"As VM" }}
+                                    </a>
+                                    {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>

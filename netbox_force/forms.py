@@ -697,12 +697,13 @@ class PatchVMForm(forms.ModelForm):
     class Meta:
         model = PatchVM
         fields = [
-            'vm', 'fqdn', 'ip_address',
+            'vm', 'device', 'fqdn', 'ip_address',
             'os_info', 'maintenance_window', 'update_installation',
             'patch_status', 'ticket_number', 'comment',
         ]
         widgets = {
             'vm': forms.Select(attrs={'class': 'form-select'}),
+            'device': forms.Select(attrs={'class': 'form-select'}),
             'fqdn': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.Select(attrs={'class': 'form-select'}),
             'os_info': forms.TextInput(attrs={
