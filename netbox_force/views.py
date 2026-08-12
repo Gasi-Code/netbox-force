@@ -122,6 +122,18 @@ def _patch_perms(user):
     }
 
 
+def _plugin_version():
+    """
+    The version NetBox actually loaded. Read from the app registry rather than
+    written into a template, so it can never drift from the installed package.
+    """
+    try:
+        from django.apps import apps
+        return apps.get_app_config('netbox_force').version
+    except Exception:
+        return ''
+
+
 def _base_context(settings_obj=None):
     """
     Returns a base context dict used by ALL views.
@@ -132,6 +144,7 @@ def _base_context(settings_obj=None):
     return {
         'ui': _get_ui_context(settings_obj),
         'force_settings': settings_obj,
+        'plugin_version': _plugin_version(),
     }
 
 
