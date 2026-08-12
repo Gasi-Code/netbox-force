@@ -9,6 +9,11 @@ MESSAGES = {
             "muss im Feld 'Änderungsgrund / Changelog' eine Begründung "
             "eingetragen werden (mind. {min_len} Zeichen)."
         ),
+        'changelog_too_short': (
+            "Changelog-Eintrag zu kurz! Beim {action} von '{model}' sind "
+            "mindestens {min_len} Zeichen erforderlich, eingegeben wurden "
+            "{actual}."
+        ),
         'blacklisted': (
             "Unzulässiger Changelog-Eintrag! Der Text enthält gesperrte "
             "Begriffe: {words}"
@@ -44,6 +49,10 @@ MESSAGES = {
             "Changelog entry required! When {action} '{model}', "
             "a reason must be provided in the 'Change reason / Changelog' "
             "field (min {min_len} characters)."
+        ),
+        'changelog_too_short': (
+            "Changelog entry too short! When {action} '{model}', at least "
+            "{min_len} characters are required, but {actual} were entered."
         ),
         'blacklisted': (
             "Invalid changelog entry! The text contains prohibited "
@@ -81,6 +90,11 @@ MESSAGES = {
             "'{model}', se debe proporcionar una razón en el campo "
             "'Motivo del cambio' (mín. {min_len} caracteres)."
         ),
+        'changelog_too_short': (
+            "¡Entrada de changelog demasiado corta! Al {action} '{model}' "
+            "se requieren al menos {min_len} caracteres, pero se "
+            "introdujeron {actual}."
+        ),
         'blacklisted': (
             "Entrada de registro de cambios no válida. El texto contiene "
             "términos prohibidos: {words}"
@@ -116,6 +130,11 @@ MESSAGES = {
             "Požadován záznam changelogu! Při {action} '{model}' "
             "musí být v poli 'Důvod změny / Changelog' uveden důvod "
             "(min. {min_len} znaků)."
+        ),
+        'changelog_too_short': (
+            "Záznam changelogu je příliš krátký! Při akci {action} u "
+            "'{model}' je vyžadováno alespoň {min_len} znaků, zadáno bylo "
+            "{actual}."
         ),
         'blacklisted': (
             "Neplatný záznam changelogu! Text obsahuje zakázané "
@@ -153,6 +172,10 @@ MESSAGES = {
             "skal der angives en årsag i feltet 'Ændringsårsag / Changelog' "
             "(min. {min_len} tegn)."
         ),
+        'changelog_too_short': (
+            "Changelog-post er for kort! Ved {action} af '{model}' kræves "
+            "mindst {min_len} tegn, men der blev indtastet {actual}."
+        ),
         'blacklisted': (
             "Ugyldig changelogpost! Teksten indeholder forbudte "
             "udtryk: {words}"
@@ -188,6 +211,11 @@ MESSAGES = {
             "Entrée de journal requise ! Lors de {action} de '{model}', "
             "une raison doit être fournie dans le champ "
             "'Raison de modification / Journal' (min. {min_len} caractères)."
+        ),
+        'changelog_too_short': (
+            "Entrée de changelog trop courte ! Lors de {action} de "
+            "'{model}', au moins {min_len} caractères sont requis, mais "
+            "{actual} ont été saisis."
         ),
         'blacklisted': (
             "Entrée de journal invalide ! Le texte contient des "
@@ -225,6 +253,11 @@ MESSAGES = {
             "è necessario fornire una motivazione nel campo "
             "'Motivo della modifica / Registro' (min. {min_len} caratteri)."
         ),
+        'changelog_too_short': (
+            "Voce del changelog troppo breve! Durante {action} di '{model}' "
+            "sono richiesti almeno {min_len} caratteri, ne sono stati "
+            "inseriti {actual}."
+        ),
         'blacklisted': (
             "Voce del registro non valida! Il testo contiene "
             "termini vietati: {words}"
@@ -260,6 +293,10 @@ MESSAGES = {
             "変更ログの記録が必要です！ '{model}' の{action}時には、"
             "'変更理由 / 変更ログ' フィールドに理由を入力してください "
             "（最低 {min_len} 文字）。"
+        ),
+        'changelog_too_short': (
+            "変更履歴が短すぎます。'{model}' の{action}には最低 {min_len} 文字が必要ですが、{actual} "
+            "文字しか入力されていません。"
         ),
         'blacklisted': (
             "変更ログの記録が無効です！ テキストに禁止された "
@@ -297,6 +334,11 @@ MESSAGES = {
             "laukā 'Izmaiņu iemesls / Žurnāls' jānorāda iemesls "
             "(min. {min_len} rakstzīmes)."
         ),
+        'changelog_too_short': (
+            "Izmaiņu žurnāla ieraksts ir pārāk īss! Veicot {action} "
+            "objektam '{model}', nepieciešamas vismaz {min_len} rakstzīmes, "
+            "ievadītas {actual}."
+        ),
         'blacklisted': (
             "Nederīgs izmaiņu žurnāla ieraksts! Teksts satur aizliegtus "
             "vārdus: {words}"
@@ -332,6 +374,11 @@ MESSAGES = {
             "Changelog-vermelding vereist! Bij het {action} van '{model}' "
             "moet een reden worden opgegeven in het veld "
             "'Wijzigingsreden / Changelog' (min. {min_len} tekens)."
+        ),
+        'changelog_too_short': (
+            "Changelog-vermelding te kort! Bij {action} van '{model}' zijn "
+            "minstens {min_len} tekens vereist, maar er zijn er {actual} "
+            "ingevoerd."
         ),
         'blacklisted': (
             "Ongeldige changelog-vermelding! De tekst bevat verboden "
@@ -369,6 +416,11 @@ MESSAGES = {
             "w polu 'Powód zmiany / Dziennik' należy podać uzasadnienie "
             "(min. {min_len} znaków)."
         ),
+        'changelog_too_short': (
+            "Wpis w dzienniku zmian jest za krótki! Podczas {action} "
+            "'{model}' wymagane jest co najmniej {min_len} znaków, "
+            "wprowadzono {actual}."
+        ),
         'blacklisted': (
             "Nieprawidłowa pozycja dziennika zmian! Tekst zawiera "
             "zakazane wyrazy: {words}"
@@ -404,6 +456,11 @@ MESSAGES = {
             "Entrada no registro de alterações obrigatória! Ao {action} "
             "'{model}', é necessário fornecer um motivo no campo "
             "'Motivo da alteração / Registro' (mín. {min_len} caracteres)."
+        ),
+        'changelog_too_short': (
+            "Entrada de changelog demasiado curta! Ao {action} '{model}' "
+            "são necessários pelo menos {min_len} caracteres, mas foram "
+            "introduzidos {actual}."
         ),
         'blacklisted': (
             "Entrada inválida no registro de alterações! O texto contém "
@@ -441,6 +498,11 @@ MESSAGES = {
             "необходимо указать причину в поле "
             "'Причина изменения / Журнал' (мин. {min_len} символов)."
         ),
+        'changelog_too_short': (
+            "Запись журнала изменений слишком короткая! При действии "
+            "«{action}» для «{model}» требуется не менее {min_len} "
+            "символов, введено {actual}."
+        ),
         'blacklisted': (
             "Недопустимая запись в журнале изменений! Текст содержит "
             "запрещённые слова: {words}"
@@ -476,6 +538,11 @@ MESSAGES = {
             "Değişiklik günlüğü girişi gerekli! '{model}' öğesini {action} "
             "sırasında, 'Değişiklik nedeni / Günlük' alanına bir gerekçe "
             "girilmelidir (min. {min_len} karakter)."
+        ),
+        'changelog_too_short': (
+            "Değişiklik günlüğü girdisi çok kısa! '{model}' için {action} "
+            "sırasında en az {min_len} karakter gerekir, ancak {actual} "
+            "karakter girildi."
         ),
         'blacklisted': (
             "Geçersiz değişiklik günlüğü girişi! Metin yasaklı "
@@ -513,6 +580,11 @@ MESSAGES = {
             "необхідно вказати причину в полі "
             "'Причина зміни / Журнал' (мін. {min_len} символів)."
         ),
+        'changelog_too_short': (
+            "Запис журналу змін занадто короткий! Під час дії «{action}» "
+            "для «{model}» потрібно щонайменше {min_len} символів, введено "
+            "{actual}."
+        ),
         'blacklisted': (
             "Недопустимий запис у журналі змін! Текст містить "
             "заборонені слова: {words}"
@@ -548,6 +620,10 @@ MESSAGES = {
             "需要变更日志条目！在{action}'{model}'时，"
             "必须在'变更原因 / 变更日志'字段中提供原因 "
             "（最少 {min_len} 个字符）。"
+        ),
+        'changelog_too_short': (
+            "变更日志条目过短！{action}“{model}”时至少需要 {min_len} 个字符，但只输入了 {actual} "
+            "个字符。"
         ),
         'blacklisted': (
             "变更日志条目无效！文本包含禁止的 "
@@ -587,6 +663,10 @@ API_MESSAGES = {
         "Changelog entry required. When {action} '{model}', include a "
         "'changelog_message' field in the request body "
         "(min {min_len} characters)."
+    ),
+    'changelog_too_short': (
+        "Changelog entry too short. When {action} '{model}', at least "
+        "{min_len} characters are required, but {actual} were provided."
     ),
     'blacklisted': (
         "Invalid changelog entry. The text contains prohibited terms: {words}"

@@ -19,6 +19,15 @@
                 </a>
             </h5>
             <div class="card-body">
+                <div class="alert alert-info d-flex align-items-start mb-3" role="note">
+                    <i class="mdi mdi-information-outline me-2 mt-1"></i>
+                    <div>
+                        <div>{{ ui.rules_intro|default:"Patterns for field values: define here how names must look and which fields must be filled. Whether a model is checked at all is controlled by Model Policies." }}</div>
+                        <a href="{% url 'plugins:netbox_force:policy_list' %}" class="small">
+                            {{ ui.tab_policies|default:"Model Policies" }} <i class="mdi mdi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
                 {% if rules %}
                 <div class="table-responsive">
                     <table class="table table-hover">

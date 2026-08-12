@@ -621,10 +621,18 @@ def log_violation(username, model_label, instance, action, reason, message,
 # ERROR MESSAGE BUILDERS (existing)
 # =============================================================================
 
-def build_error_message(instance, request=None, reason='changelog_required'):
-    """Builds the error message — multilingual and API-aware."""
+def build_error_message(instance, request=None, reason='changelog_required',
+                        min_len=None, actual=0):
+    """
+    Builds the error message — multilingual and API-aware.
+
+    min_len must be the *effective* limit, which a ModelPolicy override can
+    raise above the global setting. Passing None falls back to the global
+    value, so the message never contradicts the limit that actually blocked.
+    """
     model_verbose = instance._meta.verbose_name.capitalize()
-    min_len = _get_setting('min_length', 2)
+    if min_len is None:
+        min_len = _get_setting('min_length', 2)
     language = _get_setting('language', 'de')
 
     is_new = not instance.pk
@@ -634,12 +642,12 @@ def build_error_message(instance, request=None, reason='changelog_required'):
     if is_api:
         action = 'creating' if is_new else 'modifying'
         return get_api_message(reason, action=action, model=model_verbose,
-                               min_len=min_len, words='')
+                               min_len=min_len, actual=actual, words='')
 
     action_key = 'action_create' if is_new else 'action_edit'
     action = get_message(action_key, language)
     return get_message(reason, language, action=action, model=model_verbose,
-                       min_len=min_len, words='')
+                       min_len=min_len, actual=actual, words='')
 
 
 def build_blacklist_message(instance, request, matched_words):
@@ -999,7 +1007,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
             pass
         else:
             reason = 'too_short' if comment else 'missing_changelog'
-            error_msg = build_error_message(instance, request)
+            msg_key = 'changelog_too_short' if comment else 'changelog_required'
+            error_msg = build_error_message(instance, request, reason=msg_key,
+                                            min_len=min_len,
+                                            actual=len(comment) if comment else 0)
             logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
                          model_label, len(comment) if comment else 0, min_len, username)
             _enforce(reason, error_msg, comment)
@@ -1153,9 +1164,12 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             pass  # Auto-generated is always sufficient
         else:
             reason = 'too_short' if comment else 'missing_changelog'
-            error_msg = build_error_message(instance, request)
-            logger.info("pre_delete: %s changelog missing/too short, blocking user '%s'",
-                         model_label, username)
+            msg_key = 'changelog_too_short' if comment else 'changelog_required'
+            error_msg = build_error_message(instance, request, reason=msg_key,
+                                            min_len=min_len,
+                                            actual=len(comment) if comment else 0)
+            logger.info("pre_delete: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
+                         model_label, len(comment) if comment else 0, min_len, username)
             _enforce(reason, error_msg, comment)
 
     # --- Blacklist check (skip for auto-generated comments) ---

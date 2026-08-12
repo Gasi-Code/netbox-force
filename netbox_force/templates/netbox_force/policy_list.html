@@ -19,6 +19,16 @@
                 </a>
             </h5>
             <div class="card-body">
+                <div class="alert alert-info d-flex align-items-start mb-3" role="note">
+                    <i class="mdi mdi-information-outline me-2 mt-1"></i>
+                    <div>
+                        <div>{{ ui.policies_intro|default:"Per-model exceptions: relax or tighten the global rules for individual models here. The patterns a field value must match are defined under Validation Rules." }}</div>
+                        <div class="small text-muted mt-2">{{ ui.policies_scope_note|default:"Applies to: enforcement, minimum length, naming convention, required fields. Does not apply to: ticket requirement, blocked phrases, change window — those always stay global." }}</div>
+                        <a href="{% url 'plugins:netbox_force:rule_list' %}" class="small">
+                            {{ ui.tab_rules|default:"Validation Rules" }} <i class="mdi mdi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
                 {% if policies %}
                 <div class="table-responsive">
                     <table class="table table-hover">
