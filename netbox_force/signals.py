@@ -782,6 +782,21 @@ def _generate_changelog_comment(instance, lang='de'):
             pass
 
 
+def model_has_changelog_field(instance):
+    """
+    True when the object's edit form offers somewhere to type a changelog.
+
+    The UI reads the changelog from the object's own 'comments' field. NetBox's
+    organizational models (device role, platform, tag, rack role, …) do not have
+    one, so demanding a changelog for them blocks the object outright — there is
+    no field to fill in. Those get an auto-generated message instead of a block.
+    """
+    try:
+        return any(f.name == 'comments' for f in instance._meta.fields)
+    except Exception:
+        return True  # On doubt, enforce — never weaken by accident
+
+
 def _try_inject_auto_changelog(request, instance):
     """
     Generate a diff string and inject it into request.POST so that
@@ -804,14 +819,20 @@ def _try_inject_auto_changelog(request, instance):
     auto_enabled   = _get_setting('auto_changelog_enabled', False)
     ticket_enabled = _get_setting('ticket_enabled', True)
 
-    # Nothing to do if neither feature is active
-    if not auto_enabled and not ticket_enabled:
-        return False
+    # Models with no 'comments' field give the user nowhere to type a changelog.
+    # For them, generation is not a convenience but the only way the object can
+    # be saved at all, so neither the feature toggle nor the area scope applies.
+    no_input_field = not model_has_changelog_field(instance)
 
-    # Both cases below produce auto-generated description text, so the
-    # configured area scope gates them together.
-    if not _auto_changelog_in_scope(instance):
-        return False
+    if not no_input_field:
+        # Nothing to do if neither feature is active
+        if not auto_enabled and not ticket_enabled:
+            return False
+
+        # Both cases below produce auto-generated description text, so the
+        # configured area scope gates them together.
+        if not _auto_changelog_in_scope(instance):
+            return False
 
     # On first call for this request, store the original user input.
     # Subsequent calls within a bulk edit (same request, multiple objects) must
@@ -846,8 +867,9 @@ def _try_inject_auto_changelog(request, instance):
         combined = f"{ticket_prefix} — {auto}"
         is_ticket_only = True
     else:
-        # Case 1: empty field — only generate when auto_changelog is enabled
-        if not auto_enabled:
+        # Case 1: empty field — generate when auto_changelog is enabled, or
+        # when the model has no field the user could have filled in.
+        if not auto_enabled and not no_input_field:
             return False
         auto = _generate_changelog_comment(instance, lang=lang)
         if not auto:
@@ -1034,7 +1056,9 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
             _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check (always enforced when enabled) ---
-    if _get_setting('ticket_enabled', True):
+    # Skipped for models with no changelog field: the ticket is read from the
+    # same text the user cannot enter, so the check could never be satisfied.
+    if _get_setting('ticket_enabled', True) and model_has_changelog_field(instance):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
@@ -1107,7 +1131,13 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     # --- Auto-changelog: inject "deleted: Name" if field is empty or ticket-only ---
     _auto_enabled_del   = _get_setting('auto_changelog_enabled', False)
     _ticket_enabled_del = _get_setting('ticket_enabled', True)
-    if (_auto_enabled_del or _ticket_enabled_del) and _auto_changelog_in_scope(instance):
+    # A delete confirmation for a model without a 'comments' field offers no
+    # input either, so generation is the only way the delete can proceed.
+    _no_field_del = not model_has_changelog_field(instance)
+    if _no_field_del:
+        _auto_enabled_del = True
+    if ((_auto_enabled_del or _ticket_enabled_del)
+            and (_no_field_del or _auto_changelog_in_scope(instance))):
         raw = ''
         for fname in ('changelog_message', 'comments', '_changelog_message'):
             if hasattr(request, 'data') and isinstance(request.data, dict):
@@ -1192,7 +1222,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             _enforce('blacklisted', error_msg, comment)
 
     # --- Ticket reference check (always enforced when enabled) ---
-    if _get_setting('ticket_enabled', True):
+    # Skipped for models with no changelog field — see the pre_save counterpart.
+    if _get_setting('ticket_enabled', True) and model_has_changelog_field(instance):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
