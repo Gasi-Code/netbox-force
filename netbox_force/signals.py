@@ -239,15 +239,46 @@ def is_exempt_user(request):
     return username in [u.lower() for u in exempt_users]
 
 
-# Request fields the changelog text may arrive in, in priority order.
-# 'comments' is the object's own field, which the UI forms submit.
+# NetBox 4.x carries a dedicated changelog message on every model form, every
+# bulk edit form and the API, and writes it to ObjectChange.message. That field
+# is what the plugin enforces whenever the request offers it.
+NATIVE_CHANGELOG_FIELDS = ('changelog_message', '_changelog_message')
+
+# Releases without that field left only the object's own 'comments' field to
+# carry the text. Kept as a fallback for older NetBox, never used alongside the
+# native field — see _native_changelog_offered().
 CHANGELOG_FIELD_NAMES = ('changelog_message', 'comments', '_changelog_message')
+
+
+def _native_changelog_offered(request):
+    """
+    True when this request carries NetBox's own changelog message field.
+
+    A form that renders it submits the key even when left empty, so presence of
+    the key — not of a value — is what distinguishes a NetBox release with the
+    field from one without.
+    """
+    try:
+        if hasattr(request, 'data') and isinstance(request.data, dict):
+            if any(name in request.data for name in NATIVE_CHANGELOG_FIELDS):
+                return True
+        post = getattr(request, 'POST', None)
+        if post is not None:
+            return any(name in post for name in NATIVE_CHANGELOG_FIELDS)
+    except Exception:
+        pass
+    return False
 
 
 def get_changelog_comment(request):
     """
     Reads the changelog comment from the request.
     Checks request.data (DRF) first, then request.POST (Django forms).
+
+    Where NetBox offers its own changelog field, that field is the only source.
+    'comments' is persisted object data: text left there by an earlier edit
+    would satisfy the rule on every later save without anyone writing anything,
+    and using it as the changelog silently rewrites the object's own comment.
     """
     if not request:
         return None
@@ -256,7 +287,8 @@ def get_changelog_comment(request):
     if cached is not _NOT_CHECKED:
         return cached
 
-    field_names = CHANGELOG_FIELD_NAMES
+    field_names = (NATIVE_CHANGELOG_FIELDS if _native_changelog_offered(request)
+                   else CHANGELOG_FIELD_NAMES)
     result = None
 
     if hasattr(request, 'data') and isinstance(request.data, dict):
@@ -889,7 +921,9 @@ def _try_inject_auto_changelog(request, instance):
     # previous object — so each object gets its own correct diff message.
     if not hasattr(request, '_original_changelog_input'):
         _raw = ''
-        for fname in ('changelog_message', 'comments', '_changelog_message'):
+        _names = (NATIVE_CHANGELOG_FIELDS if _native_changelog_offered(request)
+                  else CHANGELOG_FIELD_NAMES)
+        for fname in _names:
             if hasattr(request, 'data') and isinstance(request.data, dict):
                 _raw = (request.data.get(fname) or '').strip()
             if not _raw:
@@ -1190,7 +1224,9 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     if ((_auto_enabled_del or _ticket_enabled_del)
             and (_no_field_del or _auto_changelog_in_scope(instance))):
         raw = ''
-        for fname in ('changelog_message', 'comments', '_changelog_message'):
+        _names = (NATIVE_CHANGELOG_FIELDS if _native_changelog_offered(request)
+                  else CHANGELOG_FIELD_NAMES)
+        for fname in _names:
             if hasattr(request, 'data') and isinstance(request.data, dict):
                 raw = (request.data.get(fname) or '').strip()
             if not raw:

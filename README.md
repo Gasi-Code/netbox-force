@@ -565,9 +565,11 @@ The plugin's UI language is set in **Settings → Language**. In-plugin tabs, la
 
 ### API Support
 
-Enforcement applies to both the NetBox UI and REST API. The plugin reads the changelog comment from:
-- **UI requests:** the `comments` form field
-- **API requests:** the `changelog_message` JSON body field
+Enforcement applies to both the NetBox UI and REST API. The plugin reads the changelog comment from NetBox's own **Changelog message** field — `changelog_message` in the form body and in the API JSON body. NetBox writes it to `ObjectChange.message`, so the enforced text is what appears in the change log.
+
+Where a request carries no such field, the plugin falls back to the object's `comments` field. That covers NetBox releases predating the native field. Once the native field is present it is the only source: `comments` is persisted object data, so text left there by an earlier edit would satisfy the rule on every later save without anyone writing anything.
+
+A form that renders no changelog field at all — a quick-add modal, for example — cannot satisfy the rule by any input. Those requests get an auto-generated message instead of being blocked.
 
 ```bash
 # Example: API PATCH with changelog message
