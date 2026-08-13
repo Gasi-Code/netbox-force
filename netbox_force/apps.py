@@ -143,7 +143,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.5.0'
+    version = '5.5.1'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
@@ -172,6 +172,12 @@ class NetboxForceConfig(PluginConfig):
         from . import signals  # noqa: F401
         from . import dashboards  # noqa: F401 — registers @register_widget
         _localize_menu()
+
+        # NetBox collects a changelog message on every form except the single
+        # object delete dialog. Without it a deletion can neither be recorded
+        # with a reason nor enforced.
+        from .formpatch import install_delete_changelog_field
+        install_delete_changelog_field()
 
         # Registering the recurring CheckMK sync must never keep the plugin
         # from loading — no worker, an older NetBox, or an unmigrated DB all
