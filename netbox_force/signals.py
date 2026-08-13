@@ -239,6 +239,11 @@ def is_exempt_user(request):
     return username in [u.lower() for u in exempt_users]
 
 
+# Request fields the changelog text may arrive in, in priority order.
+# 'comments' is the object's own field, which the UI forms submit.
+CHANGELOG_FIELD_NAMES = ('changelog_message', 'comments', '_changelog_message')
+
+
 def get_changelog_comment(request):
     """
     Reads the changelog comment from the request.
@@ -251,7 +256,7 @@ def get_changelog_comment(request):
     if cached is not _NOT_CHECKED:
         return cached
 
-    field_names = ('changelog_message', 'comments', '_changelog_message')
+    field_names = CHANGELOG_FIELD_NAMES
     result = None
 
     if hasattr(request, 'data') and isinstance(request.data, dict):
@@ -784,17 +789,60 @@ def _generate_changelog_comment(instance, lang='de'):
 
 def model_has_changelog_field(instance):
     """
-    True when the object's edit form offers somewhere to type a changelog.
+    True when the model carries a 'comments' field at all.
 
-    The UI reads the changelog from the object's own 'comments' field. NetBox's
-    organizational models (device role, platform, tag, rack role, …) do not have
-    one, so demanding a changelog for them blocks the object outright — there is
-    no field to fill in. Those get an auto-generated message instead of a block.
+    The UI reads the changelog from the object's own 'comments' field, so a model
+    without one can never satisfy the rule through the interface.
     """
     try:
         return any(f.name == 'comments' for f in instance._meta.fields)
     except Exception:
         return True  # On doubt, enforce — never weaken by accident
+
+
+def _submitted_field_names(request):
+    """
+    Field names the request carried, for the block log line. Names only — a
+    value could hold anything the user typed, including credentials.
+    """
+    try:
+        names = sorted(getattr(request, 'POST', {}).keys())
+        if not names:
+            return '<none>'
+        shown = names[:25]
+        suffix = f' (+{len(names) - len(shown)})' if len(names) > len(shown) else ''
+        return ', '.join(shown) + suffix
+    except Exception:
+        return '<unreadable>'
+
+
+def changelog_input_available(request, instance):
+    """
+    True when this request gave the user somewhere to enter a changelog.
+
+    A form that renders the field submits it even when left empty, so the key is
+    present in POST. NetBox's quick-add modals and confirmation dialogs render a
+    reduced form and omit the field entirely — there the rule cannot be satisfied
+    by any input, and enforcing it turns the dialog into a button that silently
+    does nothing.
+
+    API callers can always add changelog_message to the request body, so they are
+    always held to the rule. Anything unexpected reports True, keeping
+    enforcement intact rather than weakening it by accident.
+    """
+    try:
+        if request is None:
+            return True
+        if getattr(request, 'path_info', '').startswith('/api/'):
+            return True
+        if not model_has_changelog_field(instance):
+            return False
+        post = getattr(request, 'POST', None)
+        if post is None:
+            return True
+        return any(name in post for name in CHANGELOG_FIELD_NAMES)
+    except Exception:
+        return True
 
 
 def _try_inject_auto_changelog(request, instance):
@@ -819,10 +867,11 @@ def _try_inject_auto_changelog(request, instance):
     auto_enabled   = _get_setting('auto_changelog_enabled', False)
     ticket_enabled = _get_setting('ticket_enabled', True)
 
-    # Models with no 'comments' field give the user nowhere to type a changelog.
-    # For them, generation is not a convenience but the only way the object can
-    # be saved at all, so neither the feature toggle nor the area scope applies.
-    no_input_field = not model_has_changelog_field(instance)
+    # Forms that never rendered a changelog field give the user nowhere to type
+    # one. For them, generation is not a convenience but the only way the object
+    # can be saved at all, so neither the feature toggle nor the area scope
+    # applies.
+    no_input_field = not changelog_input_available(request, instance)
 
     if not no_input_field:
         # Nothing to do if neither feature is active
@@ -1042,8 +1091,10 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
             error_msg = build_error_message(instance, request, reason=msg_key,
                                             min_len=min_len,
                                             actual=len(comment) if comment else 0)
-            logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
-                         model_label, len(comment) if comment else 0, min_len, username)
+            logger.info("pre_save: %s changelog missing/too short (got %s, need %d), blocking user '%s'; "
+                        "submitted fields: %s",
+                         model_label, len(comment) if comment else 0, min_len, username,
+                         _submitted_field_names(request))
             _enforce(reason, error_msg, comment)
 
     # --- Blacklist check (skip for auto-generated comments) ---
@@ -1058,7 +1109,7 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
     # --- Ticket reference check (always enforced when enabled) ---
     # Skipped for models with no changelog field: the ticket is read from the
     # same text the user cannot enter, so the check could never be satisfied.
-    if _get_setting('ticket_enabled', True) and model_has_changelog_field(instance):
+    if _get_setting('ticket_enabled', True) and changelog_input_available(request, instance):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_save: %s missing ticket reference, blocking user '%s'",
@@ -1133,7 +1184,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     _ticket_enabled_del = _get_setting('ticket_enabled', True)
     # A delete confirmation for a model without a 'comments' field offers no
     # input either, so generation is the only way the delete can proceed.
-    _no_field_del = not model_has_changelog_field(instance)
+    _no_field_del = not changelog_input_available(request, instance)
     if _no_field_del:
         _auto_enabled_del = True
     if ((_auto_enabled_del or _ticket_enabled_del)
@@ -1208,8 +1259,10 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                                             min_len=min_len,
                                             actual=len(comment) if comment else 0,
                                             is_delete=True)
-            logger.info("pre_delete: %s changelog missing/too short (got %s, need %d), blocking user '%s'",
-                         model_label, len(comment) if comment else 0, min_len, username)
+            logger.info("pre_delete: %s changelog missing/too short (got %s, need %d), blocking user '%s'; "
+                        "submitted fields: %s",
+                         model_label, len(comment) if comment else 0, min_len, username,
+                         _submitted_field_names(request))
             _enforce(reason, error_msg, comment)
 
     # --- Blacklist check (skip for auto-generated comments) ---
@@ -1223,7 +1276,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
 
     # --- Ticket reference check (always enforced when enabled) ---
     # Skipped for models with no changelog field — see the pre_save counterpart.
-    if _get_setting('ticket_enabled', True) and model_has_changelog_field(instance):
+    if _get_setting('ticket_enabled', True) and changelog_input_available(request, instance):
         ticket_error = check_ticket_reference(comment, settings, instance, request)
         if ticket_error:
             logger.info("pre_delete: %s missing ticket reference, blocking user '%s'",
