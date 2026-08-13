@@ -56,6 +56,11 @@ EXEMPT_MODELS = {
     'core.datasource',
     'core.datasourcefile',
     'core.autosyncrecord',
+    # NetBox moved ObjectChange from extras to core. The extras label above is
+    # kept for older releases; without the core label the plugin checks the
+    # change record NetBox writes for the user's own edit.
+    'core.objectchange',
+    'core.objectchangeaction',
 
     # Own plugin models (plugin-internal, never need a changelog)
     'netbox_force.forcesettings',
@@ -989,6 +994,20 @@ def _try_inject_auto_changelog(request, instance):
         combined = auto
         is_ticket_only = False
 
+    # request.POST is shared by every object saved in this request, so a value
+    # written there satisfies the check for all of them. That is wanted for a
+    # bulk edit, where the objects are the ones the user submitted. It is not
+    # wanted for an object the user never submitted — a change record NetBox
+    # writes as a side effect of the very save being checked. Those reach this
+    # function through the no-input-field branch, so that branch stays on the
+    # instance and leaves the request untouched.
+    if no_input_field:
+        try:
+            instance._changelog_message = combined
+        except Exception:
+            return False
+        return True
+
     # Inject into request.POST (copy() makes it mutable)
     try:
         post = request.POST.copy()
@@ -1259,6 +1278,9 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     _no_field_del = not changelog_input_available(request, instance)
     if _no_field_del:
         _auto_enabled_del = True
+    # Per object, not per request: a value generated for one object must not
+    # count as the changelog of the next object deleted in the same request.
+    _auto_generated_here = False
     if ((_auto_enabled_del or _ticket_enabled_del)
             and (_no_field_del or _auto_changelog_in_scope(instance))):
         raw = ''
@@ -1296,15 +1318,20 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             auto = get_message('auto_changelog_deleted_msg', lang, verbose=verbose, name=str(instance))
             # If user only entered a ticket number, prepend it: "TICKET — deleted: Name"
             combined = f"{ticket_prefix} — {auto}" if ticket_prefix else auto
-            try:
-                post = request.POST.copy()
-                post['changelog_message'] = combined
-                request.POST = post
-                if hasattr(request, '_netbox_force_changelog_comment'):
-                    del request._netbox_force_changelog_comment
-                request._auto_generated_changelog = True
-            except Exception:
-                pass
+            _auto_generated_here = True
+            # See _try_inject_auto_changelog: the no-input-field case must not
+            # write to the shared request, or the generated text satisfies the
+            # check for every other object deleted in the same request.
+            if not _no_field_del:
+                try:
+                    post = request.POST.copy()
+                    post['changelog_message'] = combined
+                    request.POST = post
+                    if hasattr(request, '_netbox_force_changelog_comment'):
+                        del request._netbox_force_changelog_comment
+                    request._auto_generated_changelog = True
+                except Exception:
+                    pass
             # Also set directly on instance for NetBox's native change logging.
             # When ticket_prefix is set, NetBox already wrote the bare ticket on the
             # instance before pre_delete fired — overwrite unconditionally so the
@@ -1315,7 +1342,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             except Exception:
                 pass
 
-    auto_generated = getattr(request, '_auto_generated_changelog', False)
+    auto_generated = _auto_generated_here or getattr(request, '_auto_generated_changelog', False)
 
     # --- Changelog presence + length (min_length respects model policy) ---
     min_len = (policy.min_length_override
