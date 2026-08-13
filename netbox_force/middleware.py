@@ -20,6 +20,24 @@ def set_current_request(request):
     _thread_locals.request = request
 
 
+def queue_pending_changelog(data):
+    """
+    Queues an auto-generated changelog message to be written onto NetBox's own
+    change record after the view completes.
+
+    NetBox builds the ObjectChange for a deletion in its own pre_delete
+    receiver, which the core app connects before any plugin, so a message set
+    on the instance from this plugin's receiver arrives too late to be included.
+    Rather than depend on receiver ordering, the message is applied afterwards
+    to the change records belonging to this request.
+    """
+    pending = getattr(_thread_locals, 'pending_changelogs', None)
+    if pending is None:
+        _thread_locals.pending_changelogs = []
+        pending = _thread_locals.pending_changelogs
+    pending.append(data)
+
+
 def queue_pending_violation(data):
     """
     Queues a violation dict for writing after the view completes.
@@ -49,12 +67,48 @@ class RequestContextMiddleware:
     def __call__(self, request):
         set_current_request(request)
         _thread_locals.pending_violations = []
+        _thread_locals.pending_changelogs = []
         try:
             response = self.get_response(request)
         finally:
+            self._flush_pending_changelogs()
             self._flush_pending_violations()
             set_current_request(None)
         return response
+
+    @staticmethod
+    def _flush_pending_changelogs():
+        """
+        Writes queued auto-generated messages onto the change records NetBox
+        created during this request.
+
+        Only records that are still empty are touched, so anything NetBox or the
+        user already supplied always wins. Uses .update() so no signal fires and
+        the plugin cannot trigger itself.
+        """
+        pending = getattr(_thread_locals, 'pending_changelogs', [])
+        if not pending:
+            return
+        _thread_locals.pending_changelogs = []
+        try:
+            try:
+                from core.models import ObjectChange
+            except ImportError:
+                from extras.models import ObjectChange
+
+            for item in pending:
+                request_id = item.get('request_id')
+                if not request_id:
+                    continue
+                ObjectChange.objects.filter(
+                    request_id=request_id,
+                    changed_object_id=item['object_id'],
+                    action=item['action'],
+                    message='',
+                ).update(message=item['message'][:200])
+        except Exception:
+            logger.debug('Could not apply auto-generated changelog messages',
+                         exc_info=True)
 
     @staticmethod
     def _flush_pending_violations():

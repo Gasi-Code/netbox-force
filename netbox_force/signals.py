@@ -11,7 +11,7 @@ from django.utils.translation import get_language as _get_active_lang, activate 
 from utilities.exceptions import AbortRequest
 from netbox.plugins import get_plugin_config
 
-from .middleware import get_current_request, queue_pending_violation
+from .middleware import get_current_request, queue_pending_violation, queue_pending_changelog
 from .messages import get_message, get_api_message
 
 logger = logging.getLogger('netbox.plugins.netbox_force')
@@ -754,6 +754,25 @@ _AUTO_CHANGELOG_SKIP_FIELDS = frozenset({
 })
 
 
+def _field_label(field):
+    """
+    Human-readable field label in the currently active language.
+
+    Django derives a verbose_name from the attribute name when a model does not
+    declare one, and that derived string is never translated — which is why a
+    German changelog read "Role: …" instead of "Rolle: …". Passing it through
+    gettext resolves it against NetBox's own catalogues, which already carry
+    these words in every language NetBox ships. An unknown string comes back
+    unchanged, so nothing is lost when there is no translation.
+    """
+    from django.utils.translation import gettext
+    raw = str(field.verbose_name or field.name)
+    try:
+        return gettext(raw).capitalize()
+    except Exception:
+        return raw.capitalize()
+
+
 def _get_field_display(obj, field, lang='de'):
     """Return a human-readable value for a single model field."""
     try:
@@ -829,17 +848,22 @@ def _generate_changelog_comment(instance, lang='de'):
 
             old_display = _get_field_display(original, field, lang)
             new_display = _get_field_display(instance, field, lang)
-            label = str(field.verbose_name or field.name).capitalize()
-            changes.append(f"{label}: '{old_display}' → '{new_display}'")
+            changes.append(f"{_field_label(field)}: '{old_display}' → '{new_display}'")
 
         if not changes:
             return None  # Nothing changed — let normal flow handle it
 
         MAX_SHOWN = 8
         if len(changes) > MAX_SHOWN:
-            shown = '; '.join(changes[:MAX_SHOWN])
-            return f'{shown} ' + get_message('auto_changelog_more', lang, n=len(changes) - MAX_SHOWN)
-        return '; '.join(changes)
+            detail = '; '.join(changes[:MAX_SHOWN]) + ' ' + get_message(
+                'auto_changelog_more', lang, n=len(changes) - MAX_SHOWN)
+        else:
+            detail = '; '.join(changes)
+
+        # Name the object as well. A bare field diff does not say what was
+        # changed, and the change log lists entries from many objects together.
+        return get_message('auto_changelog_updated_msg', lang,
+                           verbose=verbose, name=str(instance), changes=detail)
 
     except Exception:
         return None
@@ -1339,6 +1363,18 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
             try:
                 if ticket_prefix or not getattr(instance, '_changelog_message', None):
                     instance._changelog_message = combined
+            except Exception:
+                pass
+            # NetBox's own pre_delete receiver has already built the change
+            # record by the time this runs, so the attribute above never reaches
+            # it. Queue the text to be written onto that record after the view.
+            try:
+                queue_pending_changelog({
+                    'request_id': getattr(request, 'id', None),
+                    'object_id': instance.pk,
+                    'action': 'delete',
+                    'message': combined,
+                })
             except Exception:
                 pass
 
