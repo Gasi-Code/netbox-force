@@ -1285,6 +1285,14 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                else _get_setting('min_length', 2))
     comment = get_changelog_comment(request)
 
+    logger.info(
+        "pre_delete decision: %s user='%s' method=%s comment=%r auto_generated=%s "
+        "input_available=%s min_len=%d native_field=%s fields: %s",
+        model_label, username, getattr(request, 'method', '?'), comment,
+        auto_generated, changelog_input_available(request, instance), min_len,
+        _native_changelog_offered(request), _submitted_field_names(request),
+    )
+
     # Carry the text into the change record. NetBox's own delete view does not
     # read the changelog field — formpatch adds it to ConfirmationForm, which
     # the view knows nothing about — so the value would otherwise be enforced
