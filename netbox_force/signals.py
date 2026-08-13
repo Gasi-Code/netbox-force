@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 
 from django.apps import apps
@@ -242,6 +243,34 @@ def is_exempt_user(request):
 # NetBox 4.x carries a dedicated changelog message on every model form, every
 # bulk edit form and the API, and writes it to ObjectChange.message. That field
 # is what the plugin enforces whenever the request offers it.
+# Diagnostic probe.
+#
+# NetBox's logging configuration decides whether a plugin's log records reach
+# the container output at all, and on a default install they do not. That makes
+# the log useless for tracing enforcement on a running instance. The probe
+# writes to a file instead, and only when that file already exists:
+#
+#     touch /tmp/netbox_force_probe.log     # start recording
+#     cat   /tmp/netbox_force_probe.log     # read it
+#     rm    /tmp/netbox_force_probe.log     # stop recording
+#
+# No restart, no configuration change, and nothing is written unless someone
+# deliberately created the file. Override the path with NETBOX_FORCE_PROBE.
+PROBE_FILE = os.environ.get('NETBOX_FORCE_PROBE', '/tmp/netbox_force_probe.log')
+
+
+def _probe(fmt, *args):
+    """Append one diagnostic line. Never raises — diagnostics must not block a save."""
+    try:
+        if not os.path.exists(PROBE_FILE):
+            return
+        line = fmt % args if args else fmt
+        with open(PROBE_FILE, 'a', encoding='utf-8') as fh:
+            fh.write('{} {}\n'.format(timezone.now().strftime('%H:%M:%S'), line))
+    except Exception:
+        pass
+
+
 NATIVE_CHANGELOG_FIELDS = ('changelog_message', '_changelog_message')
 
 # Releases without that field left only the object's own 'comments' field to
@@ -1159,17 +1188,23 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     Runs: exemption checks, change window, changelog, blacklist, ticket reference.
     (Naming and required field checks are skipped on deletion.)
     """
+    _probe('pre_delete ENTRY %s', get_model_label(instance))
+
     # --- Request context check FIRST (no DB access!) ---
     request = get_current_request()
     if not request or request.method not in ENFORCE_ON_DELETE_METHODS:
+        _probe('  skip: request=%s method=%s',
+               bool(request), getattr(request, 'method', None))
         return
 
     # --- Global enforcement master switch ---
     settings = _get_settings()
     if settings and not getattr(settings, 'enforcement_enabled', True):
+        _probe('  skip: enforcement_enabled=False')
         return
 
     if not _get_setting('enforce_on_delete', True):
+        _probe('  skip: enforce_on_delete=False')
         return
 
     model_label = get_model_label(instance)
@@ -1177,9 +1212,11 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     # --- Exemption checks (BEFORE any per-model DB queries) ---
     if is_exempt_model(instance):
         logger.debug("pre_delete: %s is exempt model, skipping", model_label)
+        _probe('  skip: exempt model')
         return
     if is_exempt_user(request):
         logger.debug("pre_delete: %s exempt user, skipping", model_label)
+        _probe('  skip: exempt user')
         return
 
     # --- Per-model policy (after exemption checks to avoid unnecessary DB access) ---
@@ -1193,6 +1230,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     if policy is not None and policy.enforcement_enabled is not None:
         if not policy.enforcement_enabled:
             logger.debug("pre_delete: %s enforcement disabled by model policy, skipping", model_label)
+            _probe('  skip: policy disables enforcement')
             return
 
     username = getattr(getattr(request, 'user', None), 'username', 'unknown')
@@ -1292,6 +1330,9 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
         auto_generated, changelog_input_available(request, instance), min_len,
         _native_changelog_offered(request), _submitted_field_names(request),
     )
+    _probe('  decision: comment=%r auto=%s input_available=%s native=%s min_len=%s fields=[%s]',
+           comment, auto_generated, changelog_input_available(request, instance),
+           _native_changelog_offered(request), min_len, _submitted_field_names(request))
 
     # Carry the text into the change record. NetBox's own delete view does not
     # read the changelog field — formpatch adds it to ConfirmationForm, which
