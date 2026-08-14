@@ -1,0 +1,204 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.graylog_sources_title|default:"Graylog Sources" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'all' %}active{% endif %}"
+                   href="?state=all">{{ ui.graylog_filter_all|default:"All" }}
+                    <span class="badge bg-secondary">{{ graylog_source_total }}</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'matched' %}active{% endif %}"
+                   href="?state=matched">{{ ui.graylog_filter_matched|default:"Assigned" }}
+                    <span class="badge bg-secondary">{{ graylog_source_matched }}</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'unmatched' %}active{% endif %}"
+                   href="?state=unmatched">{{ ui.graylog_filter_unmatched|default:"Unassigned" }}
+                    <span class="badge bg-warning text-dark">{{ graylog_source_unmatched }}</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'silent' %}active{% endif %}"
+                   href="?state=silent">{{ ui.graylog_filter_silent|default:"Silent" }}
+                    <span class="badge bg-danger">{{ graylog_silent_count }}</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'unmapped' %}active{% endif %}"
+                   href="?state=unmapped">{{ ui.graylog_filter_unmapped|default:"Never seen in Graylog" }}</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if state == 'ignored' %}active{% endif %}"
+                   href="?state=ignored">{{ ui.graylog_filter_ignored|default:"Ignored" }}</a>
+            </li>
+        </ul>
+    </div>
+    <div class="col-auto">
+        <form method="get" class="d-flex gap-2">
+            <input type="hidden" name="state" value="{{ state }}">
+            <input type="text" name="q" value="{{ search }}" class="form-control"
+                   placeholder="{{ ui.graylog_search_placeholder|default:'Search source…' }}">
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="mdi mdi-magnify"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if state == 'silent' %}
+<div class="alert alert-info">
+    <i class="mdi mdi-information-outline"></i>
+    {{ ui.graylog_help_silent|default:"These sources are mapped to a NetBox object but have stopped sending. Either the host is dead, its logging is broken, or the NetBox entry is a leftover. Neither system can spot this on its own." }}
+</div>
+{% elif state == 'unmapped' %}
+<div class="alert alert-info">
+    <i class="mdi mdi-information-outline"></i>
+    {{ ui.graylog_help_unmapped|default:"Devices and VMs that never turned up in Graylog under any name the matching chain recognises." }}
+</div>
+{% elif state == 'unmatched' %}
+<div class="alert alert-info">
+    <i class="mdi mdi-information-outline"></i>
+    {{ ui.graylog_help_unmatched|default:"Nothing here is guessed. A source is assigned by an exact rule or not at all — in a numbered naming scheme the most similar candidate is systematically the wrong machine. The suggestions below are ordered by similarity but never act on their own." }}
+</div>
+{% endif %}
+
+{% if state == 'unmapped' %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ ui.graylog_col_object|default:"NetBox object" }}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for obj in unmapped_objects %}
+                <tr>
+                    <td><a href="{{ obj.get_absolute_url }}">{{ obj }}</a></td>
+                </tr>
+            {% empty %}
+                <tr><td class="text-muted">{{ ui.graylog_none|default:"Nothing to show." }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ ui.graylog_col_source|default:"Source" }}</th>
+                    <th class="text-end">{{ ui.graylog_stat_messages|default:"Messages" }}</th>
+                    <th class="text-end">{{ ui.graylog_stat_errors|default:"Errors" }}</th>
+                    <th class="text-end">{{ ui.graylog_stat_warnings|default:"Warnings" }}</th>
+                    <th>{{ ui.graylog_col_last_message|default:"Last message" }}</th>
+                    <th>{{ ui.graylog_col_object|default:"NetBox object" }}</th>
+                    <th>{{ ui.graylog_col_matched_by|default:"Matched by" }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in items %}
+                <tr{% if item.silent %} class="table-warning"{% endif %}>
+                    <td>
+                        <code>{{ item.source.name }}</code>
+                        {% if item.silent %}
+                            <span class="badge bg-warning text-dark">{{ ui.graylog_badge_silent|default:"silent" }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ item.source.total_count }}</td>
+                    <td class="text-end {% if item.source.error_count %}text-danger fw-bold{% endif %}">{{ item.source.error_count }}</td>
+                    <td class="text-end {% if item.source.warning_count %}text-warning{% endif %}">{{ item.source.warning_count }}</td>
+                    <td>
+                        {% if item.source.last_message_at %}{{ item.source.last_message_at|date:"Y-m-d H:i" }}
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if item.object %}
+                            <a href="{{ item.object.get_absolute_url }}">{{ item.object }}</a>
+                        {% else %}
+                            <span class="text-muted">{{ ui.graylog_unassigned_label|default:"not assigned" }}</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-secondary">{{ item.source.get_match_method_display }}</span></td>
+                    <td class="text-end">
+                        <form method="post" class="d-inline"
+                              action="{% url 'plugins:netbox_force:graylog_source_assign' item.source.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            {% if item.candidates %}
+                                <div class="input-group input-group-sm">
+                                    <select name="target" class="form-select form-select-sm">
+                                        <option value="">{{ ui.graylog_pick|default:"Pick…" }}</option>
+                                        {% for candidate in item.candidates %}
+                                        <option value="{{ candidate.value }}">
+                                            {{ candidate.name }} — {{ candidate.label }} ({{ candidate.score }}%)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        {{ ui.graylog_btn_assign|default:"Assign" }}
+                                    </button>
+                                </div>
+                            {% elif item.source.is_matched %}
+                                <button type="submit" name="target" value=""
+                                        class="btn btn-sm btn-outline-danger">
+                                    {{ ui.graylog_btn_unassign|default:"Remove" }}
+                                </button>
+                            {% endif %}
+                        </form>
+                        <form method="post" class="d-inline"
+                              action="{% url 'plugins:netbox_force:graylog_source_ignore' item.source.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    title="{{ ui.graylog_btn_ignore|default:'Ignore' }}">
+                                <i class="mdi {% if item.source.ignored %}mdi-eye{% else %}mdi-eye-off{% endif %}"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-muted">{{ ui.graylog_none|default:"Nothing to show." }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-3">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?state={{ state }}&q={{ search }}&page={{ page_obj.previous_page_number }}">&laquo;</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?state={{ state }}&q={{ search }}&page={{ page_obj.next_page_number }}">&raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endif %}
+
+<div class="mt-3">
+    <a href="{% url 'plugins:netbox_force:graylog' %}" class="btn btn-outline-secondary">
+        <i class="mdi mdi-cog"></i> {{ ui.graylog_btn_settings|default:"Graylog settings" }}
+    </a>
+</div>
+{% endblock content %}

@@ -477,6 +477,86 @@ class ForceSettings(models.Model):
         null=True, blank=True, default=None,
         verbose_name='Business hours end')
 
+    # --- Graylog Read-back (pull) ---
+    graylog_read_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable reading from Graylog',
+        help_text='Show Graylog information inside NetBox. Read-only — nothing in Graylog is modified.',
+    )
+    graylog_api_url = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Graylog web address',
+        help_text='Address of the Graylog web interface, e.g. https://graylog.example.com. '
+                  'Pasting a full search URL works — it is shortened automatically.',
+    )
+    graylog_token_encrypted = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='API token',
+        help_text='Stored encrypted. Never rendered back into the form.',
+    )
+    graylog_api_verify_ssl = models.BooleanField(
+        default=True,
+        verbose_name='Verify TLS certificate',
+    )
+    graylog_api_timeout = models.PositiveIntegerField(
+        default=10,
+        verbose_name='Timeout (seconds)',
+        help_text='Applies to the background poll and to the panels. A slow answer '
+                  'yields an empty panel, never a broken page.',
+    )
+    graylog_stream_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name='Stream',
+        help_text='Restrict every query to one Graylog stream. Leave empty to search everything.',
+    )
+    graylog_search_flavor = models.CharField(
+        max_length=20,
+        default='auto',
+        verbose_name='Search API form',
+        help_text='Detected automatically. Reset to "auto" after a Graylog upgrade. '
+                  'Pin to "legacy" to keep the plugin on plain GET requests.',
+    )
+    graylog_poll_interval = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Poll interval (minutes)',
+        help_text='How often the background job refreshes the per-source counters. '
+                  'Set 0 to refresh only on demand.',
+    )
+    graylog_poll_batch_size = models.PositiveIntegerField(
+        default=1000,
+        verbose_name='Sources per poll',
+        help_text='Upper bound on how many distinct sources one poll asks for. '
+                  'The poll is a single grouped query, not one query per device.',
+    )
+    graylog_window_hours = models.PositiveIntegerField(
+        default=24,
+        verbose_name='Counting window (hours)',
+        help_text='Period the error and warning counters cover.',
+    )
+    graylog_message_limit = models.PositiveIntegerField(
+        default=25,
+        verbose_name='Messages per panel',
+        help_text='How many recent messages the panel on a device or VM shows.',
+    )
+    graylog_domain_suffixes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Domain suffixes',
+        help_text='One per line, e.g. example.com. Used to reduce an FQDN from Graylog '
+                  'to a short name before matching. Nothing is guessed beyond this.',
+    )
+    graylog_silent_after_hours = models.PositiveIntegerField(
+        default=24,
+        verbose_name='Silent after (hours)',
+        help_text='A device or VM that is mapped to a Graylog source but has sent nothing '
+                  'for this long is listed as silent. Set 0 to disable the check.',
+    )
+
     # In-memory cache with thread safety
     # RLock (reentrant) because get_settings() holds the lock and may call
     # save() via _init_from_config(), which also acquires the lock.
@@ -573,6 +653,33 @@ class ForceSettings(models.Model):
     @property
     def checkmk_secret_is_from_config(self):
         return bool(self._checkmk_secret_from_config())
+
+    def get_graylog_token(self):
+        from .secretstore import decrypt
+        return decrypt(self.graylog_token_encrypted, purpose='graylog')
+
+    def set_graylog_token(self, value):
+        from .secretstore import encrypt
+        self.graylog_token_encrypted = encrypt(value, purpose='graylog')
+
+    @property
+    def graylog_has_token(self):
+        return bool(self.get_graylog_token())
+
+    @property
+    def graylog_read_configured(self):
+        return bool(self.graylog_api_url and self.graylog_has_token)
+
+    def get_graylog_domain_suffixes(self):
+        """Lower-cased suffixes without a leading dot."""
+        if not self.graylog_domain_suffixes:
+            return []
+        out = []
+        for line in self.graylog_domain_suffixes.splitlines():
+            item = line.strip().lower().lstrip('.')
+            if item:
+                out.append(item)
+        return out
 
     def get_checkmk_secret(self):
         from .secretstore import decrypt
@@ -1575,6 +1682,160 @@ class CheckmkSyncRun(models.Model):
     def prune(cls):
         try:
             keep = cls.objects.order_by('-started').values_list('pk', flat=True)[:cls.HISTORY_LIMIT]
+            cls.objects.exclude(pk__in=list(keep)).delete()
+        except Exception:
+            pass
+
+
+# =============================================================================
+# GRAYLOG READ-BACK
+# =============================================================================
+
+GRAYLOG_MATCH_CHOICES = [
+    ('manual', 'Assigned by hand'),
+    ('ip', 'IP address'),
+    ('hostname', 'Host name'),
+    ('fqdn', 'Host name after removing the domain'),
+    ('none', 'Not assigned'),
+]
+
+
+class GraylogSource(models.Model):
+    """
+    One log source as Graylog knows it, plus the NetBox object it belongs to.
+
+    The mapping lives here rather than on Device or VirtualMachine on purpose:
+    Graylog must not write anything into NetBox core objects. Removing this
+    plugin removes the mapping and leaves NetBox untouched.
+
+    Assignment never guesses. A source is matched by an exact rule or it stays
+    unmatched — see graylog_match.py for why a similarity score would be
+    actively harmful here.
+    """
+
+    name = models.CharField(
+        max_length=255, unique=True, db_index=True,
+        verbose_name='Source',
+        help_text='Value of the Graylog source field.')
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(db_index=True, null=True, blank=True)
+    last_message_at = models.DateTimeField(null=True, blank=True,
+                                           verbose_name='Last message')
+
+    total_count = models.PositiveIntegerField(default=0, verbose_name='Messages')
+    error_count = models.PositiveIntegerField(default=0, verbose_name='Errors')
+    warning_count = models.PositiveIntegerField(default=0, verbose_name='Warnings')
+
+    matched_type = models.ForeignKey(
+        'contenttypes.ContentType', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+')
+    matched_id = models.PositiveBigIntegerField(null=True, blank=True)
+    match_method = models.CharField(
+        max_length=10, choices=GRAYLOG_MATCH_CHOICES, default='none',
+        db_index=True, verbose_name='Matched by')
+
+    ignored = models.BooleanField(
+        default=False, verbose_name='Ignored',
+        help_text='Keeps a source out of the unassigned list without assigning it.')
+
+    class Meta:
+        verbose_name = 'Graylog Source'
+        verbose_name_plural = 'Graylog Sources'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['matched_type', 'matched_id']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def matched_object(self):
+        if not (self.matched_type_id and self.matched_id):
+            return None
+        try:
+            model = self.matched_type.model_class()
+            if model is None:
+                return None
+            return model.objects.filter(pk=self.matched_id).first()
+        except Exception:
+            return None
+
+    @property
+    def is_matched(self):
+        return bool(self.matched_type_id and self.matched_id)
+
+    def clear_match(self):
+        self.matched_type = None
+        self.matched_id = None
+        self.match_method = 'none'
+
+    def is_silent(self, threshold_hours):
+        """
+        True when this source is mapped to a NetBox object but has gone quiet.
+
+        Unmatched sources are never silent — a source Graylog does not know
+        about cannot have stopped talking.
+        """
+        if not threshold_hours or not self.is_matched:
+            return False
+        reference = self.last_message_at or self.last_seen
+        if reference is None:
+            return True
+        return (timezone.now() - reference) > timedelta(hours=threshold_hours)
+
+
+class GraylogSyncRun(models.Model):
+    """
+    One poll of Graylog. Kept as history for the same reason the CheckMK runs
+    are: a pull integration that quietly stops working still shows numbers, and
+    without a record of the last runs there is nothing to look at.
+    """
+
+    TRIGGER_CHOICES = [
+        ('manual', 'Manual'),
+        ('job', 'Scheduled job'),
+        ('command', 'Management command'),
+    ]
+
+    started = models.DateTimeField(auto_now_add=True, db_index=True)
+    finished = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(default=0)
+    triggered_by = models.CharField(max_length=20, choices=TRIGGER_CHOICES,
+                                    default='manual')
+    success = models.BooleanField(default=False)
+    error_code = models.CharField(max_length=50, blank=True, default='')
+    message = models.TextField(blank=True, default='')
+    graylog_version = models.CharField(max_length=50, blank=True, default='')
+    api_flavor = models.CharField(max_length=20, blank=True, default='')
+    sources_seen = models.PositiveIntegerField(default=0)
+    sources_created = models.PositiveIntegerField(default=0)
+    sources_matched = models.PositiveIntegerField(default=0)
+    sources_unmatched = models.PositiveIntegerField(default=0)
+
+    HISTORY_LIMIT = 50
+
+    class Meta:
+        verbose_name = 'Graylog Sync Run'
+        verbose_name_plural = 'Graylog Sync Runs'
+        ordering = ['-started']
+
+    def __str__(self):
+        state = 'OK' if self.success else f'FAIL ({self.error_code})'
+        return f'{self.started:%Y-%m-%d %H:%M} — {state}'
+
+    @classmethod
+    def latest(cls):
+        try:
+            return cls.objects.order_by('-started').first()
+        except Exception:
+            return None
+
+    @classmethod
+    def prune(cls):
+        try:
+            keep = cls.objects.order_by('-started').values_list(
+                'pk', flat=True)[:cls.HISTORY_LIMIT]
             cls.objects.exclude(pk__in=list(keep)).delete()
         except Exception:
             pass

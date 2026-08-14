@@ -1,0 +1,143 @@
+{% load i18n %}
+<div class="card">
+    <h5 class="card-header">
+        <i class="mdi mdi-console-line"></i> Graylog
+        {% if graylog_source %}
+            {% if graylog_silent %}
+                <span class="badge bg-warning text-dark float-end">{{ ui.graylog_badge_silent|default:"silent" }}</span>
+            {% elif graylog_source.error_count %}
+                <span class="badge bg-danger float-end">{{ graylog_source.error_count }} {{ ui.graylog_stat_errors|default:"errors" }}</span>
+            {% elif graylog_source.warning_count %}
+                <span class="badge bg-warning text-dark float-end">{{ graylog_source.warning_count }} {{ ui.graylog_stat_warnings|default:"warnings" }}</span>
+            {% else %}
+                <span class="badge bg-success float-end">{{ ui.graylog_badge_quiet|default:"quiet" }}</span>
+            {% endif %}
+        {% endif %}
+    </h5>
+
+    {% if not graylog_source %}
+    <div class="card-body">
+        <p class="text-muted mb-2">
+            {{ ui.graylog_panel_unmapped|default:"No Graylog source is mapped to this object." }}
+        </p>
+        <a href="{% url 'plugins:netbox_force:graylog_sources' %}?state=unmatched"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="mdi mdi-link-variant"></i>
+            {{ ui.graylog_panel_assign|default:"Assign a source" }}
+        </a>
+    </div>
+    {% else %}
+    <table class="table table-hover attr-table">
+        <tr>
+            <th scope="row">{{ ui.graylog_col_source|default:"Source" }}</th>
+            <td><code>{{ graylog_source.name }}</code></td>
+        </tr>
+        <tr>
+            <th scope="row">{{ ui.graylog_col_matched_by|default:"Matched by" }}</th>
+            <td>{{ graylog_source.get_match_method_display }}</td>
+        </tr>
+        <tr>
+            <th scope="row">{{ ui.graylog_stat_messages|default:"Messages" }} ({{ graylog_window_hours }} h)</th>
+            <td>
+                {{ graylog_source.total_count }}
+                {% if graylog_source.error_count %}
+                    <span class="text-danger">· {{ graylog_source.error_count }} {{ ui.graylog_stat_errors|default:"errors" }}</span>
+                {% endif %}
+                {% if graylog_source.warning_count %}
+                    <span class="text-warning">· {{ graylog_source.warning_count }} {{ ui.graylog_stat_warnings|default:"warnings" }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">{{ ui.graylog_col_last_message|default:"Last message" }}</th>
+            <td>
+                {% if graylog_source.last_message_at %}
+                    {{ graylog_source.last_message_at|date:"Y-m-d H:i" }}
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    <div class="card-body">
+        <div id="graylog-panel-messages" class="mb-2">
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    id="graylog-panel-load"
+                    data-url="{% url 'plugins:netbox_force:graylog_messages' %}"
+                    data-source="{{ graylog_source.name }}">
+                <i class="mdi mdi-format-list-bulleted"></i>
+                {{ ui.graylog_panel_load|default:"Show recent messages" }}
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if graylog_source %}
+<script>
+(function () {
+    const button = document.getElementById('graylog-panel-load');
+    if (!button) return;
+    const container = document.getElementById('graylog-panel-messages');
+
+    const LEVELS = {
+        0: 'danger', 1: 'danger', 2: 'danger', 3: 'danger',
+        4: 'warning', 5: 'info', 6: 'secondary', 7: 'secondary'
+    };
+
+    button.addEventListener('click', function () {
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> …';
+
+        const url = button.dataset.url + '?source='
+            + encodeURIComponent(button.dataset.source);
+
+        fetch(url, {credentials: 'same-origin'})
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data.ok) {
+                    container.innerHTML =
+                        '<div class="alert alert-warning mb-0">' + data.message + '</div>';
+                    return;
+                }
+                if (!data.messages.length) {
+                    container.innerHTML =
+                        '<div class="text-muted">{{ ui.graylog_panel_empty|default:"No messages in the window."|escapejs }}</div>';
+                    return;
+                }
+                let html = '<div class="list-group list-group-flush small">';
+                data.messages.forEach(function (row) {
+                    const colour = LEVELS[row.level] || 'secondary';
+                    html += '<div class="list-group-item px-0 py-1">'
+                        + '<span class="badge bg-' + colour + ' me-1">'
+                        + (row.level === null ? '?' : row.level) + '</span>'
+                        + '<span class="text-muted me-1">'
+                        + (row.timestamp || '').replace('T', ' ').substring(0, 19)
+                        + '</span>'
+                        + '<span>' + escapeHtml(row.message) + '</span>'
+                        + '</div>';
+                });
+                html += '</div>';
+                if (data.search_url) {
+                    html += '<a class="btn btn-sm btn-outline-secondary mt-2" '
+                        + 'target="_blank" rel="noopener" href="'
+                        + data.search_url + '">'
+                        + '<i class="mdi mdi-open-in-new"></i> '
+                        + '{{ ui.graylog_panel_open|default:"Open in Graylog"|escapejs }}</a>';
+                }
+                container.innerHTML = html;
+            })
+            .catch(function (error) {
+                container.innerHTML =
+                    '<div class="alert alert-danger mb-0">' + String(error) + '</div>';
+            });
+    });
+
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : value;
+        return div.innerHTML;
+    }
+})();
+</script>
+{% endif %}

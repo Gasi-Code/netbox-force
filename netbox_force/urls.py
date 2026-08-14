@@ -12,6 +12,17 @@ urlpatterns = [
     path('graylog/', views.GraylogSettingsView.as_view(), name='graylog'),
     path('graylog/test/', views.GraylogTestView.as_view(), name='graylog_test'),
 
+    # Graylog read-back
+    path('graylog/api/test/', views.GraylogApiTestView.as_view(), name='graylog_api_test'),
+    path('graylog/api/sync/', views.GraylogSyncNowView.as_view(), name='graylog_sync'),
+    path('graylog/api/cluster/', views.GraylogClusterView.as_view(), name='graylog_cluster'),
+    path('graylog/api/messages/', views.GraylogMessagesView.as_view(), name='graylog_messages'),
+    path('graylog/sources/', views.GraylogSourceListView.as_view(), name='graylog_sources'),
+    path('graylog/sources/<int:pk>/assign/', views.GraylogSourceAssignView.as_view(),
+         name='graylog_source_assign'),
+    path('graylog/sources/<int:pk>/ignore/', views.GraylogSourceIgnoreView.as_view(),
+         name='graylog_source_ignore'),
+
     path('rules/', views.ValidationRuleListView.as_view(), name='rule_list'),
     path('rules/add/', views.ValidationRuleCreateView.as_view(), name='rule_add'),
     path('rules/<int:pk>/edit/', views.ValidationRuleEditView.as_view(), name='rule_edit'),

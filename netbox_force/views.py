@@ -685,8 +685,27 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
 # GRAYLOG VIEWS
 # =============================================================================
 
+# Several API failures mean the same thing to a reader. Folding them onto the
+# existing messages keeps one honest sentence per real situation instead of a
+# separate translation for every internal code.
+_GRAYLOG_ERROR_ALIASES = {
+    'unreachable': 'network',
+    'request_failed': 'network',
+    'http_error': 'network',
+    'unexpected_redirect': 'network',
+    'bad_response': 'internal',
+    'no_flavor': 'internal',
+    'no_url': 'not_configured',
+    'bad_url': 'not_configured',
+    'bad_scheme': 'not_configured',
+    'no_settings': 'not_configured',
+    'no_token': 'not_configured',
+}
+
+
 def _graylog_error_text(code, ui, detail=''):
-    text = ui.get(f'graylog_err_{code}') or ui.get('graylog_err_internal') \
+    key = _GRAYLOG_ERROR_ALIASES.get(code, code)
+    text = ui.get(f'graylog_err_{key}') or ui.get('graylog_err_internal') \
         or 'Could not reach Graylog.'
     return f'{text} ({detail})' if detail else text
 
@@ -694,12 +713,46 @@ def _graylog_error_text(code, ui, detail=''):
 def _graylog_context(settings_obj):
     """Extra context for the Graylog page."""
     from .graylog import default_source_name, get_sender
+    from .secretstore import crypto_available
 
-    return {
+    try:
+        from .jobs import jobs_available, worker_count
+        workers, auto = worker_count(), jobs_available()
+    except Exception:
+        workers, auto = 0, False
+
+    ctx = {
         'graylog_stats': get_sender().stats(),
         'graylog_default_source': default_source_name(),
         'graylog_confirms': getattr(settings_obj, 'graylog_transport', 'udp') != 'udp',
+        'graylog_crypto_available': crypto_available(),
+        'graylog_auto_poll': auto,
+        'graylog_worker_count': workers,
+        'graylog_has_token': bool(
+            settings_obj and getattr(settings_obj, 'graylog_has_token', False)),
     }
+
+    # The read-back tables only exist after migration 0028; a page that dies
+    # because the plugin was updated but not migrated helps nobody.
+    try:
+        from .graylog_sync import silent_sources, sync_overdue
+        from .models import GraylogSource, GraylogSyncRun
+
+        ctx.update({
+            'graylog_last_run': GraylogSyncRun.latest(),
+            'graylog_recent_runs': list(GraylogSyncRun.objects.all()[:10]),
+            'graylog_source_total': GraylogSource.objects.count(),
+            'graylog_source_matched': GraylogSource.objects.filter(
+                matched_id__isnull=False).count(),
+            'graylog_source_unmatched': GraylogSource.objects.filter(
+                matched_id__isnull=True, ignored=False).count(),
+            'graylog_silent_count': len(silent_sources(settings_obj)),
+            'graylog_poll_overdue': sync_overdue(),
+        })
+    except Exception:
+        logger.debug('Graylog read-back context unavailable', exc_info=True)
+        ctx['graylog_readback_unavailable'] = True
+    return ctx
 
 
 class GraylogSettingsView(SuperuserRequiredMixin, View):
@@ -776,6 +829,403 @@ class GraylogTestView(SuperuserRequiredMixin, View):
                 'Test event delivered.' if confirmed
                 else 'Test event sent. UDP cannot confirm receipt — check Graylog.'),
         })
+
+
+class GraylogApiTestView(SuperuserRequiredMixin, View):
+    """
+    Verify the stored Graylog credentials and report what was found.
+
+    Read-only. It asks for the version, one grouped source query and the
+    stream list — nothing that changes anything in Graylog.
+    """
+
+    def post(self, request):
+        from .graylog_api import GraylogApiError, build_client
+
+        ui = _get_ui_context()
+        settings_obj = ForceSettings.get_settings()
+
+        try:
+            client = build_client(settings_obj)
+            version, node_id, _cluster = client.get_version()
+        except GraylogApiError as exc:
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text(exc.code, ui, exc.detail[:200]),
+            })
+        except Exception as exc:
+            logger.exception('Graylog API test failed')
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text('internal', ui, str(exc)[:200]),
+            })
+
+        window = max(int(getattr(settings_obj, 'graylog_window_hours', 24) or 24), 1)
+        sources, sources_error = {}, ''
+        try:
+            sources = client.count_by_source(window * 3600, limit=50)
+        except GraylogApiError as exc:
+            sources_error = _graylog_error_text(exc.code, ui, exc.detail[:200])
+
+        streams = []
+        try:
+            streams = [{'id': sid, 'title': title}
+                       for sid, title in client.streams()]
+        except GraylogApiError:
+            # A token may read messages without being allowed to list streams.
+            pass
+
+        top = sorted(sources.items(), key=lambda item: item[1]['total'],
+                     reverse=True)[:10]
+        return JsonResponse({
+            'ok': True,
+            'version': version,
+            'node_id': node_id,
+            'flavor': client.detected_flavor or '',
+            'sources': len(sources),
+            'sample_sources': [{'name': name, **values} for name, values in top],
+            'streams': streams,
+            'sources_error': sources_error,
+        })
+
+
+class GraylogSyncNowView(SuperuserRequiredMixin, View):
+    """Run one poll on demand and report the counters."""
+
+    def post(self, request):
+        from .graylog_sync import GraylogSyncSkipped, run_sync
+
+        ui = _get_ui_context()
+        try:
+            run = run_sync(triggered_by='manual')
+        except GraylogSyncSkipped as exc:
+            return JsonResponse({'ok': False,
+                                 'message': _graylog_error_text(exc.code, ui)})
+        except Exception as exc:
+            logger.exception('Graylog sync view failed')
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text('internal', ui, str(exc)[:200]),
+            })
+
+        if not run.success:
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text(run.error_code, ui,
+                                               run.message[:200]),
+            })
+
+        return JsonResponse({
+            'ok': True,
+            'version': run.graylog_version,
+            'flavor': run.api_flavor,
+            'duration_ms': run.duration_ms,
+            'seen': run.sources_seen,
+            'created': run.sources_created,
+            'matched': run.sources_matched,
+            'unmatched': run.sources_unmatched,
+        })
+
+
+class GraylogClusterView(SuperuserRequiredMixin, View):
+    """
+    Cluster status as JSON, fetched by the page after it has rendered.
+
+    Loading this inline would put a live Graylog call in the page load path —
+    a slow or dead Graylog would then hang the settings page instead of
+    showing an empty panel.
+    """
+
+    def get(self, request):
+        from .graylog_api import GraylogApiError, build_client
+
+        ui = _get_ui_context()
+        settings_obj = ForceSettings.get_settings()
+
+        try:
+            client = build_client(settings_obj)
+        except GraylogApiError as exc:
+            return JsonResponse({'ok': False,
+                                 'message': _graylog_error_text(exc.code, ui)})
+
+        try:
+            nodes = client.cluster_nodes()
+        except GraylogApiError as exc:
+            # Reading cluster information needs more than message access; say
+            # so instead of rendering an empty panel.
+            return JsonResponse({
+                'ok': False,
+                'permission': exc.code == 'auth',
+                'message': _graylog_error_text(exc.code, ui, exc.detail[:200]),
+            })
+        except Exception as exc:
+            logger.exception('Graylog cluster query failed')
+            return JsonResponse({'ok': False,
+                                 'message': _graylog_error_text('internal', ui,
+                                                                str(exc)[:200])})
+
+        health = {}
+        try:
+            health = client.indexer_health()
+        except GraylogApiError:
+            pass
+
+        # Cluster nodes are matched against NetBox the same way every other
+        # source is — exactly, or not at all.
+        try:
+            from .graylog_match import MatchIndex
+            index = MatchIndex(settings_obj.get_graylog_domain_suffixes())
+        except Exception:
+            index = None
+
+        payload = []
+        for node in nodes:
+            status = client.node_status(node['id'])
+            entry = {**node, **status, 'netbox_url': '', 'netbox_name': ''}
+            if index is not None and node['hostname']:
+                model, pk, _method = index.match(node['hostname'])
+                if model is not None:
+                    obj = model.objects.filter(pk=pk).first()
+                    if obj is not None:
+                        entry['netbox_name'] = str(obj)
+                        try:
+                            entry['netbox_url'] = obj.get_absolute_url()
+                        except Exception:
+                            entry['netbox_url'] = ''
+            entry['lamp'] = self._lamp(entry)
+            payload.append(entry)
+
+        return JsonResponse({
+            'ok': True,
+            'nodes': payload,
+            'indexer': health.get('status', ''),
+            'node_count': len(payload),
+        })
+
+    @staticmethod
+    def _lamp(node):
+        """
+        green  processing, journal quiet
+        yellow processing, journal backing up
+        red    not processing or unreachable
+        """
+        if not node.get('alive'):
+            return 'red'
+        entries = node.get('journal_entries')
+        if isinstance(entries, int) and entries > 10000:
+            return 'yellow'
+        if (node.get('lb_status') or '').lower() not in ('alive', ''):
+            return 'yellow'
+        return 'green'
+
+
+class GraylogSourceListView(SuperuserRequiredMixin, View):
+    """
+    The source inventory: what Graylog reports, and what it maps to in NetBox.
+
+    Filters: all, matched, unmatched, silent.
+    """
+
+    def get(self, request):
+        from .graylog_match import suggest_candidates
+        from .graylog_sync import silent_sources, undocumented_objects
+        from .models import GraylogSource
+
+        settings_obj = ForceSettings.get_settings()
+        ui = _get_ui_context(settings_obj)
+        state = request.GET.get('state', 'all')
+        search = (request.GET.get('q') or '').strip()
+
+        if state == 'silent':
+            rows = silent_sources(settings_obj)
+        else:
+            queryset = GraylogSource.objects.select_related('matched_type')
+            if state == 'matched':
+                queryset = queryset.filter(matched_id__isnull=False)
+            elif state == 'unmatched':
+                queryset = queryset.filter(matched_id__isnull=True, ignored=False)
+            elif state == 'ignored':
+                queryset = queryset.filter(ignored=True)
+            if search:
+                queryset = queryset.filter(name__icontains=search)
+            rows = list(queryset.order_by('-error_count', '-total_count', 'name'))
+
+        paginator = Paginator(rows, 50)
+        try:
+            page = paginator.page(request.GET.get('page') or 1)
+        except PageNotAnInteger:
+            page = paginator.page(1)
+        except EmptyPage:
+            page = paginator.page(paginator.num_pages)
+
+        threshold = int(getattr(settings_obj, 'graylog_silent_after_hours', 0) or 0)
+        items = []
+        for row in page.object_list:
+            entry = {
+                'source': row,
+                'object': row.matched_object,
+                'silent': row.is_silent(threshold),
+                'candidates': [],
+            }
+            if not row.is_matched and not row.ignored and state in ('unmatched', 'all'):
+                entry['candidates'] = [
+                    {
+                        'value': f"{item['label']}:{item['pk']}",
+                        'name': item['name'],
+                        'label': item['label'],
+                        'reason': item['reason'],
+                        'score': int(item['score'] * 100),
+                    }
+                    for item in suggest_candidates(row.name)
+                ]
+            items.append(entry)
+
+        ctx = _base_context(settings_obj)
+        ctx.update({
+            'active_tab': 'graylog',
+            'items': items,
+            'page_obj': page,
+            'paginator': paginator,
+            'state': state,
+            'search': search,
+            'unmapped_objects': (undocumented_objects(50)
+                                 if state == 'unmapped' else []),
+            **_graylog_context(settings_obj),
+        })
+        return render(request, 'netbox_force/graylog_sources.html', ctx)
+
+
+class GraylogSourceAssignView(SuperuserRequiredMixin, View):
+    """
+    Pin a Graylog source to a NetBox object by hand.
+
+    A manual assignment outranks every automatic rule and is never overwritten
+    by a later poll — that is the whole point of having it.
+    """
+
+    def post(self, request, pk):
+        from django.apps import apps
+        from django.contrib.contenttypes.models import ContentType
+
+        from .models import GraylogSource
+
+        source = get_object_or_404(GraylogSource, pk=pk)
+        ui = _get_ui_context()
+        target = (request.POST.get('target') or '').strip()
+
+        if not target:
+            source.clear_match()
+            source.save()
+            messages.success(request, ui.get('graylog_unassigned',
+                                             'Assignment removed.'))
+            return self._back(request)
+
+        try:
+            label, object_id = target.split(':', 1)
+            app_label, model_name = label.split('.', 1)
+            model = apps.get_model(app_label, model_name)
+            obj = model.objects.get(pk=int(object_id))
+        except Exception:
+            messages.error(request, ui.get('graylog_assign_failed',
+                                           'That object could not be found.'))
+            return self._back(request)
+
+        source.matched_type = ContentType.objects.get_for_model(model)
+        source.matched_id = obj.pk
+        source.match_method = 'manual'
+        source.ignored = False
+        source.save()
+        messages.success(request, ui.get('graylog_assigned', 'Source assigned.'))
+        return self._back(request)
+
+    @staticmethod
+    def _back(request):
+        target = request.POST.get('next') or reverse(
+            'plugins:netbox_force:graylog_sources')
+        return redirect(target)
+
+
+class GraylogSourceIgnoreView(SuperuserRequiredMixin, View):
+    """Hide a source from the unassigned list without assigning it."""
+
+    def post(self, request, pk):
+        from .models import GraylogSource
+
+        source = get_object_or_404(GraylogSource, pk=pk)
+        source.ignored = not source.ignored
+        source.save(update_fields=['ignored'])
+        return redirect(request.POST.get('next') or reverse(
+            'plugins:netbox_force:graylog_sources'))
+
+
+class GraylogMessagesView(AuthenticatedRequiredMixin, View):
+    """
+    Recent messages for one source, as JSON.
+
+    Consumed by the panel on the device and VM pages so that a slow Graylog
+    delays a small panel instead of the whole object page.
+
+    Access is deliberately narrower than "any logged-in user". Log lines can
+    carry more than the object page does, so the endpoint only answers for a
+    source that is mapped to a NetBox object the caller may view. Without that
+    check, any account could read the logs of any host by guessing its name.
+    """
+
+    def get(self, request):
+        from .graylog_api import GraylogApiError, build_client
+        from .models import GraylogSource
+
+        ui = _get_ui_context()
+        settings_obj = ForceSettings.get_settings()
+        source = (request.GET.get('source') or '').strip().replace('"', '')
+        if not source:
+            return JsonResponse({'ok': False, 'message': 'no source'})
+
+        row = GraylogSource.objects.filter(name=source).first()
+        target = row.matched_object if row else None
+        if target is None or not self._may_view(request.user, target):
+            raise PermissionDenied
+
+        try:
+            client = build_client(settings_obj)
+        except GraylogApiError as exc:
+            return JsonResponse({'ok': False,
+                                 'message': _graylog_error_text(exc.code, ui)})
+
+        window = max(int(getattr(settings_obj, 'graylog_window_hours', 24) or 24), 1)
+        limit = max(int(getattr(settings_obj, 'graylog_message_limit', 25) or 25), 1)
+        try:
+            rows = client.messages_for_source(source, window * 3600, limit=limit)
+        except GraylogApiError as exc:
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text(exc.code, ui, exc.detail[:200]),
+            })
+        except Exception as exc:
+            logger.exception('Graylog message query failed')
+            return JsonResponse({'ok': False,
+                                 'message': _graylog_error_text('internal', ui,
+                                                                str(exc)[:200])})
+
+        return JsonResponse({
+            'ok': True,
+            'messages': rows,
+            'search_url': client.search_url(f'source:"{source}"', window * 3600),
+        })
+
+    @staticmethod
+    def _may_view(user, obj):
+        """
+        NetBox object permissions, with a plain fallback.
+
+        Superusers always pass. For everyone else the usual `app.view_model`
+        permission decides — the same right that lets them open the object page
+        the panel sits on.
+        """
+        if user.is_superuser:
+            return True
+        meta = obj._meta
+        return user.has_perm(f'{meta.app_label}.view_{meta.model_name}')
 
 
 # =============================================================================

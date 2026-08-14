@@ -598,3 +598,91 @@ class WizardWidget(DashboardWidget):
             'Bitte dieses Widget vom Dashboard löschen.</p>'
             '</div>'
         )
+
+
+@register_widget
+class GraylogWidget(DashboardWidget):
+    """
+    Graylog overview for the NetBox home dashboard.
+
+    Renders from the plugin's own tables only. Calling Graylog here would put a
+    third-party service in the critical path of the NetBox start page, and a
+    slow Graylog would then make NetBox itself look broken.
+    """
+
+    default_title = _LocalizedAttr('widget_graylog_title', 'Graylog')
+    description = _LocalizedAttr(
+        'widget_graylog_desc',
+        'Log sources, unassigned sources and hosts that went silent')
+    width = 4
+    height = 3
+
+    class ConfigForm(WidgetConfigForm):
+        pass
+
+    def render(self, request):
+        ui, settings = _get_widget_strings()
+
+        if settings is None or not getattr(settings, 'graylog_read_enabled', False):
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<p class="mb-2"><i class="mdi mdi-console-line" '
+                'style="font-size: 2rem;"></i></p>'
+                '<p class="small mb-0">{}</p></div>',
+                ui.get('widget_graylog_disabled',
+                       'Reading from Graylog is switched off.')
+            )
+
+        try:
+            from .graylog_sync import silent_sources
+            from .models import GraylogSource
+
+            total = GraylogSource.objects.count()
+            unmatched = GraylogSource.objects.filter(
+                matched_id__isnull=True, ignored=False).count()
+            silent = len(silent_sources(settings))
+            noisiest = list(GraylogSource.objects.filter(error_count__gt=0)
+                            .order_by('-error_count')[:5])
+        except Exception:
+            return format_html(
+                '<div class="text-center py-3 text-muted">'
+                '<p class="small mb-0">{}</p></div>',
+                ui.get('widget_graylog_unavailable',
+                       'No Graylog data yet — run the plugin migrations and poll once.')
+            )
+
+        try:
+            base = reverse('plugins:netbox_force:graylog_sources')
+        except Exception:
+            base = '/plugins/netbox-force/graylog/sources/'
+
+        rows = format_html(
+            '<div class="d-flex justify-content-between"><span>{}</span>'
+            '<strong>{}</strong></div>'
+            '<div class="d-flex justify-content-between"><span>{}</span>'
+            '<strong class="{}">{}</strong></div>'
+            '<div class="d-flex justify-content-between"><span>{}</span>'
+            '<strong class="{}">{}</strong></div>',
+            ui.get('graylog_col_source', 'Sources'), total,
+            ui.get('graylog_filter_unmatched', 'Unassigned'),
+            'text-warning' if unmatched else '', unmatched,
+            ui.get('graylog_filter_silent', 'Silent'),
+            'text-danger' if silent else '', silent,
+        )
+
+        items = mark_safe(''.join(
+            '<li><code>{}</code> — <span class="text-danger">{}</span></li>'.format(
+                escape(source.name), source.error_count)
+            for source in noisiest
+        ))
+        loudest = format_html(
+            '<div class="mt-2 small"><strong>{}</strong><ul class="mb-0 ps-3">{}</ul></div>',
+            ui.get('graylog_top_sources', 'Loudest sources'), items
+        ) if noisiest else ''
+
+        return format_html(
+            '<div class="p-2">{}{}'
+            '<a class="btn btn-sm btn-outline-secondary mt-3" href="{}">'
+            '<i class="mdi mdi-arrow-right"></i> {}</a></div>',
+            rows, loudest, base, ui.get('graylog_btn_sources', 'Sources')
+        )

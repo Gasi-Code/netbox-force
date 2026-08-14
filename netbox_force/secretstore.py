@@ -29,34 +29,40 @@ def crypto_available():
         return False
 
 
-def _fernet():
+# The CheckMK secret predates any other stored credential and was encrypted
+# under this fixed seed. It stays the default so existing values keep decoding
+# after an upgrade; new callers pass their own purpose.
+DEFAULT_PURPOSE = 'checkmk'
+
+
+def _fernet(purpose=DEFAULT_PURPOSE):
     from cryptography.fernet import Fernet
     from django.conf import settings
 
-    seed = f'netbox_force.checkmk:{settings.SECRET_KEY}'.encode('utf-8')
+    seed = f'netbox_force.{purpose}:{settings.SECRET_KEY}'.encode('utf-8')
     key = base64.urlsafe_b64encode(hashlib.sha256(seed).digest())
     return Fernet(key)
 
 
-def encrypt(value):
+def encrypt(value, purpose=DEFAULT_PURPOSE):
     """Encode a secret for storage. Returns '' for an empty input."""
     if not value:
         return ''
     if not crypto_available():
         logger.warning(
-            'netbox_force: cryptography unavailable — CheckMK secret is '
-            'stored unencrypted'
+            'netbox_force: cryptography unavailable — the %s secret is '
+            'stored unencrypted', purpose
         )
         return _RAW_PREFIX + value
     try:
-        token = _fernet().encrypt(value.encode('utf-8')).decode('ascii')
+        token = _fernet(purpose).encrypt(value.encode('utf-8')).decode('ascii')
         return _ENC_PREFIX + token
     except Exception:
-        logger.exception('netbox_force: encrypting CheckMK secret failed')
+        logger.exception('netbox_force: encrypting the %s secret failed', purpose)
         return _RAW_PREFIX + value
 
 
-def decrypt(stored):
+def decrypt(stored, purpose=DEFAULT_PURPOSE):
     """
     Decode a stored secret. Values written before this scheme existed carry
     no prefix and are returned unchanged.
@@ -69,18 +75,18 @@ def decrypt(stored):
         return stored
     if not crypto_available():
         logger.error(
-            'netbox_force: CheckMK secret is encrypted but cryptography is '
-            'not installed'
+            'netbox_force: the %s secret is encrypted but cryptography is '
+            'not installed', purpose
         )
         return ''
     try:
-        return _fernet().decrypt(
+        return _fernet(purpose).decrypt(
             stored[len(_ENC_PREFIX):].encode('ascii')).decode('utf-8')
     except Exception:
         # Happens when SECRET_KEY changed — the secret has to be re-entered.
         logger.error(
-            'netbox_force: CheckMK secret could not be decrypted; it was '
-            'likely encrypted under a different SECRET_KEY'
+            'netbox_force: the %s secret could not be decrypted; it was '
+            'likely encrypted under a different SECRET_KEY', purpose
         )
         return ''
 

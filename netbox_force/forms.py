@@ -462,8 +462,52 @@ class GraylogSettingsForm(forms.ModelForm):
             'graylog_business_days',
             'graylog_business_start',
             'graylog_business_end',
+            'graylog_read_enabled',
+            'graylog_api_url',
+            'graylog_api_verify_ssl',
+            'graylog_api_timeout',
+            'graylog_stream_id',
+            'graylog_search_flavor',
+            'graylog_poll_interval',
+            'graylog_poll_batch_size',
+            'graylog_window_hours',
+            'graylog_message_limit',
+            'graylog_domain_suffixes',
+            'graylog_silent_after_hours',
         ]
         widgets = {
+            'graylog_api_url': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://graylog.example.com',
+            }),
+            'graylog_api_timeout': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 120,
+            }),
+            'graylog_stream_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '000000000000000000000001',
+            }),
+            'graylog_search_flavor': forms.Select(attrs={'class': 'form-select'}),
+            'graylog_poll_interval': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 0, 'max': 1440,
+            }),
+            'graylog_poll_batch_size': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 10000,
+            }),
+            'graylog_window_hours': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 720,
+            }),
+            'graylog_message_limit': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 200,
+            }),
+            'graylog_silent_after_hours': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 0, 'max': 8760,
+            }),
+            'graylog_domain_suffixes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'example.com\nintern.example.com',
+            }),
             'graylog_host': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'graylog.example.com',
@@ -495,11 +539,19 @@ class GraylogSettingsForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, ui=None, **kwargs):
+    _SEARCH_FLAVOR_CHOICES = [
+        ('auto', 'Detect automatically'),
+        ('legacy', 'Legacy search API (GET only)'),
+        ('views', 'Views search API'),
+    ]
+
+    def __init__(self, *args, ui=None, stream_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.ui = ui or {}
         for name in self._EVENT_FIELDS + ['graylog_enabled', 'graylog_verify_ssl',
-                                          'graylog_only_outside_hours']:
+                                          'graylog_only_outside_hours',
+                                          'graylog_read_enabled',
+                                          'graylog_api_verify_ssl']:
             self.fields[name].widget.attrs['class'] = 'form-check-input'
         for name in self._LEVEL_FIELDS:
             self.fields[name].widget.attrs['class'] = 'form-select form-select-sm'
@@ -509,6 +561,48 @@ class GraylogSettingsForm(forms.ModelForm):
             translated = self.ui.get('graylog_event_' + name.replace('graylog_ev_', ''))
             if translated:
                 self.fields[name].label = translated
+
+        self.fields['graylog_search_flavor'] = forms.ChoiceField(
+            required=False,
+            choices=self._SEARCH_FLAVOR_CHOICES,
+            initial=getattr(self.instance, 'graylog_search_flavor', 'auto') or 'auto',
+            widget=forms.Select(attrs={'class': 'form-select'}),
+            label=self.ui.get('graylog_label_flavor', 'Search API form'),
+        )
+
+        # The API token is never rendered back. An empty field means 'keep the
+        # stored value', so the token cannot be read out of the settings page
+        # and cannot be wiped by an unrelated save.
+        self.fields['graylog_token'] = forms.CharField(
+            required=False,
+            widget=forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'new-password',
+            }, render_value=False),
+            label=self.ui.get('graylog_label_token', 'API token'),
+        )
+
+        # Populated by the view once a connection exists; until then the stream
+        # is entered by hand rather than picked from an empty dropdown.
+        if stream_choices:
+            self.fields['graylog_stream_id'] = forms.ChoiceField(
+                required=False,
+                choices=[('', self.ui.get('graylog_all_streams', 'All streams'))]
+                        + list(stream_choices),
+                initial=getattr(self.instance, 'graylog_stream_id', ''),
+                widget=forms.Select(attrs={'class': 'form-select'}),
+                label=self.ui.get('graylog_label_stream', 'Stream'),
+            )
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        obj.graylog_search_flavor = self.cleaned_data.get('graylog_search_flavor') or 'auto'
+        token = self.cleaned_data.get('graylog_token')
+        if token:
+            obj.set_graylog_token(token)
+        if commit:
+            obj.save()
+        return obj
 
     def event_rows(self):
         """Pairs the checkbox and its severity select for the template."""
@@ -530,6 +624,17 @@ class GraylogSettingsForm(forms.ModelForm):
         if ':' in host and not host.startswith('['):
             host = host.split(':', 1)[0]
         return host
+
+    def clean_graylog_api_url(self):
+        raw = (self.cleaned_data.get('graylog_api_url') or '').strip()
+        if not raw:
+            return ''
+        from .graylog_api import GraylogApiError, normalize_api_url
+        try:
+            return normalize_api_url(raw)
+        except GraylogApiError as exc:
+            raise ValidationError(
+                f'Could not read this as a Graylog address ({exc.code}).')
 
     def clean_graylog_business_days(self):
         raw = (self.cleaned_data.get('graylog_business_days') or '').strip()
@@ -562,6 +667,19 @@ class GraylogSettingsForm(forms.ModelForm):
         if bool(start) != bool(end):
             self.add_error('graylog_business_end' if start else 'graylog_business_start',
                            'Set both times or neither.')
+
+        if cleaned.get('graylog_read_enabled'):
+            if not cleaned.get('graylog_api_url'):
+                self.add_error('graylog_api_url',
+                               'Required when reading from Graylog is enabled.')
+            # A stored token counts — the field stays empty on every reload.
+            has_token = bool(
+                cleaned.get('graylog_token')
+                or (self.instance.pk and self.instance.graylog_has_token)
+            )
+            if not has_token:
+                self.add_error('graylog_token',
+                               'Required when reading from Graylog is enabled.')
         return cleaned
 
 

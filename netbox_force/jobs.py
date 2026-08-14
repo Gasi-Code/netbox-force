@@ -12,6 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 JOB_NAME = 'CheckMK Patch Sync'
+GRAYLOG_JOB_NAME = 'Graylog Source Sync'
 
 try:
     from netbox.jobs import JobRunner
@@ -60,7 +61,29 @@ if JOBRUNNER_AVAILABLE:
             return (f'{run.hosts_seen} hosts, {run.hosts_created} created, '
                     f'{run.hosts_updated} updated, {run.hosts_stale} stale')
 
-    def _drop_stale_jobs(interval):
+    class GraylogSyncJob(JobRunner):
+
+        class Meta:
+            name = GRAYLOG_JOB_NAME
+
+        def run(self, *args, **kwargs):
+            from .graylog_sync import GraylogSyncSkipped, run_sync
+
+            try:
+                run = run_sync(triggered_by='job')
+            except GraylogSyncSkipped as exc:
+                logger.info('Graylog sync skipped: %s', exc.code)
+                return f'skipped: {exc.code}'
+
+            if not run.success:
+                logger.warning('Graylog sync failed: %s %s',
+                               run.error_code, run.message)
+                return f'failed: {run.error_code}'
+
+            return (f'{run.sources_seen} sources, {run.sources_matched} matched, '
+                    f'{run.sources_unmatched} unmatched')
+
+    def _drop_stale_jobs(interval, job_name=JOB_NAME):
         """
         Remove scheduled job rows whose due time has long passed.
 
@@ -84,12 +107,12 @@ if JOBRUNNER_AVAILABLE:
         cutoff = timezone.now() - timedelta(minutes=max(interval * 2, 5))
         try:
             stale = Job.objects.filter(
-                name=JOB_NAME, status='scheduled', scheduled__lt=cutoff)
+                name=job_name, status='scheduled', scheduled__lt=cutoff)
             count = stale.count()
             if count:
                 logger.warning(
-                    'netbox_force: discarding %s stale CheckMK sync job(s) '
-                    'overdue since before %s', count, cutoff)
+                    'netbox_force: discarding %s stale %s job(s) '
+                    'overdue since before %s', count, job_name, cutoff)
                 stale.delete()
             return count
         except Exception:
@@ -98,7 +121,7 @@ if JOBRUNNER_AVAILABLE:
 
     def schedule():
         """
-        (Re)register the recurring job using the configured interval.
+        (Re)register the recurring jobs using their configured intervals.
 
         Called from AppConfig.ready(); failures are logged and ignored so a
         missing scheduling API can never stop the plugin from loading.
@@ -108,16 +131,24 @@ if JOBRUNNER_AVAILABLE:
         settings_obj = ForceSettings.get_settings()
         if settings_obj is None:
             return
+
         interval = settings_obj.checkmk_sync_interval or 0
-        if not settings_obj.checkmk_enabled or interval <= 0:
-            return
+        if settings_obj.checkmk_enabled and interval > 0:
+            _drop_stale_jobs(interval, JOB_NAME)
+            try:
+                CheckmkSyncJob.enqueue_once(interval=interval)
+            except Exception:
+                logger.debug('CheckMK sync job could not be scheduled',
+                             exc_info=True)
 
-        _drop_stale_jobs(interval)
-
-        try:
-            CheckmkSyncJob.enqueue_once(interval=interval)
-        except Exception:
-            logger.debug('CheckMK sync job could not be scheduled', exc_info=True)
+        graylog_interval = getattr(settings_obj, 'graylog_poll_interval', 0) or 0
+        if getattr(settings_obj, 'graylog_read_enabled', False) and graylog_interval > 0:
+            _drop_stale_jobs(graylog_interval, GRAYLOG_JOB_NAME)
+            try:
+                GraylogSyncJob.enqueue_once(interval=graylog_interval)
+            except Exception:
+                logger.debug('Graylog sync job could not be scheduled',
+                             exc_info=True)
 
     def sync_overdue():
         """
@@ -148,6 +179,7 @@ if JOBRUNNER_AVAILABLE:
 else:
 
     CheckmkSyncJob = None
+    GraylogSyncJob = None
 
     def schedule():
         return

@@ -129,6 +129,27 @@ Sends audit events to Graylog over GELF. Read-only towards NetBox — nothing is
 | **English messages** | Message text is always English regardless of the UI language — Graylog alert queries match on it, and translating it would silently break every alert |
 | **Connection test** | One-click test event. UDP cannot confirm receipt, and the result says so instead of claiming success |
 
+### Graylog Read-back
+
+Brings Graylog information into NetBox so a host can be judged without opening a second tab. Strictly read-only towards Graylog.
+
+| Feature | Description |
+|---|---|
+| **Panel on device and VM** | Message, error and warning counts for that host, plus its recent messages on demand and a link that opens the matching search in Graylog |
+| **Source inventory** | Every source Graylog reports, with counters, filterable by assigned, unassigned, silent or ignored |
+| **Exact matching only** | Manual assignment → IP address → host name → host name after removing a configured domain suffix. First hit wins |
+| **No fuzzy matching** | `srv-web-01` and `srv-web-02` differ by one character; any similarity score calls them a 96% match. In a numbered naming scheme the most similar candidate is systematically the wrong machine, so similarity only *orders* suggestions and never assigns anything |
+| **Silent hosts** | Mapped in NetBox, sending nothing to Graylog — dead, mis-configured, or a leftover record. Neither system can spot this alone |
+| **Never seen in Graylog** | The other half of the cross-check: devices and VMs that never appeared under any recognised name |
+| **Cluster status** | Node list with green/yellow/red lamps, indexer health, journal backlog, each node linked to its NetBox VM. Loaded after the page renders, so a dead Graylog cannot hang the settings page |
+| **One query per poll** | Counters for every host come from a single grouped query, not one query per device. A site with 800 devices costs three requests |
+| **Mapping stays in the plugin** | Graylog never writes to a NetBox core object. Removing the plugin removes the mapping and leaves NetBox untouched |
+| **Token at rest** | Encrypted with a key derived from Django's `SECRET_KEY`, never rendered back into the form |
+| **Access control** | The message endpoint only answers for a source mapped to an object the caller may view |
+| **Dashboard widget** | Sources, unassigned, silent and the loudest hosts — rendered from the plugin's own tables, so Graylog is never in the critical path of the NetBox start page |
+
+**On "read-only":** every call either retrieves data or asks Graylog to run a search. The legacy search endpoint is a plain `GET`. The newer Views search API requires a `POST` to register and execute a search — that creates a short-lived search object inside Graylog and returns results; it stores nothing. Pin the search form to `legacy` if only `GET` is acceptable. The real guarantee is the token: issue it for a Graylog user with a read-only role.
+
 ### Exemptions
 
 | Feature | Description |
