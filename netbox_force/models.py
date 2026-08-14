@@ -52,6 +52,25 @@ AUTO_CHANGELOG_CORE_APPS = [
 ]
 
 
+GRAYLOG_TRANSPORT_CHOICES = [
+    ('udp', 'GELF UDP'),
+    ('tcp', 'GELF TCP'),
+    ('tcp-tls', 'GELF TCP + TLS'),
+    ('http', 'GELF HTTP'),
+    ('https', 'GELF HTTPS'),
+]
+
+# Syslog severities. Restricted to the range that is meaningful for audit
+# events — nothing this plugin reports is an emergency.
+GRAYLOG_LEVEL_CHOICES = [
+    ('3', 'Error'),
+    ('4', 'Warning'),
+    ('5', 'Notice'),
+    ('6', 'Informational'),
+    ('7', 'Debug'),
+]
+
+
 class ForceSettings(models.Model):
     """
     Singleton model for plugin settings.
@@ -328,6 +347,135 @@ class ForceSettings(models.Model):
         verbose_name='Webhook secret',
         help_text='Optional HMAC-SHA256 secret. If set, adds an X-NetBox-Force-Signature header.',
     )
+
+    # --- Graylog Output (push) ---
+    graylog_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Enable Graylog output',
+        help_text='Send audit events to Graylog. Nothing is read from Graylog by this setting.',
+    )
+    graylog_host = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Graylog host',
+        help_text='Hostname or IP of the Graylog input, e.g. graylog.example.com',
+    )
+    graylog_port = models.PositiveIntegerField(
+        default=12201,
+        verbose_name='Port',
+        help_text='Port of the GELF input. Graylog uses 12201 by default.',
+    )
+    graylog_transport = models.CharField(
+        max_length=10,
+        choices=GRAYLOG_TRANSPORT_CHOICES,
+        default='udp',
+        verbose_name='Transport',
+        help_text=(
+            'UDP never blocks and never confirms. TCP and HTTP confirm delivery '
+            'but cost a connection; use TLS whenever the path leaves the local network.'
+        ),
+    )
+    graylog_verify_ssl = models.BooleanField(
+        default=True,
+        verbose_name='Verify TLS certificate',
+        help_text='Applies to the TLS and HTTPS transports only.',
+    )
+    graylog_timeout = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Timeout (seconds)',
+        help_text='Applies to the background sender, never to a user request.',
+    )
+    graylog_source_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Source name',
+        help_text='Value of the GELF host field. Leave empty to use the server hostname.',
+    )
+
+    # Event selection
+    graylog_ev_object_create = models.BooleanField(
+        default=True, verbose_name='Object created')
+    graylog_ev_object_update = models.BooleanField(
+        default=True, verbose_name='Object changed')
+    graylog_ev_object_delete = models.BooleanField(
+        default=True, verbose_name='Object deleted')
+    graylog_ev_login = models.BooleanField(
+        default=True, verbose_name='Login')
+    graylog_ev_logout = models.BooleanField(
+        default=False, verbose_name='Logout')
+    graylog_ev_login_failed = models.BooleanField(
+        default=True, verbose_name='Failed login')
+    graylog_ev_violation = models.BooleanField(
+        default=True, verbose_name='Blocked change')
+    graylog_ev_settings_change = models.BooleanField(
+        default=True, verbose_name='Plugin settings changed')
+
+    # Severity per event type
+    graylog_lvl_object_create = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='6',
+        verbose_name='Severity: object created')
+    graylog_lvl_object_update = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='6',
+        verbose_name='Severity: object changed')
+    graylog_lvl_object_delete = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='5',
+        verbose_name='Severity: object deleted')
+    graylog_lvl_login = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='6',
+        verbose_name='Severity: login')
+    graylog_lvl_logout = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='6',
+        verbose_name='Severity: logout')
+    graylog_lvl_login_failed = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='4',
+        verbose_name='Severity: failed login')
+    graylog_lvl_violation = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='4',
+        verbose_name='Severity: blocked change')
+    graylog_lvl_settings_change = models.CharField(
+        max_length=1, choices=GRAYLOG_LEVEL_CHOICES, default='4',
+        verbose_name='Severity: plugin settings changed')
+
+    # Volume control
+    graylog_bulk_threshold = models.PositiveIntegerField(
+        default=10,
+        verbose_name='Summarise above',
+        help_text=(
+            'A request that changes more than this many objects is reported as '
+            'one summary event instead of one event per object. Set 0 to always '
+            'send every object individually.'
+        ),
+    )
+    graylog_max_events_per_request = models.PositiveIntegerField(
+        default=100,
+        verbose_name='Maximum events per request',
+        help_text='Hard cap, applied when summarising is switched off.',
+    )
+
+    # Business hours
+    graylog_only_outside_hours = models.BooleanField(
+        default=False,
+        verbose_name='Only outside business hours',
+        help_text=(
+            'Send events only outside the window below. Has no effect until '
+            'start and end time are set.'
+        ),
+    )
+    graylog_business_days = models.CharField(
+        max_length=20,
+        blank=True,
+        default='1,2,3,4,5',
+        verbose_name='Business days',
+        help_text='Comma-separated ISO weekday numbers (1=Monday, 7=Sunday)',
+    )
+    graylog_business_start = models.TimeField(
+        null=True, blank=True, default=None,
+        verbose_name='Business hours start')
+    graylog_business_end = models.TimeField(
+        null=True, blank=True, default=None,
+        verbose_name='Business hours end')
 
     # In-memory cache with thread safety
     # RLock (reentrant) because get_settings() holds the lock and may call

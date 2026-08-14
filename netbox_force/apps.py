@@ -29,6 +29,11 @@ _menu = PluginMenu(
                 permissions=['netbox_force.view_violation'],
             ),
             PluginMenuItem(
+                link='plugins:netbox_force:graylog',
+                link_text='Graylog',
+                permissions=['netbox_force.view_forcesettings'],
+            ),
+            PluginMenuItem(
                 link='plugins:netbox_force:dashboard',
                 link_text='Dashboard',
                 permissions=['netbox_force.view_forcesettings'],
@@ -104,6 +109,11 @@ def _localize_menu():
                         permissions=['netbox_force.view_violation'],
                     ),
                     PluginMenuItem(
+                        link='plugins:netbox_force:graylog',
+                        link_text=ui.get('tab_graylog', 'Graylog'),
+                        permissions=['netbox_force.view_forcesettings'],
+                    ),
+                    PluginMenuItem(
                         link='plugins:netbox_force:dashboard',
                         link_text=ui.get('tab_dashboard', 'Dashboard'),
                         permissions=['netbox_force.view_forcesettings'],
@@ -143,7 +153,7 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.6.0'
+    version = '5.7.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
@@ -171,6 +181,7 @@ class NetboxForceConfig(PluginConfig):
         super().ready()
         from . import signals  # noqa: F401
         from . import dashboards  # noqa: F401 — registers @register_widget
+        from . import graylog_events  # noqa: F401 — connects auth signal receivers
         _localize_menu()
 
         # NetBox collects a changelog message on every form except the single

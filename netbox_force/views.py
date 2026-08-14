@@ -21,8 +21,8 @@ from django.utils import timezone
 from django.views import View
 
 from .forms import (
-    ForceSettingsForm, ModelPolicyForm, ValidationRuleForm, ImportTemplateForm,
-    GuidePageForm, WidgetImageUploadForm,
+    ForceSettingsForm, GraylogSettingsForm, ModelPolicyForm, ValidationRuleForm,
+    ImportTemplateForm, GuidePageForm, WidgetImageUploadForm,
     PatchVMForm, PatchVMBulkEditForm, PatchUpdateEntryForm, PatchStatusForm,
 )
 from .models import (
@@ -679,6 +679,103 @@ class ForceSettingsView(SuperuserRequiredMixin, View):
             **_checkmk_context(settings),
         })
         return render(request, 'netbox_force/settings.html', ctx)
+
+
+# =============================================================================
+# GRAYLOG VIEWS
+# =============================================================================
+
+def _graylog_error_text(code, ui, detail=''):
+    text = ui.get(f'graylog_err_{code}') or ui.get('graylog_err_internal') \
+        or 'Could not reach Graylog.'
+    return f'{text} ({detail})' if detail else text
+
+
+def _graylog_context(settings_obj):
+    """Extra context for the Graylog page."""
+    from .graylog import default_source_name, get_sender
+
+    return {
+        'graylog_stats': get_sender().stats(),
+        'graylog_default_source': default_source_name(),
+        'graylog_confirms': getattr(settings_obj, 'graylog_transport', 'udp') != 'udp',
+    }
+
+
+class GraylogSettingsView(SuperuserRequiredMixin, View):
+    """Connection settings and event selection for the Graylog output."""
+
+    template = 'netbox_force/graylog.html'
+
+    def _render(self, request, settings_obj, form):
+        ctx = _base_context(settings_obj)
+        ctx.update({
+            'form': form,
+            'settings': settings_obj,
+            'active_tab': 'graylog',
+            **_graylog_context(settings_obj),
+        })
+        return render(request, self.template, ctx)
+
+    def get(self, request):
+        settings_obj = ForceSettings.get_settings() or ForceSettings(pk=1)
+        return self._render(request, settings_obj, GraylogSettingsForm(
+            instance=settings_obj, ui=_get_ui_context(settings_obj)))
+
+    def post(self, request):
+        settings_obj = ForceSettings.get_settings() or ForceSettings(pk=1)
+        form = GraylogSettingsForm(request.POST, instance=settings_obj,
+                                   ui=_get_ui_context(settings_obj))
+        if form.is_valid():
+            form.save()
+            ui = _get_ui_context()
+            messages.success(request, ui.get('graylog_saved', 'Graylog settings saved.'))
+            return redirect('plugins:netbox_force:graylog')
+        return self._render(request, settings_obj, form)
+
+
+class GraylogTestView(SuperuserRequiredMixin, View):
+    """
+    Sends one test event using the stored configuration.
+
+    Deliberately uses the stored values, not the unsaved form: a test that
+    passes against something other than what is running would be worse than no
+    test at all.
+    """
+
+    def post(self, request):
+        from .graylog import GraylogError
+        from .graylog_events import send_test_event
+
+        ui = _get_ui_context()
+        settings_obj = ForceSettings.get_settings()
+
+        try:
+            config = send_test_event(settings_obj, username=str(request.user))
+        except GraylogError as exc:
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text(exc.code, ui, exc.detail[:200]),
+            })
+        except Exception as exc:
+            logger.exception('Graylog test failed')
+            return JsonResponse({
+                'ok': False,
+                'message': _graylog_error_text('internal', ui, str(exc)[:200]),
+            })
+
+        confirmed = config['transport'] != 'udp'
+        return JsonResponse({
+            'ok': True,
+            'confirmed': confirmed,
+            'target': f"{config['host']}:{config['port']}",
+            'transport': config['transport'],
+            'source': config['source'],
+            'message': ui.get(
+                'graylog_test_ok' if confirmed else 'graylog_test_sent',
+                'Test event delivered.' if confirmed
+                else 'Test event sent. UDP cannot confirm receipt — check Graylog.'),
+        })
 
 
 # =============================================================================

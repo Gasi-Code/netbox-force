@@ -419,6 +419,152 @@ class ForceSettingsForm(forms.ModelForm):
         return cleaned
 
 
+class GraylogSettingsForm(forms.ModelForm):
+    """
+    Form for the Graylog page. Kept apart from ForceSettingsForm so the two
+    pages cannot overwrite each other's fields when both are open.
+    """
+
+    _EVENT_FIELDS = [
+        'graylog_ev_object_create', 'graylog_ev_object_update',
+        'graylog_ev_object_delete', 'graylog_ev_login', 'graylog_ev_logout',
+        'graylog_ev_login_failed', 'graylog_ev_violation',
+        'graylog_ev_settings_change',
+    ]
+    _LEVEL_FIELDS = [
+        'graylog_lvl_object_create', 'graylog_lvl_object_update',
+        'graylog_lvl_object_delete', 'graylog_lvl_login', 'graylog_lvl_logout',
+        'graylog_lvl_login_failed', 'graylog_lvl_violation',
+        'graylog_lvl_settings_change',
+    ]
+
+    class Meta:
+        model = ForceSettings
+        fields = [
+            'graylog_enabled',
+            'graylog_host',
+            'graylog_port',
+            'graylog_transport',
+            'graylog_verify_ssl',
+            'graylog_timeout',
+            'graylog_source_name',
+            'graylog_ev_object_create', 'graylog_lvl_object_create',
+            'graylog_ev_object_update', 'graylog_lvl_object_update',
+            'graylog_ev_object_delete', 'graylog_lvl_object_delete',
+            'graylog_ev_login', 'graylog_lvl_login',
+            'graylog_ev_logout', 'graylog_lvl_logout',
+            'graylog_ev_login_failed', 'graylog_lvl_login_failed',
+            'graylog_ev_violation', 'graylog_lvl_violation',
+            'graylog_ev_settings_change', 'graylog_lvl_settings_change',
+            'graylog_bulk_threshold',
+            'graylog_max_events_per_request',
+            'graylog_only_outside_hours',
+            'graylog_business_days',
+            'graylog_business_start',
+            'graylog_business_end',
+        ]
+        widgets = {
+            'graylog_host': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'graylog.example.com',
+            }),
+            'graylog_port': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 65535,
+            }),
+            'graylog_transport': forms.Select(attrs={'class': 'form-select'}),
+            'graylog_timeout': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 60,
+            }),
+            'graylog_source_name': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'netbox',
+            }),
+            'graylog_bulk_threshold': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 0, 'max': 10000,
+            }),
+            'graylog_max_events_per_request': forms.NumberInput(attrs={
+                'class': 'form-control', 'min': 1, 'max': 10000,
+            }),
+            'graylog_business_days': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': '1,2,3,4,5',
+            }),
+            'graylog_business_start': forms.TimeInput(attrs={
+                'class': 'form-control', 'type': 'time',
+            }),
+            'graylog_business_end': forms.TimeInput(attrs={
+                'class': 'form-control', 'type': 'time',
+            }),
+        }
+
+    def __init__(self, *args, ui=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ui = ui or {}
+        for name in self._EVENT_FIELDS + ['graylog_enabled', 'graylog_verify_ssl',
+                                          'graylog_only_outside_hours']:
+            self.fields[name].widget.attrs['class'] = 'form-check-input'
+        for name in self._LEVEL_FIELDS:
+            self.fields[name].widget.attrs['class'] = 'form-select form-select-sm'
+        # Model verbose names are English by design; the page labels follow the
+        # configured plugin language like every other view.
+        for name in self._EVENT_FIELDS:
+            translated = self.ui.get('graylog_event_' + name.replace('graylog_ev_', ''))
+            if translated:
+                self.fields[name].label = translated
+
+    def event_rows(self):
+        """Pairs the checkbox and its severity select for the template."""
+        for toggle, level in zip(self._EVENT_FIELDS, self._LEVEL_FIELDS):
+            yield {
+                'key': toggle.replace('graylog_ev_', ''),
+                'toggle': self[toggle],
+                'level': self[level],
+            }
+
+    def clean_graylog_host(self):
+        host = (self.cleaned_data.get('graylog_host') or '').strip()
+        # A pasted browser URL is the obvious mistake here; strip it down rather
+        # than rejecting it.
+        for prefix in ('https://', 'http://'):
+            if host.lower().startswith(prefix):
+                host = host[len(prefix):]
+        host = host.split('/', 1)[0]
+        if ':' in host and not host.startswith('['):
+            host = host.split(':', 1)[0]
+        return host
+
+    def clean_graylog_business_days(self):
+        raw = (self.cleaned_data.get('graylog_business_days') or '').strip()
+        if not raw:
+            return ''
+        days = []
+        for part in raw.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            if not part.isdigit() or not 1 <= int(part) <= 7:
+                raise ValidationError(
+                    'Use ISO weekday numbers from 1 (Monday) to 7 (Sunday).')
+            days.append(part)
+        return ','.join(days)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('graylog_enabled') and not cleaned.get('graylog_host'):
+            self.add_error('graylog_host',
+                           'Required when Graylog output is enabled.')
+
+        start = cleaned.get('graylog_business_start')
+        end = cleaned.get('graylog_business_end')
+        if cleaned.get('graylog_only_outside_hours') and not (start and end):
+            self.add_error(
+                'graylog_only_outside_hours',
+                'Set a start and end time first — without a window this filter '
+                'would suppress every event.')
+        if bool(start) != bool(end):
+            self.add_error('graylog_business_end' if start else 'graylog_business_start',
+                           'Set both times or neither.')
+        return cleaned
+
+
 class ValidationRuleForm(forms.ModelForm):
     """Form for creating/editing validation rules."""
 

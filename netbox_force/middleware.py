@@ -64,6 +64,10 @@ class RequestContextMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    # Requests that cannot have produced a change record. Checking this first
+    # keeps the Graylog pass from costing a database query on every page view.
+    _READ_ONLY_METHODS = frozenset(('GET', 'HEAD', 'OPTIONS'))
+
     def __call__(self, request):
         set_current_request(request)
         _thread_locals.pending_violations = []
@@ -73,8 +77,26 @@ class RequestContextMiddleware:
         finally:
             self._flush_pending_changelogs()
             self._flush_pending_violations()
+            self._flush_graylog_events(request)
             set_current_request(None)
         return response
+
+    @classmethod
+    def _flush_graylog_events(cls, request):
+        """
+        Reports the change records of this request to Graylog.
+
+        Runs last, so the auto-generated changelog messages written above are
+        already on the records. Failures are swallowed — a logging target that
+        is down must not turn a successful save into an error page.
+        """
+        if request.method in cls._READ_ONLY_METHODS:
+            return
+        try:
+            from .graylog_events import flush_object_changes
+            flush_object_changes(request)
+        except Exception:
+            logger.debug('Graylog event flush failed', exc_info=True)
 
     @staticmethod
     def _flush_pending_changelogs():
@@ -127,6 +149,11 @@ class RequestContextMiddleware:
             webhook_url = getattr(settings, 'webhook_url', '') if settings else ''
             webhook_secret = getattr(settings, 'webhook_secret', '') if settings else ''
 
+            try:
+                from .graylog_events import emit_violation
+            except Exception:
+                emit_violation = None
+
             for data in pending:
                 try:
                     Violation.objects.create(**data)
@@ -135,6 +162,9 @@ class RequestContextMiddleware:
 
                 if webhook_enabled and webhook_url:
                     _fire_webhook_async(data, webhook_url, webhook_secret)
+
+                if emit_violation is not None:
+                    emit_violation(settings, data)
         except Exception:
             logger.error("Failed to flush pending violations", exc_info=True)
         finally:

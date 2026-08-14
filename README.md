@@ -112,6 +112,23 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 | **HMAC-SHA256 signing** | Optional secret for payload signing — adds `X-NetBox-Force-Signature` header |
 | **Fire-and-forget** | Webhook runs in a background thread — never blocks the NetBox response |
 
+### Graylog Output
+
+Sends audit events to Graylog over GELF. Read-only towards NetBox — nothing is read back, and Graylog never changes anything in NetBox.
+
+| Feature | Description |
+|---|---|
+| **What it sends** | Object created/changed/deleted, login, logout, **failed login**, blocked changes, and changes to the plugin settings themselves |
+| **Why it is worth it** | Failed logins are kept nowhere in NetBox; the changelog carries no client IP or user agent; and `ForceSettings` is not changelogged at all, so switching enforcement off otherwise leaves no trace |
+| **Selectable** | Every event type has its own checkbox and syslog severity |
+| **Transports** | GELF over UDP, TCP, TCP+TLS, HTTP or HTTPS. Oversized UDP datagrams are chunked per the GELF spec |
+| **Never blocking** | Events go onto a bounded queue drained by a background thread. A Graylog outage cannot slow down or fail a save in NetBox |
+| **Bulk summarising** | A request changing more objects than a configurable threshold is reported as a single summary event instead of hundreds of near-identical lines |
+| **Business hours** | Configurable window; every event carries an `outside_business_hours` field, and events inside the window can optionally be suppressed entirely |
+| **Stable field schema** | Same fields on every event (`_app`, `_category`, `_event`, `_username`, `_client_ip`, `_object_type`, `_action`, `_request_id`, `_netbox_url`, …). `_request_id` groups everything one request changed |
+| **English messages** | Message text is always English regardless of the UI language — Graylog alert queries match on it, and translating it would silently break every alert |
+| **Connection test** | One-click test event. UDP cannot confirm receipt, and the result says so instead of claiming success |
+
 ### Exemptions
 
 | Feature | Description |

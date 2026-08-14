@@ -1,0 +1,312 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}NetBox Force - {{ ui.tab_graylog|default:"Graylog" }}{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_force/_tabs.html' %}
+{% endblock tabs %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <form method="post" id="graylog-form">
+            {% csrf_token %}
+
+            {# Connection #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-connection"></i>
+                    {{ ui.graylog_section_connection|default:"Connection" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        {{ form.graylog_enabled }}
+                        <label class="form-check-label" for="id_graylog_enabled">
+                            <strong>{{ ui.graylog_label_enabled|default:"Enable Graylog output" }}</strong>
+                        </label>
+                        <div class="form-text">{{ ui.graylog_help_enabled|default:"NetBox sends audit events to Graylog. Nothing is read back and nothing in NetBox is changed by Graylog." }}</div>
+                        {% if form.graylog_enabled.errors %}<div class="text-danger small">{{ form.graylog_enabled.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-7 mb-3">
+                            <label class="form-label" for="id_graylog_host">{{ ui.graylog_label_host|default:"Graylog host" }}</label>
+                            {{ form.graylog_host }}
+                            {% if form.graylog_host.errors %}<div class="text-danger small">{{ form.graylog_host.errors.0 }}</div>{% endif %}
+                            <div class="form-text">{{ ui.graylog_help_host|default:"Hostname or IP of the GELF input. Pasting a full browser URL works — it is shortened automatically." }}</div>
+                        </div>
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label" for="id_graylog_port">{{ ui.graylog_label_port|default:"Port" }}</label>
+                            {{ form.graylog_port }}
+                            {% if form.graylog_port.errors %}<div class="text-danger small">{{ form.graylog_port.errors.0 }}</div>{% endif %}
+                            <div class="form-text">{{ ui.graylog_help_port|default:"Graylog uses 12201 for GELF by default." }}</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_graylog_transport">{{ ui.graylog_label_transport|default:"Transport" }}</label>
+                            {{ form.graylog_transport }}
+                            <div class="form-text">{{ ui.graylog_help_transport|default:"UDP never blocks and never confirms delivery. TCP and HTTP confirm, but cost a connection. Use TLS whenever the path leaves the local network." }}</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="id_graylog_timeout">{{ ui.graylog_label_timeout|default:"Timeout (s)" }}</label>
+                            {{ form.graylog_timeout }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="id_graylog_source_name">{{ ui.graylog_label_source|default:"Source name" }}</label>
+                            {{ form.graylog_source_name }}
+                            <div class="form-text">{{ ui.graylog_help_source|default:"Empty uses" }} <code>{{ graylog_default_source }}</code></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.graylog_verify_ssl }}
+                        <label class="form-check-label" for="id_graylog_verify_ssl">
+                            {{ ui.graylog_label_verify_ssl|default:"Verify TLS certificate" }}
+                        </label>
+                        <div class="form-text">{{ ui.graylog_help_verify_ssl|default:"Applies to the TLS and HTTPS transports only. Only disable for an internal certificate authority." }}</div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-primary" id="graylog-test"
+                                data-url="{% url 'plugins:netbox_force:graylog_test' %}">
+                            <i class="mdi mdi-send-check"></i> {{ ui.graylog_btn_test|default:"Send test event" }}
+                        </button>
+                        <span class="text-muted small">{{ ui.graylog_help_test|default:"Uses the saved settings, not what is currently in the form." }}</span>
+                    </div>
+                    <div id="graylog-test-result" class="mt-3"></div>
+                </div>
+            </div>
+
+            {# Event selection #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-format-list-checks"></i>
+                    {{ ui.graylog_section_events|default:"Events" }}
+                </h5>
+                <div class="card-body">
+                    <p class="text-muted small">{{ ui.graylog_help_events|default:"Pick what is sent and how severe each event is. Message text is always English — Graylog alert queries match on it, so translating it would break every alert the moment the UI language changes." }}</p>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 4rem;">{{ ui.graylog_col_send|default:"Send" }}</th>
+                                    <th>{{ ui.graylog_col_event|default:"Event" }}</th>
+                                    <th style="width: 12rem;">{{ ui.graylog_col_severity|default:"Severity" }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for row in form.event_rows %}
+                                <tr>
+                                    <td>{{ row.toggle }}</td>
+                                    <td>
+                                        <label class="form-label mb-0" for="{{ row.toggle.id_for_label }}">
+                                            {{ row.toggle.label }}
+                                        </label>
+                                        {% if row.key == 'settings_change' %}
+                                            <div class="form-text">{{ ui.graylog_note_settings|default:"The plugin's own settings are not covered by the NetBox changelog. Without this, switching enforcement off leaves no trace anywhere." }}</div>
+                                        {% elif row.key == 'login_failed' %}
+                                            <div class="form-text">{{ ui.graylog_note_login_failed|default:"NetBox does not keep failed logins anywhere. This is the one event with no other source." }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.level }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {# Volume #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-speedometer"></i>
+                    {{ ui.graylog_section_volume|default:"Volume" }}
+                </h5>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_graylog_bulk_threshold">{{ ui.graylog_label_bulk|default:"Summarise above" }}</label>
+                            {{ form.graylog_bulk_threshold }}
+                            <div class="form-text">{{ ui.graylog_help_bulk|default:"A request changing more objects than this is reported as one summary event. An import of 500 devices is one operation — 500 near-identical log lines make it harder to see, not easier. Set 0 to always send every object." }}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_graylog_max_events_per_request">{{ ui.graylog_label_max_events|default:"Maximum events per request" }}</label>
+                            {{ form.graylog_max_events_per_request }}
+                            <div class="form-text">{{ ui.graylog_help_max_events|default:"Hard cap, applied when summarising is switched off." }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Business hours #}
+            <div class="card mb-4">
+                <h5 class="card-header">
+                    <i class="mdi mdi-clock-outline"></i>
+                    {{ ui.graylog_section_hours|default:"Business hours" }}
+                </h5>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="id_graylog_business_days">{{ ui.graylog_label_days|default:"Business days" }}</label>
+                            {{ form.graylog_business_days }}
+                            {% if form.graylog_business_days.errors %}<div class="text-danger small">{{ form.graylog_business_days.errors.0 }}</div>{% endif %}
+                            <div class="form-text">{{ ui.graylog_help_days|default:"Comma-separated ISO weekday numbers (1=Monday, 7=Sunday)." }}</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="id_graylog_business_start">{{ ui.graylog_label_start|default:"From" }}</label>
+                            {{ form.graylog_business_start }}
+                            {% if form.graylog_business_start.errors %}<div class="text-danger small">{{ form.graylog_business_start.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label" for="id_graylog_business_end">{{ ui.graylog_label_end|default:"To" }}</label>
+                            {{ form.graylog_business_end }}
+                            {% if form.graylog_business_end.errors %}<div class="text-danger small">{{ form.graylog_business_end.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="mb-0 form-check">
+                        {{ form.graylog_only_outside_hours }}
+                        <label class="form-check-label" for="id_graylog_only_outside_hours">
+                            {{ ui.graylog_label_only_outside|default:"Only send outside business hours" }}
+                        </label>
+                        {% if form.graylog_only_outside_hours.errors %}<div class="text-danger small">{{ form.graylog_only_outside_hours.errors.0 }}</div>{% endif %}
+                        <div class="form-text">{{ ui.graylog_help_only_outside|default:"Every event carries an outside_business_hours field regardless. This switch additionally suppresses everything that happens inside the window." }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="mdi mdi-content-save"></i> {{ ui.btn_save|default:"Save" }}
+            </button>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <h5 class="card-header">
+                <i class="mdi mdi-chart-line"></i>
+                {{ ui.graylog_section_status|default:"Sender status" }}
+            </h5>
+            <div class="card-body">
+                <table class="table table-sm mb-2">
+                    <tr>
+                        <th>{{ ui.graylog_stat_sent|default:"Delivered" }}</th>
+                        <td class="text-end">{{ graylog_stats.sent }}</td>
+                    </tr>
+                    <tr>
+                        <th>{{ ui.graylog_stat_queued|default:"Queued" }}</th>
+                        <td class="text-end">{{ graylog_stats.queued }}</td>
+                    </tr>
+                    <tr>
+                        <th>{{ ui.graylog_stat_failed|default:"Failed" }}</th>
+                        <td class="text-end {% if graylog_stats.failed %}text-danger{% endif %}">{{ graylog_stats.failed }}</td>
+                    </tr>
+                    <tr>
+                        <th>{{ ui.graylog_stat_dropped|default:"Dropped" }}</th>
+                        <td class="text-end {% if graylog_stats.dropped %}text-danger{% endif %}">{{ graylog_stats.dropped }}</td>
+                    </tr>
+                </table>
+                <p class="text-muted small mb-0">
+                    {{ ui.graylog_help_stats|default:"Counted per worker process since its last restart, so the numbers are a sample and not a total. Dropped means the queue was full — Graylog was unreachable for long enough that new events had to give way." }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <h5 class="card-header">
+                <i class="mdi mdi-information-outline"></i>
+                {{ ui.graylog_section_fields|default:"Field names" }}
+            </h5>
+            <div class="card-body">
+                <p class="text-muted small">{{ ui.graylog_help_fields|default:"Every event carries the same fields, so Graylog searches stay simple:" }}</p>
+                <pre class="small mb-2">_app          netbox_force
+_category     object_change | auth |
+              violation | settings
+_event        object_created, login_failed, …
+_username
+_client_ip
+_user_agent
+_object_type  dcim.device
+_object_id
+_object_name
+_action       create | update | delete
+_changed_fields
+_request_id
+_netbox_url
+_outside_business_hours</pre>
+                <p class="text-muted small mb-0">
+                    {{ ui.graylog_help_request_id|default:"_request_id groups everything one request changed. Forty devices edited at once is one operation, not forty riddles." }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h5 class="card-header">
+                <i class="mdi mdi-shield-alert-outline"></i>
+                {{ ui.graylog_section_notes|default:"Worth knowing" }}
+            </h5>
+            <div class="card-body">
+                <ul class="small mb-0 ps-3">
+                    <li class="mb-2">{{ ui.graylog_note_nonblocking|default:"Events are queued and sent by a background thread. A Graylog outage cannot slow down or fail a save in NetBox." }}</li>
+                    <li class="mb-2">{{ ui.graylog_note_udp|default:"UDP is fire-and-forget: no delivery guarantee and no encryption. Correct inside a LAN, wrong across the internet." }}</li>
+                    <li class="mb-2">{{ ui.graylog_note_ip|default:"The client IP is read from X-Forwarded-For when present. That header is supplied by the client and can be forged if NetBox is reachable without a reverse proxy in front." }}</li>
+                    <li class="mb-0">{{ ui.graylog_note_secrets|default:"Settings changes are reported by field name. Values are only included for a small allowlist of switches and never for credentials or user lists." }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const button = document.getElementById('graylog-test');
+    if (!button) return;
+    const target = document.getElementById('graylog-test-result');
+
+    function csrfToken() {
+        const field = document.querySelector('#graylog-form [name=csrfmiddlewaretoken]');
+        return field ? field.value : '';
+    }
+
+    function show(cssClass, icon, html) {
+        target.innerHTML = '<div class="alert ' + cssClass + ' mb-0">'
+            + '<i class="mdi ' + icon + '"></i> ' + html + '</div>';
+    }
+
+    button.addEventListener('click', function () {
+        const original = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> …';
+        target.innerHTML = '';
+
+        fetch(button.dataset.url, {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken()},
+            credentials: 'same-origin'
+        })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (!data.ok) {
+                show('alert-danger', 'mdi-alert-circle', data.message);
+                return;
+            }
+            const detail = '<div class="small mt-1 text-muted">'
+                + data.transport + ' → ' + data.target
+                + ' · source: <code>' + data.source + '</code></div>';
+            show(data.confirmed ? 'alert-success' : 'alert-warning',
+                 data.confirmed ? 'mdi-check-circle' : 'mdi-information',
+                 data.message + detail);
+        })
+        .catch(function (error) {
+            show('alert-danger', 'mdi-alert-circle', String(error));
+        })
+        .finally(function () {
+            button.disabled = false;
+            button.innerHTML = original;
+        });
+    });
+})();
+</script>
+{% endblock content %}

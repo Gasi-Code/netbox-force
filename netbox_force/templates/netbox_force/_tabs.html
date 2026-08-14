@@ -19,6 +19,12 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'graylog' %}active{% endif %}"
+           href="{% url 'plugins:netbox_force:graylog' %}">
+            <i class="mdi mdi-console-line"></i> {{ ui.tab_graylog|default:"Graylog" }}
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}"
            href="{% url 'plugins:netbox_force:dashboard' %}">
             <i class="mdi mdi-view-dashboard"></i> {{ ui.tab_dashboard|default:"Dashboard" }}
