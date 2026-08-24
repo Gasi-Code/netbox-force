@@ -369,7 +369,14 @@ Maschine oder physischem Server.
 - **Kontakte** — Administrator und Verfahrensbetreuer aus den NetBox-Kontakten.
 - **Update-Historie** — ein Eintrag je Patchlauf, mit Ticketnummer und Notiz.
 - **Zugriff** wird über NetBox-Gruppennamen in den Plugin-Einstellungen geregelt,
-  nicht über Django-Berechtigungen.
+  nicht über Django-Berechtigungen. Drei Stufen: *Viewer* darf lesen, *Editor*
+  darf ändern, *Import/Admin* darf zusätzlich importieren und Kontakte
+  abgleichen.
+- **Lesen ist voreingestellt offen.** Bleibt *Patch-Viewer-Gruppen* leer, darf
+  jeder angemeldete Benutzer die Seiten lesen. Die Liste zeigt zu jedem Server
+  Betriebssystem, Patchstand und Wartungsfenster — wer das nicht jedem zeigen
+  will, trägt hier Gruppen ein. Editoren und Import-Admins behalten den
+  Lesezugriff immer.
 
 ### CheckMK
 
@@ -438,6 +445,17 @@ englisch — siehe die Anmerkung im [Dokumentationsverzeichnis](../README.md).
 
 ---
 
-## 12. Lizenz
+## 12. Sicherheit
+
+Schwachstellen bitte nicht als öffentliches Issue melden, sondern über das
+private Formular — siehe [SECURITY.md](../../SECURITY.md). Dort steht auch, was
+das Plugin schützt und was ausdrücklich nicht: ein NetBox-Superuser kann über
+Custom Scripts ohnehin Code auf dem Server ausführen, deshalb sind alle
+Einstellungen, die nach außen wirken, Superusern vorbehalten und gelten nicht
+als Sicherheitsgrenze.
+
+---
+
+## 13. Lizenz
 
 AGPL-3.0. Siehe [LICENSE](../../LICENSE).

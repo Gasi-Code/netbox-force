@@ -51,7 +51,6 @@ class ForceSettingsForm(forms.ModelForm):
             'dashboard_top_users_count',
             'webhook_enabled',
             'webhook_url',
-            'webhook_secret',
             'exempt_users',
             'exempt_groups',
             'extra_exempt_models',
@@ -63,6 +62,7 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_overdue_days',
             'patch_editor_groups',
             'patch_import_groups',
+            'patch_viewer_groups',
             'checkmk_enabled',
             'checkmk_url',
             'checkmk_username',
@@ -155,10 +155,6 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'https://webhook.site/your-unique-url',
             }),
-            'webhook_secret': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Optional HMAC secret',
-            }),
             'exempt_groups': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
@@ -192,6 +188,10 @@ class ForceSettingsForm(forms.ModelForm):
             'patch_import_groups': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Patch-Admins',
+            }),
+            'patch_viewer_groups': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'leave empty: every logged-in user may read',
             }),
             'checkmk_url': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -253,6 +253,36 @@ class ForceSettingsForm(forms.ModelForm):
         )
         if self.instance and self.instance.checkmk_secret_is_from_config:
             self.fields['checkmk_secret'].disabled = True
+
+        # Same treatment for the webhook secret: it signs the notifications, so
+        # reading it out of the page is enough to forge them.
+        self.fields['webhook_secret'] = forms.CharField(
+            required=False,
+            widget=forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'autocomplete': 'new-password',
+                'placeholder': 'Optional HMAC secret',
+            }, render_value=False),
+            label='Webhook secret',
+            help_text='Leave empty to keep the stored value.',
+        )
+
+    def clean_webhook_url(self):
+        """
+        Only http and https. The notification is delivered with a plain
+        urlopen-style client, which also speaks file:// and ftp:// — schemes
+        that turn a mistyped setting into a local file read.
+        """
+        raw = (self.cleaned_data.get('webhook_url') or '').strip()
+        if not raw:
+            return ''
+        from django.core.validators import URLValidator
+        validator = URLValidator(schemes=['http', 'https'])
+        try:
+            validator(raw)
+        except ValidationError:
+            raise ValidationError('Enter a valid http:// or https:// URL.')
+        return raw
 
     @staticmethod
     def _area_choices():
@@ -318,6 +348,10 @@ class ForceSettingsForm(forms.ModelForm):
         secret = self.cleaned_data.get('checkmk_secret')
         if secret and not obj.checkmk_secret_is_from_config:
             obj.set_checkmk_secret(secret)
+
+        webhook_secret = self.cleaned_data.get('webhook_secret')
+        if webhook_secret:
+            obj.set_webhook_secret(webhook_secret)
 
         # A changed URL, user or query form invalidates the probed flavor.
         if 'checkmk_url' in self.changed_data or 'checkmk_username' in self.changed_data:
@@ -743,6 +777,19 @@ class ValidationRuleForm(forms.ModelForm):
             )
         return value.lower()
 
+    # A quantifier applied to a group that itself ends in a quantifier —
+    # (a+)+, (\w+\s?)*, (.*)+ — backtracks exponentially on input that nearly
+    # matches. The pattern is written by an administrator, but it is applied to
+    # values any user can submit, so one careless rule hands every user a way
+    # to hang a worker.
+    # A repeated group whose own content repeats. '?' counts inside the group —
+    # (\w+\s?)* backtracks just as badly as (a+)+ — but a '?' applied to the
+    # group is harmless, because an optional group repeats at most once.
+    _NESTED_QUANTIFIER = re.compile(
+        r'\([^)]*[+*?}]\s*\)\s*[+*]'      # (…+)+   (…\s?)*   (…{2,4})*
+        r'|\([^)]*[+*?}]\s*\)\s*\{'       # (…+){2,}
+    )
+
     def clean_regex_pattern(self):
         """Validate regex pattern if provided."""
         value = self.cleaned_data.get('regex_pattern', '')
@@ -755,6 +802,14 @@ class ValidationRuleForm(forms.ModelForm):
                 "Invalid regex pattern: %(error)s",
                 params={'error': str(e)},
                 code='invalid_regex',
+            )
+        if self._NESTED_QUANTIFIER.search(value):
+            raise ValidationError(
+                'This pattern nests one quantifier inside another (for example '
+                '"(a+)+"). On a value that almost matches, that backtracks for '
+                'a very long time and blocks the worker handling the save. '
+                'Rewrite it without the nested repetition.',
+                code='catastrophic_backtracking',
             )
         return value
 
@@ -905,28 +960,60 @@ class WidgetImageUploadForm(forms.Form):
     """Form for uploading widget images."""
 
     _MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-    _ALLOWED_EXTENSIONS = ['svg', 'png', 'jpg', 'jpeg', 'gif']
+
+    # SVG is deliberately absent. It is an XML document that may carry script,
+    # and the browser executes it when the file is served inline from NetBox's
+    # own origin — a stored cross-site scripting hole dressed as a logo. Raster
+    # formats carry no such payload.
+    _ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
+
+    # First bytes that must match the claimed extension, so a renamed file is
+    # rejected rather than stored under a type it is not.
+    _MAGIC = (
+        (b'\x89PNG\r\n\x1a\n', {'png'}),
+        (b'\xff\xd8\xff', {'jpg', 'jpeg'}),
+        (b'GIF87a', {'gif'}),
+        (b'GIF89a', {'gif'}),
+        (b'RIFF', {'webp'}),
+    )
 
     file = forms.FileField(
         label='Image file',
         validators=[
             FileExtensionValidator(allowed_extensions=_ALLOWED_EXTENSIONS),
         ],
-        help_text='Allowed formats: SVG, PNG, JPG, JPEG, GIF. Max size: 5 MB.',
+        help_text='Allowed formats: PNG, JPG, JPEG, GIF, WEBP. Max size: 5 MB.',
         widget=forms.FileInput(attrs={
             'class': 'form-control',
-            'accept': '.svg,.png,.jpg,.jpeg,.gif',
+            'accept': '.png,.jpg,.jpeg,.gif,.webp',
         }),
     )
 
     def clean_file(self):
         f = self.cleaned_data.get('file')
-        if f and f.size > self._MAX_SIZE_BYTES:
+        if not f:
+            return f
+        if f.size > self._MAX_SIZE_BYTES:
             raise ValidationError(
                 'File too large. Maximum allowed size is 5 MB '
                 f'(uploaded: {f.size / 1024 / 1024:.1f} MB).'
             )
-        return f
+
+        ext = f.name.rsplit('.', 1)[-1].lower() if '.' in f.name else ''
+        head = f.read(12)
+        f.seek(0)
+        for signature, extensions in self._MAGIC:
+            if not head.startswith(signature):
+                continue
+            # RIFF alone is also WAV and AVI; the format name follows the size.
+            if signature == b'RIFF' and head[8:12] != b'WEBP':
+                continue
+            if ext not in extensions:
+                raise ValidationError(
+                    'File content does not match its extension.')
+            return f
+        raise ValidationError(
+            'Unrecognised image file. Allowed: PNG, JPG, GIF, WEBP.')
 
 
 # =============================================================================

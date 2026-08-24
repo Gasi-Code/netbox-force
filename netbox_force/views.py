@@ -34,6 +34,39 @@ from .ui_strings import get_all_ui_strings
 
 
 # =============================================================================
+# CSV SAFETY
+# =============================================================================
+
+# Cells that begin with one of these are read as a formula by Excel and
+# LibreOffice, not as text. Violation rows carry the object name and the exact
+# comment the blocked user typed, so an attacker picks that text — and the
+# person who opens the export is the administrator reviewing the audit trail.
+_CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', chr(9), chr(13))
+
+
+def _csv_safe(value):
+    """Return a cell that a spreadsheet will treat as text."""
+    text = '' if value is None else str(value)
+    if text[:1] in _CSV_FORMULA_PREFIXES:
+        return "'" + text
+    return text
+
+
+class _SafeCsvWriter:
+    """csv.writer wrapper that neutralises every cell it writes."""
+
+    def __init__(self, target):
+        self._writer = csv.writer(target)
+
+    def writerow(self, row):
+        return self._writer.writerow([_csv_safe(cell) for cell in row])
+
+    def writerows(self, rows):
+        for row in rows:
+            self.writerow(row)
+
+
+# =============================================================================
 # BASE MIXINS
 # =============================================================================
 
@@ -87,9 +120,116 @@ class PatchPermRequiredMixin(LoginRequiredMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
+class PatchViewPermRequiredMixin(LoginRequiredMixin):
+    """
+    Read access to the patch pages.
+
+    The pages list every server with its OS version, its patch state and its
+    maintenance window — a ready-made target list of what is unpatched and when
+    nobody is watching. Restricting that to named groups is worth offering.
+
+    patch_viewer_groups empty keeps the previous behaviour (every logged-in user
+    may read), so an upgrade changes nothing until someone fills it in. Editors
+    and import admins always keep read access.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if not request.user.is_superuser:
+            settings_obj = ForceSettings.get_settings()
+            viewer_groups = getattr(settings_obj, 'patch_viewer_groups', '') or ''
+            if viewer_groups.strip():
+                allowed = (
+                    _user_in_patch_groups(request.user, viewer_groups)
+                    or _user_in_patch_groups(
+                        request.user, getattr(settings_obj, 'patch_editor_groups', ''))
+                    or _user_in_patch_groups(
+                        request.user, getattr(settings_obj, 'patch_import_groups', ''))
+                )
+                if not allowed:
+                    raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+
 # =============================================================================
 # CONTEXT HELPERS
 # =============================================================================
+
+def _sanitize_guide_html(content):
+    """
+    Strip script-bearing markup from guide content rendered inside NetBox.
+
+    The guide is authored by a superuser, who can already run code on the
+    server — so this is not a privilege boundary. It is a blast radius: the
+    guide is shown to every logged-in user, and unfiltered HTML in NetBox's own
+    origin turns one mistaken paste into script running in their sessions.
+
+    Uses whatever sanitiser NetBox already ships. When none is present the
+    content is returned unchanged and the fact is logged, rather than silently
+    dropping a page the administrator wrote.
+    """
+    if not content:
+        return content
+    try:
+        import nh3
+        return nh3.clean(content)
+    except ImportError:
+        pass
+    try:
+        import bleach
+        return bleach.clean(
+            content,
+            tags=bleach.sanitizer.ALLOWED_TAGS | {
+                'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'img',
+                'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span', 'div', 'hr',
+            },
+            attributes={'*': ['class', 'style', 'title'],
+                        'a': ['href', 'target', 'rel'],
+                        'img': ['src', 'alt', 'width', 'height']},
+            strip=True,
+        )
+    except ImportError:
+        logger.warning(
+            'netbox_force: neither nh3 nor bleach is installed — guide content '
+            'is rendered unfiltered'
+        )
+        return content
+
+
+def _restricted(model, user, action='view'):
+    """
+    A queryset limited to what this user may actually see.
+
+    NetBox enforces object permissions through RestrictedQuerySet.restrict();
+    a plain .objects.filter() walks straight past them and answers for every
+    row in the table. Anything that reads NetBox core data on behalf of a user
+    goes through here. Falls back to the unrestricted manager only if the model
+    has no restrict() at all, which no NetBox core model lacks.
+    """
+    manager = model.objects
+    restrict = getattr(manager, 'restrict', None)
+    if restrict is None:
+        return manager.all()
+    return restrict(user, action)
+
+
+def _may_view_object(user, obj):
+    """
+    True when this user may view this specific object.
+
+    Model-level has_perm() is not enough: NetBox object permissions can carry
+    constraints ("devices in site A"), and has_perm() without an object returns
+    True for the whole model regardless of them.
+    """
+    if user.is_superuser:
+        return True
+    model = obj.__class__
+    manager = model.objects
+    if getattr(manager, 'restrict', None) is None:
+        return _may_view_object(user, obj)
+    return manager.restrict(user, 'view').filter(pk=obj.pk).exists()
+
 
 def _get_ui_context(settings_obj=None):
     """Returns the UI strings dict based on the current language setting."""
@@ -1613,7 +1753,7 @@ class ViolationExportCSVView(SuperuserRequiredMixin, View):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="netbox_force_violations.csv"'
 
-        writer = csv.writer(response)
+        writer = _SafeCsvWriter(response)
         writer.writerow([
             'Timestamp', 'Username', 'Model', 'Object', 'Action',
             'Reason', 'Message', 'Attempted Comment',
@@ -1784,7 +1924,7 @@ class DashboardExportView(SuperuserRequiredMixin, View):
             f'attachment; filename="netbox_force_report_{now:%Y%m%d_%H%M}.csv"'
         )
 
-        writer = csv.writer(response)
+        writer = _SafeCsvWriter(response)
         reason_display = dict(Violation.REASON_CHOICES)
         total = Violation.objects.count()
 
@@ -2074,6 +2214,10 @@ class GuideView(AuthenticatedRequiredMixin, View):
         guide = GuidePage.get_guide()
         content = guide.content if guide else ''
         is_full_html = bool(_FULL_HTML_RE.search(content))
+        if guide is not None and not is_full_html:
+            # Full pages render inside a sandboxed iframe and keep their markup;
+            # inline content lands in the NetBox page itself and is filtered.
+            guide.content = _sanitize_guide_html(content)
 
         ctx = _base_context(settings)
         ctx.update({
@@ -2108,8 +2252,20 @@ class GuideStandaloneView(AuthenticatedRequiredMixin, View):
             )
 
         # If full HTML page, serve as-is; otherwise wrap in minimal page
+        response_headers = {
+            # The standalone guide is its own page; keep it from reaching back
+            # into NetBox and from being framed by anything else.
+            'Content-Security-Policy': "default-src 'self'; sandbox allow-popups",
+            'X-Content-Type-Options': 'nosniff',
+        }
+
         if _FULL_HTML_RE.search(content):
-            return HttpResponse(content, content_type='text/html')
+            response = HttpResponse(content, content_type='text/html')
+            for header, value in response_headers.items():
+                response[header] = value
+            return response
+
+        content = _sanitize_guide_html(content)
 
         wrapped = (
             '<!DOCTYPE html><html><head>'
@@ -2119,7 +2275,10 @@ class GuideStandaloneView(AuthenticatedRequiredMixin, View):
             'margin:40px auto;padding:0 20px;line-height:1.6;}</style>'
             '</head><body>' + content + '</body></html>'
         )
-        return HttpResponse(wrapped, content_type='text/html')
+        response = HttpResponse(wrapped, content_type='text/html')
+        for header, value in response_headers.items():
+            response[header] = value
+        return response
 
 
 class GuideEditView(SuperuserRequiredMixin, View):
@@ -2197,7 +2356,6 @@ class WidgetImagesView(SuperuserRequiredMixin, View):
         return self._render(request, WidgetImageUploadForm())
 
     def post(self, request):
-        import mimetypes
         import re as _re
         import unicodedata
 
@@ -2213,24 +2371,25 @@ class WidgetImagesView(SuperuserRequiredMixin, View):
         safe_name = _re.sub(r'[^\w.\-]', '_', raw_name)
         safe_name = safe_name.lstrip('.')  # No leading dots
 
-        # Detect MIME type
-        import mimetypes as _mimetypes
-        content_type, _ = _mimetypes.guess_type(safe_name)
-        if not content_type:
-            content_type = 'application/octet-stream'
+        # The type comes from a fixed table keyed on the extension the form
+        # already validated — never guessed from the name, which would let an
+        # upload choose the Content-Type it is later served under.
+        content_type = WidgetImage.content_type_for(safe_name)
 
         # If a file with this name already exists, delete the old one first
         existing = WidgetImage.objects.filter(name=safe_name).first()
         if existing:
             existing.delete()
 
+        uploaded.seek(0)
         img = WidgetImage(
             name=safe_name,
+            data=uploaded.read(),
             file_size=uploaded.size,
             content_type=content_type,
             uploaded_by=request.user.username,
         )
-        img.file.save(safe_name, uploaded, save=True)
+        img.save()
 
         ui, _ = _get_widget_strings()
         msg = ui.get('widget_images_upload_success', 'Image "{name}" uploaded successfully.')
@@ -2258,17 +2417,17 @@ class WidgetImageServeView(AuthenticatedRequiredMixin, View):
     """
 
     def get(self, request, filename):
-        from django.http import Http404
         img = get_object_or_404(WidgetImage, name=filename)
-        try:
-            f = img.file.open('rb')
-            response = FileResponse(
-                f,
-                content_type=img.content_type or 'application/octet-stream',
-            )
-            return response
-        except (FileNotFoundError, OSError):
-            raise Http404('Image file not found on disk.')
+        response = HttpResponse(
+            bytes(img.data or b''),
+            content_type=WidgetImage.content_type_for(img.name),
+        )
+        # The stored type is the only type. Without this a browser may sniff
+        # the bytes and decide it is looking at a document instead of an image.
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['Content-Disposition'] = f'inline; filename="{img.name}"'
+        response['Content-Security-Policy'] = "default-src 'none'; sandbox"
+        return response
 
 
 # =============================================================================
@@ -2366,7 +2525,7 @@ def _resolve_vm_contacts(patch_vms):
         ]
 
 
-class PatchVMListView(LoginRequiredMixin, View):
+class PatchVMListView(PatchViewPermRequiredMixin, View):
     def get(self, request):
         if not _patch_enabled():
             messages.warning(request, 'Patch Management is disabled.')
@@ -2391,7 +2550,11 @@ class PatchVMListView(LoginRequiredMixin, View):
             try:
                 from django.apps import apps as _apps
                 Contact = _apps.get_model('tenancy', 'Contact')
-                contact_ids = list(Contact.objects.filter(name__icontains=q).values_list('pk', flat=True)[:200])
+                contact_ids = list(
+                    _restricted(Contact, request.user)
+                    .filter(name__icontains=q)
+                    .values_list('pk', flat=True)[:200]
+                )
             except Exception:
                 contact_ids = []
             contact_q = Q(vm_contacts__contact_id__in=contact_ids) if contact_ids else Q()
@@ -2447,7 +2610,7 @@ class PatchVMListView(LoginRequiredMixin, View):
         return render(request, 'netbox_force/patch_list.html', ctx)
 
 
-class PatchVMDetailView(LoginRequiredMixin, View):
+class PatchVMDetailView(PatchViewPermRequiredMixin, View):
     def get(self, request, pk):
         from django.apps import apps
         patch_vm = get_object_or_404(
@@ -2920,7 +3083,8 @@ class PatchContactRoleCreateView(PatchPermRequiredMixin, View):
         return redirect('plugins:netbox_force:patch_contact_sync')
 
 
-class PatchIPSuggestView(LoginRequiredMixin, View):
+class PatchIPSuggestView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.change_patchvm'
     """Returns IP address suggestions from NetBox IPAM (JSON)."""
 
     def get(self, request):
@@ -2930,7 +3094,7 @@ class PatchIPSuggestView(LoginRequiredMixin, View):
         results = []
         try:
             IPAddress = apps.get_model('ipam', 'IPAddress')
-            qs = IPAddress.objects.order_by('address')
+            qs = _restricted(IPAddress, request.user).order_by('address')
             if q:
                 qs = qs.filter(address__icontains=q)
             results = [str(ip.address).split('/')[0] for ip in qs[:60]]
@@ -2939,7 +3103,8 @@ class PatchIPSuggestView(LoginRequiredMixin, View):
         return JsonResponse({'results': results})
 
 
-class PatchContactSuggestView(LoginRequiredMixin, View):
+class PatchContactSuggestView(PatchPermRequiredMixin, View):
+    permission_required = 'netbox_force.change_patchvm'
     """Returns contact name suggestions from NetBox Tenancy (JSON)."""
 
     def get(self, request):
@@ -2949,7 +3114,7 @@ class PatchContactSuggestView(LoginRequiredMixin, View):
         results = []
         try:
             Contact = apps.get_model('tenancy', 'Contact')
-            qs = Contact.objects.order_by('name')
+            qs = _restricted(Contact, request.user).order_by('name')
             if q:
                 qs = qs.filter(name__icontains=q)
             results = [c.name for c in qs[:60]]

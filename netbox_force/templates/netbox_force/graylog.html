@@ -615,6 +615,12 @@ _outside_business_hours</pre>
 
     const LAMPS = {green: 'success', yellow: 'warning', red: 'danger'};
 
+    function safeUrl(value) {
+        // Only absolute http(s) or site-relative links may reach an href.
+        const url = value == null ? '' : String(value);
+        return /^(https?:\/\/|\/)/i.test(url) ? url : '#';
+    }
+
     function escapeHtml(value) {
         const div = document.createElement('div');
         div.textContent = value == null ? '' : value;
@@ -651,7 +657,7 @@ _outside_business_hours</pre>
                         + '{{ ui.graylog_cluster_leader|default:"leader"|escapejs }}</span>';
                 }
                 if (node.netbox_url) {
-                    html += ' <a href="' + node.netbox_url + '">'
+                    html += ' <a href="' + escapeHtml(safeUrl(node.netbox_url)) + '">'
                         + escapeHtml(node.netbox_name) + '</a>';
                 } else {
                     html += ' <span class="text-muted">'
@@ -669,7 +675,7 @@ _outside_business_hours</pre>
             box.innerHTML = html;
         })
         .catch(function (error) {
-            box.innerHTML = '<div class="text-muted small">' + String(error) + '</div>';
+            box.innerHTML = '<div class="text-muted small">' + escapeHtml(String(error)) + '</div>';
         });
 })();
 </script>

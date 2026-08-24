@@ -40,6 +40,16 @@ class SyncSkipped(Exception):
         super().__init__(code)
 
 
+# A monitored host writes its own plugin output, and its own name. Whoever
+# controls one of them decides what lands in the NetBox database on every sync,
+# so both are capped here rather than trusted to be reasonable. Without the cap
+# on the name, one over-long hostname raises a DataError that ends the whole
+# run — every other machine's patch state then quietly stops updating.
+MAX_PLUGIN_OUTPUT = 1000
+MAX_UPDATE_DETAILS = 8000
+MAX_HOST_NAME = 255
+
+
 def _worst(rows):
     """
     Collapse several update services on one host into a single verdict.
@@ -49,8 +59,9 @@ def _worst(rows):
     """
     worst = max(rows, key=lambda r: (r['state'] == 3, r['state']))
     details = '\n'.join(
-        f"{r['description']}: {r['plugin_output']}" for r in rows
-    )
+        f"{r['description']}: {(r['plugin_output'] or '')[:MAX_PLUGIN_OUTPUT]}"
+        for r in rows
+    )[:MAX_UPDATE_DETAILS]
     services = ', '.join(sorted({r['description'] for r in rows}))
     return worst['state'], services, details
 
@@ -249,59 +260,69 @@ def _perform(settings_obj, run):
     seen_pks = set()
     escalated_inline = 0
 
-    for host_name, host_rows in by_host.items():
-        state, services, details = _worst(host_rows)
-        pvm = _match_existing(host_name, by_checkmk, by_fqdn, by_vm_name)
-        status, first_warned = _resolve_status(state, pvm, escalation_days, now)
+    for raw_host_name, host_rows in by_host.items():
+        # One unusable host must not cost the whole run: every other
+        # machine's patch state would silently stop updating with it.
+        try:
+            host_name = (raw_host_name or "")[:MAX_HOST_NAME]
+            if not host_name:
+                continue
+            state, services, details = _worst(host_rows)
+            pvm = _match_existing(host_name, by_checkmk, by_fqdn, by_vm_name)
+            status, first_warned = _resolve_status(state, pvm, escalation_days, now)
 
-        # Age-based escalation happens here, per host, before the sweep below
-        # ever sees the row. Counting only the sweep would always report zero.
-        if status == 'red' and STATE_MAP.get(state, 'yellow') == 'yellow':
-            escalated_inline += 1
+            # Age-based escalation happens here, per host, before the sweep below
+            # ever sees the row. Counting only the sweep would always report zero.
+            if status == 'red' and STATE_MAP.get(state, 'yellow') == 'yellow':
+                escalated_inline += 1
 
-        info = host_info.get(host_name) or {}
-        values = {
-            'patch_status': status,
-            'first_warned': first_warned,
-            'last_checked': now,
-            'update_details': details,
-            'checkmk_host_name': host_name,
-            'checkmk_service': services[:255],
-            'checkmk_state': state,
-            'checkmk_ip': (info.get('address') or '')[:64],
-            'checkmk_host_state': info.get('state'),
-            'checkmk_monitored': True,
-            'checkmk_last_seen': now,
-            'updated': now,
-        }
-        # Belt and braces: the whitelist is the contract, enforce it here too.
-        values = {k: v for k, v in values.items() if k in CHECKMK_SYNC_FIELDS}
+            info = host_info.get(host_name) or {}
+            values = {
+                'patch_status': status,
+                'first_warned': first_warned,
+                'last_checked': now,
+                'update_details': details,
+                'checkmk_host_name': host_name,
+                'checkmk_service': services[:255],
+                'checkmk_state': state,
+                'checkmk_ip': (info.get('address') or '')[:64],
+                'checkmk_host_state': info.get('state'),
+                'checkmk_monitored': True,
+                'checkmk_last_seen': now,
+                'updated': now,
+            }
+            # Belt and braces: the whitelist is the contract, enforce it here too.
+            values = {k: v for k, v in values.items() if k in CHECKMK_SYNC_FIELDS}
 
-        if pvm is None:
-            link_field, link_obj = _find_netbox_object(host_name)
-            pvm = PatchVM(
-                fqdn=host_name,
-                source='checkmk',
-                **({link_field: link_obj} if link_obj else {}),
-                **values,
-            )
-            # Creating a row goes through save() and therefore through this
-            # plugin's own enforcement. Without the bypass, discovering a new
-            # host would be blocked for want of a changelog message the sync
-            # has no way to supply.
-            pvm._netbox_force_sync_save = True
-            pvm.save()
-            by_checkmk[host_name.lower()] = pvm
-            run.hosts_created += 1
-        else:
-            PatchVM.objects.filter(pk=pvm.pk).update(**values)
-            run.hosts_updated += 1
+            if pvm is None:
+                link_field, link_obj = _find_netbox_object(host_name)
+                pvm = PatchVM(
+                    fqdn=host_name,
+                    source='checkmk',
+                    **({link_field: link_obj} if link_obj else {}),
+                    **values,
+                )
+                # Creating a row goes through save() and therefore through this
+                # plugin's own enforcement. Without the bypass, discovering a new
+                # host would be blocked for want of a changelog message the sync
+                # has no way to supply.
+                pvm._netbox_force_sync_save = True
+                pvm.save()
+                by_checkmk[host_name.lower()] = pvm
+                run.hosts_created += 1
+            else:
+                PatchVM.objects.filter(pk=pvm.pk).update(**values)
+                run.hosts_updated += 1
 
-        if _link_ip_address(pvm, values['checkmk_ip']):
-            run.ips_linked += 1
+            if _link_ip_address(pvm, values['checkmk_ip']):
+                run.ips_linked += 1
 
-        seen_pks.add(pvm.pk)
+            seen_pks.add(pvm.pk)
 
+        except Exception:
+            run.hosts_failed += 1
+            logger.warning("CheckMK sync skipped host %r", raw_host_name,
+                           exc_info=True)
     # Entries CheckMK used to report and no longer does. Status is left as it
     # was; only the monitoring flag changes.
     run.hosts_stale = (

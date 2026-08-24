@@ -265,6 +265,14 @@ class ForceSettings(models.Model):
         verbose_name='Patch import/admin groups',
         help_text='Comma-separated NetBox group names. Members have all editor rights plus VM import and contact sync.',
     )
+    patch_viewer_groups = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Patch viewer groups',
+        help_text='Comma-separated NetBox group names allowed to READ the patch pages. '
+                  'Leave empty to let every logged-in user read them (previous behaviour). '
+                  'Editor and import groups always retain read access.',
+    )
     # --- CheckMK Integration (pull) ---
     checkmk_enabled = models.BooleanField(
         default=False,
@@ -340,12 +348,12 @@ class ForceSettings(models.Model):
         verbose_name='Webhook URL',
         help_text='Endpoint to receive violation notifications (JSON POST).',
     )
-    webhook_secret = models.CharField(
-        max_length=255,
+    webhook_secret_encrypted = models.TextField(
         blank=True,
         default='',
         verbose_name='Webhook secret',
-        help_text='Optional HMAC-SHA256 secret. If set, adds an X-NetBox-Force-Signature header.',
+        help_text='Optional HMAC-SHA256 secret. If set, adds an X-NetBox-Force-Signature '
+                  'header. Stored encrypted. Never rendered back into the form.',
     )
 
     # --- Graylog Output (push) ---
@@ -680,6 +688,18 @@ class ForceSettings(models.Model):
             if item:
                 out.append(item)
         return out
+
+    def get_webhook_secret(self):
+        from .secretstore import decrypt
+        return decrypt(self.webhook_secret_encrypted, purpose='webhook')
+
+    def set_webhook_secret(self, value):
+        from .secretstore import encrypt
+        self.webhook_secret_encrypted = encrypt(value, purpose='webhook')
+
+    @property
+    def webhook_has_secret(self):
+        return bool(self.get_webhook_secret())
 
     def get_checkmk_secret(self):
         from .secretstore import decrypt
@@ -1158,6 +1178,14 @@ class WidgetImage(models.Model):
     Uploaded image files for use in dashboard widgets (e.g. QuickLinksWidget logos).
     Files are served at /plugins/netbox-force/widget/images/<name>.
     Superusers can upload / delete; authenticated users can view.
+
+    The bytes live in the database, not in MEDIA_ROOT. NetBox serves MEDIA_URL
+    without an authentication check, so a file stored there is readable by
+    anyone who knows its name — which would make the login requirement on the
+    serving view decorative. The database has no such back door, and the 5 MB
+    upload limit keeps the rows small enough for this to be the simpler answer
+    than a second, non-served storage location that every deployment would have
+    to configure correctly.
     """
 
     name = models.CharField(
@@ -1166,9 +1194,10 @@ class WidgetImage(models.Model):
         verbose_name='Filename',
         help_text='Filename as used in the widget URL (e.g. company-logo.png)',
     )
-    file = models.FileField(
-        upload_to='netbox_force/widget_images/',
-        verbose_name='File',
+    data = models.BinaryField(
+        default=b'',
+        editable=False,
+        verbose_name='File content',
     )
     file_size = models.PositiveIntegerField(
         default=0,
@@ -1199,14 +1228,22 @@ class WidgetImage(models.Model):
     def __str__(self):
         return self.name
 
-    def delete(self, *args, **kwargs):
-        """Delete the actual file from storage when the DB record is removed."""
-        if self.file:
-            try:
-                self.file.delete(save=False)
-            except Exception:
-                pass
-        super().delete(*args, **kwargs)
+    # Extension → the exact type the file is served as. Guessing from the name
+    # with mimetypes would let an upload pick its own Content-Type, and SVG is
+    # deliberately absent: it is a script-bearing document, and serving one
+    # inline from the NetBox origin is cross-site scripting with extra steps.
+    CONTENT_TYPES = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+    }
+
+    @classmethod
+    def content_type_for(cls, filename):
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        return cls.CONTENT_TYPES.get(ext, 'application/octet-stream')
 
 
 # =============================================================================
@@ -1656,6 +1693,11 @@ class CheckmkSyncRun(models.Model):
     hosts_created = models.PositiveIntegerField(default=0)
     hosts_updated = models.PositiveIntegerField(default=0)
     hosts_stale = models.PositiveIntegerField(default=0)
+    hosts_failed = models.PositiveIntegerField(
+        default=0,
+        help_text='Hosts skipped because reconciling them raised. The rest of '
+                  'the run still completed.',
+    )
     escalated = models.PositiveIntegerField(default=0)
     ips_linked = models.PositiveIntegerField(default=0)
 

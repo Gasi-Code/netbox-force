@@ -360,7 +360,13 @@ virtual machine or physical server.
 - **Contacts** — administrator and process owner from NetBox's contact objects.
 - **Update history** — one entry per patch run, with ticket number and note.
 - **Access** is granted by NetBox group name in the plugin settings, not through
-  Django permissions.
+  Django permissions. Three tiers: *viewer* may read, *editor* may change,
+  *import/admin* may additionally import and sync contacts.
+- **Reading is open by default.** Leave *patch viewer groups* empty and every
+  logged-in user may read the pages. The list shows each server's operating
+  system, patch state and maintenance window — name groups here if that should
+  not be visible to everyone. Editors and import admins always keep read
+  access.
 
 ### CheckMK
 
@@ -422,6 +428,16 @@ messages sent to Graylog stay English — see the note in the
 
 ---
 
-## 12. License
+## 12. Security
+
+Report vulnerabilities privately rather than as a public issue — see
+[SECURITY.md](../../SECURITY.md), which also states what the plugin protects
+and what it deliberately does not. A NetBox superuser can already run code on
+the server through Custom Scripts, so every setting that reaches outward is
+superuser-only by design and is not treated as a security boundary.
+
+---
+
+## 13. License
 
 AGPL-3.0. See [LICENSE](../../LICENSE).

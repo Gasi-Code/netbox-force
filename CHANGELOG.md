@@ -12,6 +12,93 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.9.0 — Security hardening
+
+A review of the whole plugin against the usual attack surfaces. Two findings
+were serious; the rest is hardening and robustness. Nothing changes how the
+plugin is configured, apart from one new optional setting.
+
+**Fixed — enforcement could be switched off by the client.** Whether the
+changelog rule applied was decided by looking for the field name in the
+submitted form data. Deleting that one input before submitting — a few seconds
+in the browser's developer tools — made the plugin treat the request as a form
+that never offered a changelog: it generated one automatically, accepted its
+own text as sufficient, and skipped the blocklist and ticket checks with it.
+No violation was recorded, because nothing was blocked. The decision now comes
+from the installed NetBox release and the model's own fields, both of which a
+request cannot influence. The one honest case — a NetBox without a changelog
+field *and* a model without a `comments` field — is still recognised.
+
+**Fixed — uploaded widget images were readable without logging in, and could
+carry script.** The files lived under `MEDIA_ROOT`, which NetBox serves without
+an authentication check, so the login requirement on the serving view never
+applied to the file itself. SVG was an accepted format, and an SVG served from
+NetBox's own origin executes its script in the viewer's session. Images now
+live in the database, only raster formats are accepted, the content is checked
+against its magic bytes, and the file is served with a fixed Content-Type,
+`X-Content-Type-Options: nosniff` and a sandbox policy. Existing files are
+moved into the database by the migration and deleted from disk — leaving them
+there would leave the hole open.
+
+**Fixed — violation exports could execute in the auditor's spreadsheet.** A CSV
+cell starting with `=`, `+`, `-` or `@` is a formula, and violation rows carry
+the object name and the exact comment the blocked user typed. Every exported
+cell is now written as text.
+
+**Fixed — NetBox object permissions were bypassed.** The IP address and contact
+suggestion endpoints, and the contact search behind the patch list filter,
+queried NetBox directly instead of through `restrict()`, so any logged-in
+account could enumerate the whole address space and the full contact list
+regardless of its permissions. The Graylog message endpoint checked the
+model-level view permission, which ignores per-object constraints. Both now
+honour object permissions, and the suggestion endpoints require patch edit
+rights.
+
+**Fixed — the webhook secret was stored and displayed in clear text.** It signs
+the notifications, so reading it is enough to forge them. It is now encrypted
+at rest like the CheckMK secret and the Graylog token, and the field is never
+rendered back. Existing values are migrated.
+
+**Fixed — the diagnostic probe followed symlinks.** `/tmp/netbox_force_probe.log`
+is a predictable path in a world-writable directory; a local user could point
+it at a file the NetBox account may write. The probe now opens with
+`O_NOFOLLOW` and writes only to a regular file owned by the process user.
+
+**Hardened.**
+
+- Webhook deliveries run on a two-worker pool with a bounded backlog instead of
+  one thread per violation, which a loop of blocked saves could multiply
+  without limit. Only `http` and `https` URLs are accepted, and redirects are
+  no longer followed — they would carry the payload and its signature
+  elsewhere.
+- Validation-rule patterns that nest one quantifier inside another — `(a+)+`,
+  `(\w+\s?)*` — are rejected when the rule is saved. Such a pattern backtracks
+  exponentially on input any user can submit. Patterns are compiled once and
+  cached, and applied to at most 512 characters.
+- CheckMK plugin output is capped per service and in total, host names are cut
+  to the column width, and one unusable host is skipped with a counter instead
+  of ending the whole sync run. Previously a single over-long hostname stopped
+  every machine's patch state from updating.
+- The guide's iframe no longer combines `allow-scripts` with
+  `allow-same-origin`, a pairing that lifts the sandbox it appears to apply.
+  Inline guide content is filtered when `nh3` or `bleach` is available, and the
+  standalone guide page carries a restrictive `Content-Security-Policy`.
+- Four unescaped values in the Graylog templates are escaped, and URLs bound
+  for an `href` must be `http`, `https` or site-relative.
+
+**New setting — `patch_viewer_groups`.** The patch pages list every server with
+its OS version, its patch state and its maintenance window. Reading that was
+open to every logged-in user; naming groups here restricts it. Left empty, the
+previous behaviour is kept, so an upgrade changes nothing until it is filled in.
+
+Also new: `SECURITY.md` with a private reporting path and the plugin's security
+model, and `netbox_force/tests/test_security.py` with a regression test per
+finding.
+
+Migration `0029_security_hardening`.
+
+---
+
 ### v5.8.0 — Reading Graylog back into NetBox
 
 - **Graylog information next to the object it belongs to.** Devices and virtual machines get a panel with the message, error and warning counts for that host, its recent messages on demand, and a link that opens the matching search in Graylog.

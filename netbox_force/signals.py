@@ -1,6 +1,9 @@
 import logging
 import os
 import re
+import stat
+import sys
+from functools import lru_cache
 
 from django.apps import apps
 from django.db.models.signals import pre_save, pre_delete
@@ -265,13 +268,34 @@ PROBE_FILE = os.environ.get('NETBOX_FORCE_PROBE', '/tmp/netbox_force_probe.log')
 
 
 def _probe(fmt, *args):
-    """Append one diagnostic line. Never raises — diagnostics must not block a save."""
+    """
+    Append one diagnostic line. Never raises — diagnostics must not block a save.
+
+    Opened with O_NOFOLLOW and checked with fstat before writing. The path is
+    predictable and world-writable directories are the default home for such
+    files, so without those two guards any local user could point it at a file
+    the NetBox account may write — the process would then append attacker-chosen
+    text (POST field names reach these lines) into, say, an authorized_keys.
+    """
     try:
-        if not os.path.exists(PROBE_FILE):
-            return
         line = fmt % args if args else fmt
-        with open(PROBE_FILE, 'a', encoding='utf-8') as fh:
-            fh.write('{} {}\n'.format(timezone.now().strftime('%H:%M:%S'), line))
+        flags = os.O_WRONLY | os.O_APPEND
+        flags |= getattr(os, 'O_NOFOLLOW', 0)  # not present on Windows
+        try:
+            fd = os.open(PROBE_FILE, flags)
+        except (FileNotFoundError, OSError):
+            return  # absent (the off switch), or a symlink we refuse to follow
+        try:
+            info = os.fstat(fd)
+            # A regular file, only this name pointing at it, owned by us.
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                return
+            if hasattr(os, 'geteuid') and info.st_uid != os.geteuid():
+                return
+            os.write(fd, '{} {}\n'.format(
+                timezone.now().strftime('%H:%M:%S'), line).encode('utf-8'))
+        finally:
+            os.close(fd)
     except Exception:
         pass
 
@@ -492,7 +516,10 @@ def _get_ticket_only_prefix(raw):
         return None
     try:
         normalized = _normalize_ticket_pattern(pattern)
-        m = re.search(normalized, raw)
+        compiled = _compiled_pattern(normalized)
+        if compiled is None:
+            return None
+        m = compiled.search(raw[:_MAX_REGEX_SUBJECT])
         if not m:
             return None
         # Anything left outside the ticket match?
@@ -525,7 +552,8 @@ def check_ticket_reference(comment, settings, instance, request):
         return _build_ticket_message(settings, instance, request, raw_pattern)
 
     try:
-        if not re.search(normalized, comment):
+        compiled = _compiled_pattern(normalized)
+        if compiled is not None and not compiled.search(comment[:_MAX_REGEX_SUBJECT]):
             return _build_ticket_message(settings, instance, request, raw_pattern)
     except re.error:
         logger.warning("Invalid ticket pattern regex: %s — skipping check", raw_pattern)
@@ -549,6 +577,19 @@ def _build_ticket_message(settings, instance, request, pattern):
     if is_api:
         return get_api_message('ticket_missing', hint=hint)
     return get_message('ticket_missing', language, hint=hint)
+
+
+# Longest value any rule pattern is applied to.
+_MAX_REGEX_SUBJECT = 512
+
+
+@lru_cache(maxsize=256)
+def _compiled_pattern(pattern):
+    """A compiled rule pattern, or None when it does not compile."""
+    try:
+        return re.compile(pattern)
+    except re.error:
+        return None
 
 
 def check_naming_conventions(instance, model_label, request=None):
@@ -579,12 +620,18 @@ def check_naming_conventions(instance, model_label, request=None):
                          rule.field_name, model_label)
             continue
 
-        value_str = str(value)
+        # Backtracking cost grows with the length of the subject, so a bounded
+        # subject bounds the damage a badly written rule can do. No naming
+        # convention describes anything past 512 characters anyway.
+        value_str = str(value)[:_MAX_REGEX_SUBJECT]
         if not rule.regex_pattern:
             continue
 
         try:
-            if not re.fullmatch(rule.regex_pattern, value_str):
+            compiled = _compiled_pattern(rule.regex_pattern)
+            if compiled is None:
+                continue
+            if not compiled.fullmatch(value_str):
                 # Build language-aware hint from custom error_message
                 prefix = 'Example' if is_api else _EXAMPLE_PREFIX.get(language, 'Example')
                 hint = _format_hint(rule.error_message, prefix)
@@ -906,31 +953,57 @@ def _submitted_field_names(request):
         return '<unreadable>'
 
 
+@lru_cache(maxsize=1)
+def netbox_offers_changelog_field():
+    """
+    True when the running NetBox carries its own changelog message field.
+
+    A property of the installed release, not of any single request, so it is
+    resolved once by import and cached. That is the whole point: the answer must
+    not depend on what a client chose to send.
+    """
+    for module, name in (
+        ('netbox.forms.mixins', 'ChangelogMessageMixin'),
+        ('netbox.forms', 'ChangelogMessageMixin'),
+        ('utilities.forms.mixins', 'ChangelogMessageMixin'),
+    ):
+        try:
+            __import__(module, fromlist=[name])
+            if hasattr(sys.modules[module], name):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def changelog_input_available(request, instance):
     """
     True when this request gave the user somewhere to enter a changelog.
 
-    A form that renders the field submits it even when left empty, so the key is
-    present in POST. NetBox's quick-add modals and confirmation dialogs render a
-    reduced form and omit the field entirely — there the rule cannot be satisfied
-    by any input, and enforcing it turns the dialog into a button that silently
-    does nothing.
+    Decided from server-side facts only — the installed NetBox release and the
+    model's own fields. An earlier version answered this by looking for the
+    field name in request.POST, which let anyone skip the whole changelog,
+    blocklist and ticket chain by deleting one input before submitting: the
+    missing key was read as 'this form offered no field', a changelog was
+    generated automatically, and the generated one always counts as sufficient.
+    Whether a control applies can never be the client's to decide.
 
-    API callers can always add changelog_message to the request body, so they are
-    always held to the rule. Anything unexpected reports True, keeping
-    enforcement intact rather than weakening it by accident.
+    False now means one thing only, and it is checkable here: this NetBox has no
+    changelog field of its own AND the model has no 'comments' field either, so
+    no input could carry the text. Everything else is enforced.
     """
     try:
         if request is None:
             return True
         if getattr(request, 'path_info', '').startswith('/api/'):
             return True
-        if not model_has_changelog_field(instance):
-            return False
-        post = getattr(request, 'POST', None)
-        if post is None:
+        # NetBox ≥ 4 puts changelog_message on every object form, every bulk
+        # form, and — via formpatch — the delete confirmation. There is always
+        # somewhere to type.
+        if netbox_offers_changelog_field():
             return True
-        return any(name in post for name in CHANGELOG_FIELD_NAMES)
+        # Older releases: the object's own 'comments' field is the only carrier.
+        return model_has_changelog_field(instance)
     except Exception:
         return True
 
