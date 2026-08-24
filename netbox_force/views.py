@@ -227,7 +227,10 @@ def _may_view_object(user, obj):
     model = obj.__class__
     manager = model.objects
     if getattr(manager, 'restrict', None) is None:
-        return _may_view_object(user, obj)
+        # Not a NetBox model: fall back to the model-level permission, which is
+        # all Django offers. Every NetBox core model has restrict().
+        meta = obj._meta
+        return user.has_perm(f'{meta.app_label}.view_{meta.model_name}')
     return manager.restrict(user, 'view').filter(pk=obj.pk).exists()
 
 
@@ -1356,16 +1359,14 @@ class GraylogMessagesView(AuthenticatedRequiredMixin, View):
     @staticmethod
     def _may_view(user, obj):
         """
-        NetBox object permissions, with a plain fallback.
+        NetBox object permissions, honouring per-object constraints.
 
-        Superusers always pass. For everyone else the usual `app.view_model`
-        permission decides — the same right that lets them open the object page
-        the panel sits on.
+        Superusers always pass. For everyone else the object itself has to be
+        inside what their permissions allow — a model-level check would let a
+        user whose view right is constrained to one site read the logs of a
+        host in another.
         """
-        if user.is_superuser:
-            return True
-        meta = obj._meta
-        return user.has_perm(f'{meta.app_label}.view_{meta.model_name}')
+        return _may_view_object(user, obj)
 
 
 # =============================================================================

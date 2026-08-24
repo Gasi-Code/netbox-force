@@ -66,6 +66,53 @@ class ChangelogEnforcementBypassTests(TestCase):
         self.assertTrue(changelog_input_available(request, _mock_instance()))
 
 
+class ObjectPermissionTests(TestCase):
+    """
+    F5: the Graylog message endpoint must ask about the object, not the model.
+
+    The recursion test exists because the first attempt at this fix replaced
+    the wrong one of two identical code blocks: the helper ended up calling
+    itself instead of falling back, which nothing noticed because every NetBox
+    core model takes the other branch.
+    """
+
+    def test_helper_does_not_recurse_without_restrict(self):
+        from netbox_force.views import _may_view_object
+
+        class _PlainManager:
+            """A manager with no restrict(), like a non-NetBox model."""
+
+        obj = MagicMock()
+        obj.__class__ = MagicMock()
+        obj.__class__.objects = _PlainManager()
+        obj._meta.app_label = 'someapp'
+        obj._meta.model_name = 'somemodel'
+
+        user = MagicMock()
+        user.is_superuser = False
+        user.has_perm.return_value = False
+
+        # Must return, not blow the stack.
+        self.assertFalse(_may_view_object(user, obj))
+        user.has_perm.assert_called_once_with('someapp.view_somemodel')
+
+    def test_superuser_always_passes(self):
+        from netbox_force.views import _may_view_object
+
+        user = MagicMock()
+        user.is_superuser = True
+        self.assertTrue(_may_view_object(user, MagicMock()))
+
+    def test_graylog_view_delegates_to_the_object_check(self):
+        import inspect
+
+        from netbox_force.views import GraylogMessagesView
+
+        source = inspect.getsource(GraylogMessagesView._may_view)
+        self.assertIn('_may_view_object', source)
+        self.assertNotIn('has_perm', source)
+
+
 class CsvInjectionTests(TestCase):
     """F3: violation exports carry text an attacker chose."""
 
