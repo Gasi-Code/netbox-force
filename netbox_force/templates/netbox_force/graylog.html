@@ -485,15 +485,15 @@ _outside_business_hours</pre>
         .then(function (response) { return response.json(); })
         .then(function (data) {
             if (!data.ok) {
-                show('alert-danger', 'mdi-alert-circle', data.message);
+                show('alert-danger', 'mdi-alert-circle', escapeHtml(data.message));
                 return;
             }
             const detail = '<div class="small mt-1 text-muted">'
-                + data.transport + ' → ' + data.target
-                + ' · source: <code>' + data.source + '</code></div>';
+                + escapeHtml(data.transport) + ' → ' + escapeHtml(data.target)
+                + ' · source: <code>' + escapeHtml(data.source) + '</code></div>';
             show(data.confirmed ? 'alert-success' : 'alert-warning',
                  data.confirmed ? 'mdi-check-circle' : 'mdi-information',
-                 data.message + detail);
+                 escapeHtml(data.message) + detail);
         })
         .catch(function (error) {
             show('alert-danger', 'mdi-alert-circle', String(error));
@@ -557,7 +557,7 @@ _outside_business_hours</pre>
         testButton.addEventListener('click', function () {
             post(testButton, function (data) {
                 let html = 'Graylog ' + escapeHtml(data.version)
-                    + ' · ' + data.sources + ' '
+                    + ' · ' + escapeHtml(data.sources) + ' '
                     + '{{ ui.graylog_col_source|default:"sources"|escapejs }}';
                 if (data.flavor) {
                     html += ' · <code>' + escapeHtml(data.flavor) + '</code>';
@@ -572,7 +572,7 @@ _outside_business_hours</pre>
                         + ':</strong><ul class="mb-0 ps-3">';
                     data.sample_sources.forEach(function (row) {
                         html += '<li><code>' + escapeHtml(row.name) + '</code> — '
-                            + row.total + ' / ' + row.errors + ' '
+                            + escapeHtml(row.total) + ' / ' + escapeHtml(row.errors) + ' '
                             + '{{ ui.graylog_stat_errors|default:"errors"|escapejs }}</li>';
                     });
                     html += '</ul></div>';
@@ -597,10 +597,10 @@ _outside_business_hours</pre>
         syncButton.addEventListener('click', function () {
             post(syncButton, function (data) {
                 show('alert-success', 'mdi-check-circle',
-                    data.seen + ' {{ ui.graylog_col_source|default:"sources"|escapejs }} · '
-                    + data.matched + ' {{ ui.graylog_filter_matched|default:"assigned"|escapejs }} · '
-                    + data.unmatched + ' {{ ui.graylog_filter_unmatched|default:"unassigned"|escapejs }}'
-                    + ' · ' + data.duration_ms + ' ms'
+                    escapeHtml(data.seen) + ' {{ ui.graylog_col_source|default:"sources"|escapejs }} · '
+                    + escapeHtml(data.matched) + ' {{ ui.graylog_filter_matched|default:"assigned"|escapejs }} · '
+                    + escapeHtml(data.unmatched) + ' {{ ui.graylog_filter_unmatched|default:"unassigned"|escapejs }}'
+                    + ' · ' + escapeHtml(data.duration_ms) + ' ms'
                     + '<div class="small mt-1">'
                     + '<a href="{% url "plugins:netbox_force:graylog_sources" %}">'
                     + '{{ ui.graylog_btn_sources|default:"Sources"|escapejs }}</a></div>');
@@ -637,7 +637,7 @@ _outside_business_hours</pre>
             }
             let html = '<table class="table table-sm mb-2">';
             html += '<tr><th>{{ ui.graylog_cluster_nodes|default:"Nodes"|escapejs }}</th>'
-                + '<td class="text-end">' + data.node_count + '</td></tr>';
+                + '<td class="text-end">' + escapeHtml(data.node_count) + '</td></tr>';
             if (data.indexer) {
                 const colour = LAMPS[data.indexer] || 'secondary';
                 html += '<tr><th>{{ ui.graylog_cluster_indexer|default:"Indexer"|escapejs }}</th>'
@@ -667,7 +667,7 @@ _outside_business_hours</pre>
                 if (typeof node.journal_entries === 'number' && node.journal_entries > 0) {
                     html += '<div class="text-muted">'
                         + '{{ ui.graylog_cluster_journal|default:"journal backlog"|escapejs }}: '
-                        + node.journal_entries + '</div>';
+                        + escapeHtml(node.journal_entries) + '</div>';
                 }
                 html += '</div>';
             });

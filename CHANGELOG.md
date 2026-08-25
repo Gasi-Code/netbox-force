@@ -12,6 +12,35 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.9.1 — The rest of the escaping, and object permissions where they belong
+
+Two follow-ups to 5.9.0, both found by the verification script rather than by
+reading the code again.
+
+**The Graylog message endpoint was never actually fixed.** 5.9.0 meant to change
+two places that read identically and changed one of them twice: the new
+object-permission helper had its own fallback replaced with a call to itself,
+while the endpoint kept its model-level check. So a user whose view permission
+is constrained to one site could still read the logs of a host in another. The
+helper would also have recursed until the stack ran out on any model without
+restrict() — nothing hit it, because every NetBox core model takes the other
+branch.
+
+**Escaping covered only half the templates.** 5.9.0 fixed the templates that
+call innerHTML directly. settings.html routes everything through a show()
+helper, so the CheckMK version string and the matched service names went into
+the page unescaped — and both of those come from the monitored hosts, not from
+CheckMK itself. Whoever controls a monitored server could put script into a
+service description and have it run in the browser of the administrator opening
+the settings page. Every value interpolated into markup now passes through
+escapeHtml, in every template, including the numeric ones so that the rule needs
+no case-by-case judgement.
+
+Tests now cover both: one that walks the branch the recursion hid in, and one
+that scans every template for an unescaped value and fails on the first.
+
+---
+
 ### v5.9.0 — Security hardening
 
 A review of the whole plugin against the usual attack surfaces. Two findings

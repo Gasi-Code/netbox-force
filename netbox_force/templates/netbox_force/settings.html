@@ -557,6 +557,14 @@
         return el ? el.value : '';
     }
 
+    function escapeHtml(value) {
+        // Values in these panels come back from CheckMK, which in turn takes
+        // service names and versions from the monitored hosts themselves.
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : value;
+        return div.innerHTML;
+    }
+
     function show(cls, html) {
         box.innerHTML = '<div class="alert alert-' + cls + ' py-2 mb-0">' + html + '</div>';
     }
@@ -581,12 +589,12 @@
             .then(r => r.json())
             .then(data => {
                 if (!data.ok) {
-                    show('danger', '<i class="mdi mdi-close-circle"></i> ' + data.message);
+                    show('danger', '<i class="mdi mdi-close-circle"></i> ' + escapeHtml(data.message));
                 } else {
                     render(data);
                 }
             })
-            .catch(err => show('danger', '<i class="mdi mdi-close-circle"></i> ' + err))
+            .catch(err => show('danger', '<i class="mdi mdi-close-circle"></i> ' + escapeHtml(String(err))))
             .finally(() => busy(btn, false));
     }
 
@@ -594,11 +602,11 @@
     if (testBtn) {
         testBtn.addEventListener('click', function () {
             post(testBtn, '{{ ui.checkmk_testing|default:"Testing…"|escapejs }}', function (d) {
-                let html = '<i class="mdi mdi-check-circle"></i> <strong>CheckMK ' + d.version + '</strong>';
-                html += ' &middot; ' + d.hosts + ' {{ ui.checkmk_stat_hosts|default:"hosts"|escapejs }}';
-                html += ' &middot; ' + d.services + ' {{ ui.checkmk_stat_services|default:"matching services"|escapejs }}';
+                let html = '<i class="mdi mdi-check-circle"></i> <strong>CheckMK ' + escapeHtml(d.version) + '</strong>';
+                html += ' &middot; ' + escapeHtml(d.hosts) + ' {{ ui.checkmk_stat_hosts|default:"hosts"|escapejs }}';
+                html += ' &middot; ' + escapeHtml(d.services) + ' {{ ui.checkmk_stat_services|default:"matching services"|escapejs }}';
                 if (d.service_names && d.service_names.length) {
-                    html += '<br><small>' + d.service_names.join(', ') + '</small>';
+                    html += '<br><small>' + escapeHtml(d.service_names.join(', ')) + '</small>';
                 }
                 if (!d.services) {
                     show('warning', html + '<br><small>{{ ui.checkmk_no_services|default:"No service matched the filter. Check the service filter or whether an update check is deployed."|escapejs }}</small>');
@@ -615,12 +623,12 @@
             post(syncBtn, '{{ ui.checkmk_syncing|default:"Synchronising…"|escapejs }}', function (d) {
                 let html = '<i class="mdi mdi-check-circle"></i> ';
                 html += d.hosts + ' {{ ui.checkmk_stat_hosts|default:"hosts"|escapejs }}';
-                html += ' &middot; ' + d.created + ' {{ ui.checkmk_stat_created|default:"created"|escapejs }}';
-                html += ' &middot; ' + d.updated + ' {{ ui.checkmk_stat_updated|default:"updated"|escapejs }}';
-                html += ' &middot; ' + d.stale + ' {{ ui.checkmk_stat_stale|default:"no longer monitored"|escapejs }}';
-                html += ' &middot; ' + d.escalated + ' {{ ui.checkmk_stat_escalated|default:"escalated"|escapejs }}';
-                html += ' &middot; ' + d.ips_linked + ' {{ ui.checkmk_stat_ips|default:"IPs linked"|escapejs }}';
-                html += '<br><small>' + d.duration_ms + ' ms</small>';
+                html += ' &middot; ' + escapeHtml(d.created) + ' {{ ui.checkmk_stat_created|default:"created"|escapejs }}';
+                html += ' &middot; ' + escapeHtml(d.updated) + ' {{ ui.checkmk_stat_updated|default:"updated"|escapejs }}';
+                html += ' &middot; ' + escapeHtml(d.stale) + ' {{ ui.checkmk_stat_stale|default:"no longer monitored"|escapejs }}';
+                html += ' &middot; ' + escapeHtml(d.escalated) + ' {{ ui.checkmk_stat_escalated|default:"escalated"|escapejs }}';
+                html += ' &middot; ' + escapeHtml(d.ips_linked) + ' {{ ui.checkmk_stat_ips|default:"IPs linked"|escapejs }}';
+                html += '<br><small>' + escapeHtml(d.duration_ms) + ' ms</small>';
                 show('success', html);
             });
         });

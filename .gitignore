@@ -24,3 +24,35 @@ Thumbs.db
 # Claude Code
 .claude/
 CLAUDE_CODE_HANDOFF.md
+
+# Leftovers that live in the working copy but must never be published.
+# Listed explicitly so a stray `git add -A` cannot pick them up — that nearly
+# happened once, and two of these would have been actively harmful.
+
+# The prototype plugin that netbox_force replaced. Historical reference only.
+/netbox_changelog_enforcer/
+/__init__.py
+/apps.py
+/middleware.py
+/signals.py
+
+# Custom Scripts written for one organisation's NetBox, including their
+# permission groups. Not part of this plugin and not ours to publish.
+/wizard_scripts/
+
+# Migrations from an earlier numbering. The tracked chain uses these same
+# numbers under different names (0002_v43_features and so on), so committing
+# these would break the migration graph with a conflict.
+/netbox_force/migrations/0002_v4_features.py
+/netbox_force/migrations/0003_v41_features.py
+/netbox_force/migrations/0004_v42_modules.py
+
+# Templates no view references any more.
+/netbox_force/templates/netbox_force/model_policies.html
+/netbox_force/templates/netbox_force/model_policy_form.html
+/netbox_force/templates/netbox_force/model_policy_delete.html
+/netbox_force/templates/netbox_force/widgets/
+/netbox_force/templates/netbox_force/wizard_*.html
+
+# Duplicate of the tracked LICENSE.
+/LICENSE.txt

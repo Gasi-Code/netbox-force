@@ -5,6 +5,8 @@ Each test here stands for a hole that was open once. They are written against
 the behaviour that closed it, not against the implementation, so a refactor
 that reopens the hole still fails.
 """
+import os
+import re
 from unittest.mock import MagicMock, patch
 
 from django.test import RequestFactory, TestCase
@@ -128,6 +130,71 @@ class CsvInjectionTests(TestCase):
 
     def test_none_becomes_empty(self):
         self.assertEqual(_csv_safe(None), '')
+
+
+class TemplateEscapingTests(TestCase):
+    """
+    F11: every value interpolated into markup must pass through escapeHtml().
+
+    The first pass at this fix only covered the templates that call innerHTML
+    directly. settings.html hides it behind a show() helper, so its CheckMK
+    version string and service names — both of which come from the monitored
+    hosts — went in unescaped and were missed.
+    """
+
+    _SINK = re.compile(r'\+\s*(data|row|node|item|d)\.\w+')
+
+    def _template_lines(self):
+        import netbox_force
+
+        root = os.path.join(os.path.dirname(netbox_force.__file__), 'templates')
+        for folder, _dirs, files in os.walk(root):
+            for filename in files:
+                if not filename.endswith('.html'):
+                    continue
+                path = os.path.join(folder, filename)
+                with open(path, encoding='utf-8') as handle:
+                    for number, line in enumerate(handle, 1):
+                        yield filename, number, line
+
+    def test_no_unescaped_interpolation(self):
+        offenders = [
+            f'{name}:{number}'
+            for name, number, line in self._template_lines()
+            if self._SINK.search(line)
+            and 'escapeHtml' not in line
+            and 'safeUrl' not in line
+        ]
+        self.assertEqual(offenders, [], f'unescaped values in markup: {offenders}')
+
+    def test_every_template_with_a_sink_defines_the_helper(self):
+        """A template that escapes must actually have the function."""
+        import netbox_force
+
+        root = os.path.join(os.path.dirname(netbox_force.__file__), 'templates')
+        for folder, _dirs, files in os.walk(root):
+            for filename in files:
+                if not filename.endswith('.html'):
+                    continue
+                text = open(os.path.join(folder, filename), encoding='utf-8').read()
+                if 'escapeHtml(' in text:
+                    self.assertIn('function escapeHtml', text,
+                                  f'{filename} calls escapeHtml without defining it')
+                if 'safeUrl(' in text:
+                    self.assertIn('function safeUrl', text,
+                                  f'{filename} calls safeUrl without defining it')
+
+
+class WebhookPoolTests(TestCase):
+    """F8: delivery must be bounded, not a thread per violation."""
+
+    def test_pool_is_small_and_backlog_capped(self):
+        from netbox_force import middleware
+
+        self.assertLessEqual(middleware._WEBHOOK_WORKERS, 8)
+        self.assertLessEqual(middleware._WEBHOOK_QUEUE_LIMIT, 1000)
+        pool = middleware._get_webhook_pool()
+        self.assertEqual(pool._max_workers, middleware._WEBHOOK_WORKERS)
 
 
 class WebhookUrlSchemeTests(TestCase):
