@@ -5,6 +5,7 @@ from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import AnonymousUser
 
 from netbox_force.signals import (
+    _fit_changelog,
     get_model_label,
     is_exempt_model,
     is_exempt_user,
@@ -230,3 +231,63 @@ class HasRealChangesTest(TestCase):
         old_instance.last_updated = 'old_ts'
         instance.__class__.objects.get.return_value = old_instance
         self.assertTrue(has_real_changes(instance))
+
+
+class ChangelogLengthTests(TestCase):
+    """
+    Regression: an auto-generated changelog message is built from field names
+    and values and has no natural limit, while ObjectChange.message is a fixed
+    width column. Handing it an over-long string raised DataError *after* the
+    object was saved, so the user got NetBox's server error page with no way
+    to tell what went wrong.
+    """
+
+    def test_short_text_is_untouched(self):
+        with patch('netbox_force.signals._changelog_max_length', return_value=200):
+            self.assertEqual(_fit_changelog('short'), 'short')
+
+    def test_text_at_the_limit_is_untouched(self):
+        with patch('netbox_force.signals._changelog_max_length', return_value=200):
+            text = 'x' * 200
+            self.assertEqual(_fit_changelog(text), text)
+
+    def test_longer_text_is_cut_to_the_limit(self):
+        with patch('netbox_force.signals._changelog_max_length', return_value=200):
+            result = _fit_changelog('x' * 500)
+            self.assertEqual(len(result), 200)
+            self.assertTrue(result.endswith('…'))
+
+    def test_empty_values_survive(self):
+        self.assertEqual(_fit_changelog(''), '')
+        self.assertIsNone(_fit_changelog(None))
+
+    def test_the_limit_is_read_from_the_model(self):
+        from netbox_force.signals import _changelog_max_length
+        self.assertIsInstance(_changelog_max_length(), int)
+        self.assertGreater(_changelog_max_length(), 0)
+
+    def test_the_injected_message_respects_the_limit(self):
+        """The path that produced the DataError, end to end."""
+        from netbox_force import signals
+
+        instance = _make_mock_instance('ipam', 'vlan')
+        instance._changelog_message = None
+        request = RequestFactory().post('/ipam/vlans/863/edit/')
+
+        def setting(name, default=None):
+            return {'auto_changelog_enabled': True,
+                    'ticket_enabled': False,
+                    'language': 'de'}.get(name, default)
+
+        with patch.object(signals, '_get_setting', side_effect=setting), \
+             patch.object(signals, 'changelog_input_available', return_value=True), \
+             patch.object(signals, '_auto_changelog_in_scope', return_value=True), \
+             patch.object(signals, '_native_changelog_offered', return_value=False), \
+             patch.object(signals, '_generate_changelog_comment',
+                          return_value='Feld geändert: ' + 'y' * 800), \
+             patch.object(signals, '_changelog_max_length', return_value=200):
+            injected = signals._try_inject_auto_changelog(request, instance)
+
+        self.assertTrue(injected)
+        self.assertLessEqual(len(instance._changelog_message), 200)
+        self.assertLessEqual(len(request.POST['changelog_message']), 200)

@@ -29,7 +29,7 @@ from .models import (
     ForceSettings, ModelPolicy, ValidationRule, Violation, ImportTemplate,
     GuidePage, WidgetImage, PatchVM, PatchVMContact, PatchUpdateEntry,
 )
-from .signals import check_naming_conventions, check_required_fields
+from .signals import _fit_changelog, check_naming_conventions, check_required_fields
 from .ui_strings import get_all_ui_strings
 
 
@@ -2793,7 +2793,8 @@ class PatchVMBulkEditView(PatchPermRequiredMixin, View):
                     pvm._contact_change_message = contact_msg
 
             if changed_fields:
-                pvm._changelog_message = f'Massenbearbeitung: {", ".join(changed_fields)}'
+                pvm._changelog_message = _fit_changelog(
+                    f'Massenbearbeitung: {", ".join(changed_fields)}')
             elif contacts_changed:
                 pvm._changelog_message = 'Massenbearbeitung: Kontakte'
 

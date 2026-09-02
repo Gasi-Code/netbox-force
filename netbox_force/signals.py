@@ -801,6 +801,45 @@ _AUTO_CHANGELOG_SKIP_FIELDS = frozenset({
 })
 
 
+@lru_cache(maxsize=1)
+def _changelog_max_length():
+    """
+    The number of characters NetBox's change record can hold in its message.
+
+    Read from the model rather than written down here, so a NetBox release that
+    widens the column is used to the full width and one that narrows it does not
+    start rejecting saves. 200 is the width every 4.x release has shipped, and
+    the fallback when the model cannot be reached at all.
+    """
+    try:
+        try:
+            from core.models import ObjectChange
+        except ImportError:
+            from extras.models import ObjectChange
+        return ObjectChange._meta.get_field('message').max_length or 200
+    except Exception:
+        return 200
+
+
+def _fit_changelog(text):
+    """
+    Trim a generated changelog message to what the change record can hold.
+
+    An auto-generated message is built from field names and values and has no
+    natural length limit, while ObjectChange.message is a fixed-width column.
+    Handing it an over-long string raises DataError from the database *after*
+    the object has been saved — the user sees NetBox's server error page and
+    has no way to tell what went wrong. Every generated message therefore
+    passes through here before it reaches an instance or the request.
+    """
+    if not text:
+        return text
+    limit = _changelog_max_length()
+    if len(text) <= limit:
+        return text
+    return text[:limit - 1] + '…'
+
+
 def _field_label(field):
     """
     Human-readable field label in the currently active language.
@@ -1078,7 +1117,7 @@ def _try_inject_auto_changelog(request, instance):
         auto = _generate_changelog_comment(instance, lang=lang)
         if not auto:
             return False
-        combined = f"{ticket_prefix} — {auto}"
+        combined = _fit_changelog(f"{ticket_prefix} — {auto}")
         is_ticket_only = True
     else:
         # Case 1: empty field — generate when auto_changelog is enabled, or
@@ -1088,7 +1127,7 @@ def _try_inject_auto_changelog(request, instance):
         auto = _generate_changelog_comment(instance, lang=lang)
         if not auto:
             return False
-        combined = auto
+        combined = _fit_changelog(auto)
         is_ticket_only = False
 
     # request.POST is shared by every object saved in this request, so a value
@@ -1414,7 +1453,8 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                     pass
             auto = get_message('auto_changelog_deleted_msg', lang, verbose=verbose, name=str(instance))
             # If user only entered a ticket number, prepend it: "TICKET — deleted: Name"
-            combined = f"{ticket_prefix} — {auto}" if ticket_prefix else auto
+            combined = _fit_changelog(
+                f"{ticket_prefix} — {auto}" if ticket_prefix else auto)
             _auto_generated_here = True
             # See _try_inject_auto_changelog: the no-input-field case must not
             # write to the shared request, or the generated text satisfies the
@@ -1476,7 +1516,7 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     # but never recorded.
     if comment and not getattr(instance, '_changelog_message', None):
         try:
-            instance._changelog_message = comment
+            instance._changelog_message = _fit_changelog(comment)
         except Exception:
             pass
 
@@ -1731,7 +1771,7 @@ def _sync_vm_platform_to_patch(sender, instance, created, **kwargs):
         if patch_vm.os_info == new_os:
             return
         patch_vm.os_info = new_os
-        patch_vm._changelog_message = (
+        patch_vm._changelog_message = _fit_changelog(
             f'Betriebssystem synchronisiert: {new_os!r}' if new_os
             else 'Betriebssystem gelöscht (synchronisiert von VM)'
         )
@@ -1764,7 +1804,7 @@ def _sync_patch_os_to_vm(sender, instance, created, **kwargs):
             if not vm.platform_id:
                 return
             vm.platform = None
-        vm._changelog_message = (
+        vm._changelog_message = _fit_changelog(
             f'Betriebssystem synchronisiert aus Patchmanagement: {os_name!r}' if os_name
             else 'Betriebssystem gelöscht (synchronisiert aus Patchmanagement)'
         )
