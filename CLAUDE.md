@@ -30,6 +30,7 @@ The version lives in **three** places and all three must move together:
 |---|---|
 | `pyproject.toml` | `version = "X.Y.Z"` |
 | `netbox_force/apps.py` | `NetboxForceConfig.version` |
+| `README.md` | the version badge URL |
 | `docker-compose.yml` (untracked — see "Non-Plugin Content") | the `image: netbox-force:X.Y.Z` tag on all three NetBox services |
 
 The compose file and the `Dockerfile` are gitignored and live only in the working copy, so a version bump there reaches no one else — but the local Docker stack silently keeps serving the old plugin without it. The compose tag is not cosmetic. `docker compose up -d` reuses an image whose tag already exists locally and does **not** rebuild, so with a fixed tag (`:latest`) a redeploy silently keeps serving the previous plugin version. A version-numbered tag does not exist locally after a bump, which forces the build. Leaving it behind is a bug that presents as "the redeploy did nothing".
