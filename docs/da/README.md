@@ -180,8 +180,12 @@ superbrugere, medmindre andet er anført.
 | **Vejledning** | Fritekstside til egne brugere. Synlig for alle indloggede brugere, når slået til |
 | **Patchstyring** | Se afsnit 9 |
 
-To indstillinger fortjener en særlig omtale:
+Tre indstillinger fortjener en særlig omtale:
 
+- **Vedligeholdelsestilstand** — fjerner skriveadgang fra alle undtagen
+  superbrugere og viser en rød besked øverst. Undtagne brugere, undtagne grupper,
+  modelpolitikker og prøvetilstand ophæver den ikke. Skiftet når hver
+  arbejdsproces inden for 30 sekunder.
 - **Global kontakt** — sætter alle kontroller på pause, for eksempel under et
   servicevindue.
 - **Prøvetilstand (dry-run)** — registrerer overtrædelser uden at blokere noget. Den

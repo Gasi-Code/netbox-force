@@ -51,6 +51,7 @@ All features are **opt-in** and can be individually toggled. Out of the box, onl
 
 | Feature | Description |
 |---|---|
+| **Maintenance mode** | Takes write access away from everyone but superusers and shows a red banner on every page. No exemption, model policy or dry-run setting lifts it |
 | **Global enforcement toggle** | Master switch to pause all enforcement globally (e.g. during maintenance windows) |
 | **Dry-run mode** | Log violations without actually blocking changes — ideal for rolling out rules incrementally |
 | **Enforce on create** | Optionally require a changelog when *creating* new objects (default: off) |
@@ -459,6 +460,7 @@ After installation, superusers will find **NetBox Force** in the sidebar navigat
 
 The main configuration page. Organized into sections:
 
+- **Maintenance Mode** — takes write access away from everyone but superusers, with a red banner on every page
 - **Global Enforcement** — master on/off switch for all enforcement
 - **Enforcement Rules** — minimum length, create/delete behavior, dry-run mode
 - **Blocked Phrases** — enable/disable toggle + list of phrases to reject (whole-word match)
@@ -586,6 +588,10 @@ Model.save() / Model.delete()
 Signal Handler (pre_save / pre_delete)
     │
     ├── No HTTP request (migration/management command)? ──► skip
+    │
+    ├── Maintenance mode on, caller not a superuser? ──► AbortRequest
+    │      (checked first: no exemption below can lift it)
+    │
     ├── Model exempt? ──────────────────────────────────► skip
     ├── User exempt (by username or group)? ───────────► skip
     ├── Global enforcement disabled? ─────────────────► skip

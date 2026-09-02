@@ -180,8 +180,12 @@ Superuser beschränkt, sofern nicht anders vermerkt.
 | **Anleitung** | Freie Textseite für die eigenen Benutzer. Für alle angemeldeten Benutzer sichtbar, wenn aktiviert |
 | **Patchmanagement** | Siehe Abschnitt 9 |
 
-Zwei Einstellungen verdienen eine eigene Erwähnung:
+Drei Einstellungen verdienen eine eigene Erwähnung:
 
+- **Wartungsmodus** — nimmt allen außer Superusern das Schreibrecht und blendet
+  oben einen roten Hinweis ein. Ausgenommene Benutzer, ausgenommene Gruppen,
+  Modellrichtlinien und der Dry-Run-Modus heben ihn nicht auf. Die Umschaltung
+  erreicht jeden Worker-Prozess innerhalb von 30 Sekunden.
 - **Globaler Schalter** — setzt alle Prüfungen aus, etwa während eines
   Wartungsfensters.
 - **Dry-Run-Modus** — protokolliert Verstöße, blockiert aber nichts. Der richtige

@@ -181,8 +181,12 @@ estão restritas a superutilizadores salvo indicação em contrário.
 | **Guia** | Página de texto livre para os próprios utilizadores. Visível a todos os utilizadores autenticados quando ativada |
 | **Gestão de correções** | Ver secção 9 |
 
-Duas definições merecem menção à parte:
+Três definições merecem menção à parte:
 
+- **Modo de manutenção** — retira a permissão de escrita a todos exceto aos
+  superutilizadores e mostra um aviso vermelho no topo. Utilizadores e grupos
+  isentos, políticas de modelo e o modo de ensaio não o levantam. A mudança chega
+  a cada processo de trabalho em 30 segundos.
 - **Interruptor global** — suspende todas as verificações, por exemplo durante uma
   janela de manutenção.
 - **Modo de ensaio (dry-run)** — regista as infrações sem bloquear nada. É a forma

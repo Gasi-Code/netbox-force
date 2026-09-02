@@ -13,6 +13,13 @@ UI_STRINGS = {
 
         # Section headers
         'section_language': 'Sprache',
+        # Maintenance mode
+        'section_maintenance': 'Wartungsmodus',
+        'label_maintenance_mode': 'Wartungsmodus aktivieren',
+        'help_maintenance_mode': 'Solange aktiv, können nur Superuser Objekte anlegen, ändern oder löschen. Alle anderen werden blockiert und sehen oben einen roten Hinweis. Ausgenommene Benutzer, ausgenommene Gruppen, Modell-Richtlinien und der Dry-Run-Modus heben den Wartungsmodus nicht auf. Bis die Umschaltung jeden Worker-Prozess erreicht, dauert es bis zu 30 Sekunden.',
+        'banner_maintenance': 'NetBox befindet sich im Wartungsmodus, derzeit können keine Einträge angelegt oder geändert werden.',
+        'banner_maintenance_superuser': 'Als Superuser können Sie weiterhin speichern.',
+
         'section_enforcement': 'Erzwingungsregeln',
         'section_blocked_phrases': 'Gesperrte Begriffe',
         'section_exemptions': 'Ausnahmen',
@@ -715,6 +722,13 @@ UI_STRINGS = {
 
         # Section headers
         'section_language': 'Language',
+        # Maintenance mode
+        'section_maintenance': 'Maintenance Mode',
+        'label_maintenance_mode': 'Enable maintenance mode',
+        'help_maintenance_mode': 'While active, only superusers can create, change or delete objects. Everyone else is blocked and sees a red notice at the top. Exempt users, exempt groups, model policies and dry-run mode do not lift it. It takes up to 30 seconds for the change to reach every worker process.',
+        'banner_maintenance': 'NetBox is in maintenance mode. No entries can currently be created or changed.',
+        'banner_maintenance_superuser': 'As a superuser you can still save changes.',
+
         'section_enforcement': 'Enforcement Rules',
         'section_blocked_phrases': 'Blocked Phrases',
         'section_exemptions': 'Exemptions',
@@ -1417,6 +1431,13 @@ UI_STRINGS = {
 
         # Section headers
         'section_language': 'Idioma',
+        # Maintenance mode
+        'section_maintenance': 'Modo de mantenimiento',
+        'label_maintenance_mode': 'Activar el modo de mantenimiento',
+        'help_maintenance_mode': 'Mientras esté activo, solo los superusuarios pueden crear, modificar o eliminar objetos. Los demás quedan bloqueados y ven un aviso rojo en la parte superior. Los usuarios y grupos exentos, las políticas de modelo y el modo de simulación no lo desactivan. El cambio tarda hasta 30 segundos en llegar a todos los procesos de trabajo.',
+        'banner_maintenance': 'NetBox está en modo de mantenimiento. Actualmente no se pueden crear ni modificar entradas.',
+        'banner_maintenance_superuser': 'Como superusuario, aún puede guardar cambios.',
+
         'section_enforcement': 'Reglas de Aplicación',
         'section_blocked_phrases': 'Frases Bloqueadas',
         'section_exemptions': 'Exenciones',
@@ -2113,6 +2134,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Šablony importu',
         'tab_guide': 'Průvodce',
         'section_language': 'Jazyk',
+        # Maintenance mode
+        'section_maintenance': 'Režim údržby',
+        'label_maintenance_mode': 'Zapnout režim údržby',
+        'help_maintenance_mode': 'Dokud je zapnutý, mohou objekty vytvářet, měnit nebo mazat jen superuživatelé. Ostatní jsou zablokováni a nahoře vidí červené upozornění. Výjimky uživatelů a skupin, zásady modelů ani režim dry-run jej neruší. Než se změna dostane ke všem pracovním procesům, může to trvat až 30 sekund.',
+        'banner_maintenance': 'NetBox je v režimu údržby. Momentálně nelze vytvářet ani měnit žádné záznamy.',
+        'banner_maintenance_superuser': 'Jako superuživatel můžete stále ukládat změny.',
+
         'section_enforcement': 'Pravidla vynucování',
         'section_blocked_phrases': 'Zakázané fráze',
         'section_exemptions': 'Výjimky',
@@ -2782,6 +2810,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Importskabeloner',
         'tab_guide': 'Vejledning',
         'section_language': 'Sprog',
+        # Maintenance mode
+        'section_maintenance': 'Vedligeholdelsestilstand',
+        'label_maintenance_mode': 'Aktivér vedligeholdelsestilstand',
+        'help_maintenance_mode': 'Mens den er aktiv, kan kun superbrugere oprette, ændre eller slette objekter. Alle andre blokeres og ser en rød besked øverst. Undtagne brugere, undtagne grupper, modelpolitikker og dry-run-tilstand ophæver den ikke. Der går op til 30 sekunder, før ændringen når alle arbejdsprocesser.',
+        'banner_maintenance': 'NetBox er i vedligeholdelsestilstand. Der kan i øjeblikket ikke oprettes eller ændres poster.',
+        'banner_maintenance_superuser': 'Som superbruger kan du stadig gemme ændringer.',
+
         'section_enforcement': 'Håndhævelsesregler',
         'section_blocked_phrases': 'Blokerede fraser',
         'section_exemptions': 'Undtagelser',
@@ -3451,6 +3486,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Modèles d\'importation',
         'tab_guide': 'Guide',
         'section_language': 'Langue',
+        # Maintenance mode
+        'section_maintenance': 'Mode maintenance',
+        'label_maintenance_mode': 'Activer le mode maintenance',
+        'help_maintenance_mode': "Tant qu'il est actif, seuls les superutilisateurs peuvent créer, modifier ou supprimer des objets. Tous les autres sont bloqués et voient un bandeau rouge en haut. Les utilisateurs et groupes exemptés, les politiques de modèle et le mode simulation ne le lèvent pas. Le changement met jusqu'à 30 secondes à atteindre tous les processus de travail.",
+        'banner_maintenance': 'NetBox est en mode maintenance. Aucune entrée ne peut actuellement être créée ni modifiée.',
+        'banner_maintenance_superuser': 'En tant que superutilisateur, vous pouvez encore enregistrer.',
+
         'section_enforcement': 'Règles d\'application',
         'section_blocked_phrases': 'Phrases bloquées',
         'section_exemptions': 'Exemptions',
@@ -4120,6 +4162,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Modelli di importazione',
         'tab_guide': 'Guida',
         'section_language': 'Lingua',
+        # Maintenance mode
+        'section_maintenance': 'Modalità manutenzione',
+        'label_maintenance_mode': 'Attiva la modalità manutenzione',
+        'help_maintenance_mode': 'Finché è attiva, solo i superutenti possono creare, modificare o eliminare oggetti. Tutti gli altri vengono bloccati e vedono un avviso rosso in alto. Utenti e gruppi esentati, criteri di modello e modalità dry-run non la disattivano. La modifica impiega fino a 30 secondi per raggiungere ogni processo di lavoro.',
+        'banner_maintenance': 'NetBox è in modalità manutenzione. Al momento non è possibile creare o modificare voci.',
+        'banner_maintenance_superuser': 'Come superutente puoi ancora salvare le modifiche.',
+
         'section_enforcement': 'Regole di applicazione',
         'section_blocked_phrases': 'Frasi bloccate',
         'section_exemptions': 'Esenzioni',
@@ -4789,6 +4838,13 @@ UI_STRINGS = {
         'tab_import_templates': 'インポートテンプレート',
         'tab_guide': 'ガイド',
         'section_language': '言語',
+        # Maintenance mode
+        'section_maintenance': 'メンテナンスモード',
+        'label_maintenance_mode': 'メンテナンスモードを有効にする',
+        'help_maintenance_mode': '有効な間は、スーパーユーザーのみがオブジェクトを作成・変更・削除できます。それ以外のユーザーはブロックされ、画面上部に赤い通知が表示されます。除外ユーザー、除外グループ、モデルポリシー、ドライランモードでは解除できません。切り替えがすべてのワーカープロセスに届くまで最大 30 秒かかります。',
+        'banner_maintenance': 'NetBox はメンテナンスモードです。現在、項目の作成や変更はできません。',
+        'banner_maintenance_superuser': 'スーパーユーザーは引き続き保存できます。',
+
         'section_enforcement': '適用ルール',
         'section_blocked_phrases': 'ブロックフレーズ',
         'section_exemptions': '免除',
@@ -5458,6 +5514,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Importa veidnes',
         'tab_guide': 'Rokasgrāmata',
         'section_language': 'Valoda',
+        # Maintenance mode
+        'section_maintenance': 'Apkopes režīms',
+        'label_maintenance_mode': 'Ieslēgt apkopes režīmu',
+        'help_maintenance_mode': 'Kamēr tas ir ieslēgts, objektus var izveidot, mainīt vai dzēst tikai superlietotāji. Visi pārējie tiek bloķēti un augšpusē redz sarkanu paziņojumu. Izņēmuma lietotāji, izņēmuma grupas, modeļu politikas un dry-run režīms to neatceļ. Lai izmaiņas sasniegtu katru darba procesu, var paiet līdz 30 sekundēm.',
+        'banner_maintenance': 'NetBox darbojas apkopes režīmā. Pašlaik nevar izveidot vai mainīt ierakstus.',
+        'banner_maintenance_superuser': 'Kā superlietotājs jūs joprojām varat saglabāt izmaiņas.',
+
         'section_enforcement': 'Izpildes noteikumi',
         'section_blocked_phrases': 'Bloķētās frāzes',
         'section_exemptions': 'Izņēmumi',
@@ -6127,6 +6190,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Importsjablonen',
         'tab_guide': 'Handleiding',
         'section_language': 'Taal',
+        # Maintenance mode
+        'section_maintenance': 'Onderhoudsmodus',
+        'label_maintenance_mode': 'Onderhoudsmodus inschakelen',
+        'help_maintenance_mode': 'Zolang deze actief is, kunnen alleen superusers objecten aanmaken, wijzigen of verwijderen. Alle anderen worden geblokkeerd en zien bovenaan een rode melding. Uitgezonderde gebruikers, uitgezonderde groepen, modelbeleid en de dry-run-modus heffen hem niet op. Het duurt tot 30 seconden voordat de wijziging elk werkproces bereikt.',
+        'banner_maintenance': 'NetBox staat in onderhoudsmodus. Er kunnen momenteel geen items worden aangemaakt of gewijzigd.',
+        'banner_maintenance_superuser': 'Als superuser kunt u nog steeds opslaan.',
+
         'section_enforcement': 'Handhavingsregels',
         'section_blocked_phrases': 'Geblokkeerde frasen',
         'section_exemptions': 'Vrijstellingen',
@@ -6796,6 +6866,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Szablony importu',
         'tab_guide': 'Przewodnik',
         'section_language': 'Język',
+        # Maintenance mode
+        'section_maintenance': 'Tryb konserwacji',
+        'label_maintenance_mode': 'Włącz tryb konserwacji',
+        'help_maintenance_mode': 'Gdy jest włączony, tylko superużytkownicy mogą tworzyć, zmieniać lub usuwać obiekty. Pozostali są blokowani i widzą u góry czerwony komunikat. Wyłączeni użytkownicy, wyłączone grupy, zasady modeli ani tryb dry-run go nie znoszą. Dotarcie zmiany do wszystkich procesów roboczych trwa do 30 sekund.',
+        'banner_maintenance': 'NetBox jest w trybie konserwacji. Obecnie nie można tworzyć ani zmieniać wpisów.',
+        'banner_maintenance_superuser': 'Jako superużytkownik nadal możesz zapisywać zmiany.',
+
         'section_enforcement': 'Reguły egzekwowania',
         'section_blocked_phrases': 'Zablokowane frazy',
         'section_exemptions': 'Wyjątki',
@@ -7465,6 +7542,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Modelos de importação',
         'tab_guide': 'Guia',
         'section_language': 'Idioma',
+        # Maintenance mode
+        'section_maintenance': 'Modo de manutenção',
+        'label_maintenance_mode': 'Ativar o modo de manutenção',
+        'help_maintenance_mode': 'Enquanto estiver ativo, apenas superutilizadores podem criar, alterar ou eliminar objetos. Todos os outros são bloqueados e veem um aviso vermelho no topo. Utilizadores e grupos isentos, políticas de modelo e o modo dry-run não o levantam. A alteração demora até 30 segundos a chegar a todos os processos de trabalho.',
+        'banner_maintenance': 'O NetBox está em modo de manutenção. De momento não é possível criar nem alterar registos.',
+        'banner_maintenance_superuser': 'Como superutilizador, ainda pode guardar alterações.',
+
         'section_enforcement': 'Regras de aplicação',
         'section_blocked_phrases': 'Frases bloqueadas',
         'section_exemptions': 'Isenções',
@@ -8134,6 +8218,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Шаблоны импорта',
         'tab_guide': 'Руководство',
         'section_language': 'Язык',
+        # Maintenance mode
+        'section_maintenance': 'Режим обслуживания',
+        'label_maintenance_mode': 'Включить режим обслуживания',
+        'help_maintenance_mode': 'Пока режим включён, создавать, изменять или удалять объекты могут только суперпользователи. Все остальные блокируются и видят красное уведомление вверху. Исключённые пользователи, исключённые группы, политики моделей и режим dry-run его не отменяют. Изменение доходит до всех рабочих процессов в течение 30 секунд.',
+        'banner_maintenance': 'NetBox находится в режиме обслуживания. Сейчас нельзя создавать или изменять записи.',
+        'banner_maintenance_superuser': 'Как суперпользователь вы по-прежнему можете сохранять изменения.',
+
         'section_enforcement': 'Правила применения',
         'section_blocked_phrases': 'Заблокированные фразы',
         'section_exemptions': 'Исключения',
@@ -8803,6 +8894,13 @@ UI_STRINGS = {
         'tab_import_templates': 'İçe Aktarma Şablonları',
         'tab_guide': 'Kılavuz',
         'section_language': 'Dil',
+        # Maintenance mode
+        'section_maintenance': 'Bakım modu',
+        'label_maintenance_mode': 'Bakım modunu etkinleştir',
+        'help_maintenance_mode': 'Etkin olduğu sürece yalnızca süper kullanıcılar nesne oluşturabilir, değiştirebilir veya silebilir. Diğer herkes engellenir ve üstte kırmızı bir uyarı görür. Muaf kullanıcılar, muaf gruplar, model ilkeleri ve dry-run modu bunu kaldırmaz. Değişikliğin tüm iş süreçlerine ulaşması 30 saniyeyi bulabilir.',
+        'banner_maintenance': 'NetBox bakım modunda. Şu anda kayıt oluşturulamaz veya değiştirilemez.',
+        'banner_maintenance_superuser': 'Süper kullanıcı olarak değişiklikleri kaydetmeye devam edebilirsiniz.',
+
         'section_enforcement': 'Uygulama Kuralları',
         'section_blocked_phrases': 'Engellenen İfadeler',
         'section_exemptions': 'Muafiyetler',
@@ -9472,6 +9570,13 @@ UI_STRINGS = {
         'tab_import_templates': 'Шаблони імпорту',
         'tab_guide': 'Посібник',
         'section_language': 'Мова',
+        # Maintenance mode
+        'section_maintenance': 'Режим обслуговування',
+        'label_maintenance_mode': 'Увімкнути режим обслуговування',
+        'help_maintenance_mode': "Поки режим увімкнено, створювати, змінювати або видаляти об'єкти можуть лише суперкористувачі. Решту заблоковано, і вгорі вони бачать червоне повідомлення. Винятки для користувачів і груп, політики моделей та режим dry-run його не скасовують. Зміна доходить до всіх робочих процесів протягом 30 секунд.",
+        'banner_maintenance': 'NetBox перебуває в режимі обслуговування. Наразі не можна створювати або змінювати записи.',
+        'banner_maintenance_superuser': 'Як суперкористувач ви все ще можете зберігати зміни.',
+
         'section_enforcement': 'Правила застосування',
         'section_blocked_phrases': 'Заблоковані фрази',
         'section_exemptions': 'Виключення',
@@ -10141,6 +10246,13 @@ UI_STRINGS = {
         'tab_import_templates': '导入模板',
         'tab_guide': '指南',
         'section_language': '语言',
+        # Maintenance mode
+        'section_maintenance': '维护模式',
+        'label_maintenance_mode': '启用维护模式',
+        'help_maintenance_mode': '启用期间，只有超级用户可以创建、修改或删除对象。其他所有人都会被阻止，并在页面顶部看到红色提示。豁免用户、豁免组、模型策略和试运行模式都无法解除该模式。切换最多需要 30 秒才能到达每个工作进程。',
+        'banner_maintenance': 'NetBox 处于维护模式，当前无法创建或修改条目。',
+        'banner_maintenance_superuser': '作为超级用户，您仍可保存更改。',
+
         'section_enforcement': '执行规则',
         'section_blocked_phrases': '屏蔽词组',
         'section_exemptions': '豁免',

@@ -78,6 +78,47 @@ EXEMPT_MODELS = {
     'netbox_force.checkmksyncrun',
 }
 
+# Models the maintenance mode never blocks.
+#
+# Deliberately its own, much shorter list than EXEMPT_MODELS above. That one
+# answers "does this write need a changelog", and it excuses things a
+# maintenance mode has every reason to stop — a journal entry and an image
+# attachment are content, and a saved filter or export template is
+# configuration. This one answers "would blocking this write lock the
+# installation", and only that.
+#
+# The session and user rows are the reason this list exists at all: signing in
+# writes a session and stamps last_login on the user. Block those and nobody
+# can log in — including the administrator who would turn the mode back off.
+# Everything else here is written by NetBox itself as a side effect of a page
+# view: change records, jobs, cached values, notifications, bookmarks and
+# dashboard layout.
+MAINTENANCE_EXEMPT_MODELS = {
+    # Signing in and staying signed in
+    'sessions.session',
+    'auth.user', 'auth.group', 'auth.permission',
+    'users.user', 'users.group', 'users.token', 'users.userconfig',
+    'users.objectpermission',
+    'contenttypes.contenttype',
+    'admin.logentry',
+    'migrations.migration',
+
+    # Written by NetBox itself, not by the user
+    'core.objectchange', 'extras.objectchange', 'core.objectchangeaction',
+    'core.job', 'core.managedfile', 'core.configrevision', 'core.objecttype',
+    'extras.cachedvalue', 'extras.notification', 'extras.subscription',
+
+    # Per-user interface state, not inventory
+    'extras.bookmark', 'extras.dashboard',
+
+    # The plugin's own settings row — a superuser must always be able to turn
+    # the mode off, and the violation log must stay writable to record the
+    # blocks the mode produces.
+    'netbox_force.forcesettings',
+    'netbox_force.violation',
+    'netbox_force.checkmksyncrun',
+}
+
 # HTTP methods that require a changelog (save)
 ENFORCE_ON_METHODS = {'POST', 'PUT', 'PATCH'}
 
@@ -415,6 +456,56 @@ def check_blacklist(comment):
 # NEW V4 CHECK FUNCTIONS
 # =============================================================================
 
+def maintenance_mode_active(settings=None):
+    """
+    True when an administrator has switched the installation into maintenance.
+
+    Read through the same 30-second settings cache as everything else, so
+    turning the mode on reaches a worker process that is already serving
+    requests within half a minute rather than instantly. Reading past the cache
+    would cost a database query on every single save; the delay is documented
+    on the switch instead.
+    """
+    if settings is None:
+        settings = _get_settings()
+    return bool(settings and getattr(settings, 'maintenance_mode', False))
+
+
+def check_maintenance_mode(request, instance, settings=None):
+    """
+    Returns an error message when maintenance mode blocks this write, else None.
+
+    Deliberately independent of every other exemption in this module. The
+    global enforcement switch, per-model policies, the exempt user list, the
+    exempt group list and dry-run all leave it untouched, and callers must
+    consult it before any of them. A maintenance mode that a configuration
+    entry can lift is not a maintenance mode — it is a request.
+
+    The only way past it is being a superuser. Anonymous users are not exempt:
+    an installation running with LOGIN_REQUIRED off would otherwise leave the
+    one caller nobody authenticated able to write.
+    """
+    if not maintenance_mode_active(settings):
+        return None
+
+    if get_model_label(instance) in MAINTENANCE_EXEMPT_MODELS:
+        return None
+
+    user = getattr(request, 'user', None)
+    if user is not None and getattr(user, 'is_superuser', False):
+        return None
+
+    if settings is None:
+        settings = _get_settings()
+
+    is_api = bool(request and getattr(request, 'path_info', '').startswith('/api/'))
+    if is_api:
+        return get_api_message('maintenance_mode')
+
+    language = getattr(settings, 'language', 'en') if settings else 'en'
+    return get_message('maintenance_mode', language)
+
+
 def check_change_window(settings):
     """
     Checks if changes are allowed in the current time window.
@@ -701,6 +792,25 @@ def check_required_fields(instance, model_label, request=None):
                                hint='')
 
     return None
+
+
+def _block_for_maintenance(request, instance, model_label, action, error_msg):
+    """
+    Record the blocked write and abort it. Never returns.
+
+    Separate from the _enforce() closure the two handlers build for their rule
+    checks, because that closure honours dry-run. Dry-run exists so a new rule
+    can be introduced without breaking anyone's work; maintenance mode exists
+    so nobody's work reaches the database. Routing one through the other would
+    turn the switch off for every installation that has dry-run on.
+    """
+    username = getattr(getattr(request, 'user', None), 'username', 'unknown')
+    logger.info(
+        "maintenance mode: blocking %s of %s by user '%s'",
+        action, model_label, username)
+    log_violation(username, model_label, instance, action,
+                  'maintenance_mode', error_msg)
+    raise AbortRequest(error_msg)
 
 
 def log_violation(username, model_label, instance, action, reason, message,
@@ -1205,9 +1315,19 @@ def enforce_changelog_on_save(sender, instance, **kwargs):
         return
 
     model_label = get_model_label(instance)
+    settings = _get_settings()
+
+    # --- Maintenance mode ---
+    # Checked before every exemption below on purpose: the master switch, the
+    # per-model policy, the exempt user and group lists and dry-run all have to
+    # be unable to lift it. See check_maintenance_mode().
+    maintenance_error = check_maintenance_mode(request, instance, settings)
+    if maintenance_error:
+        _block_for_maintenance(request, instance, model_label,
+                               'create' if not instance.pk else 'edit',
+                               maintenance_error)
 
     # --- Global enforcement master switch ---
-    settings = _get_settings()
     if settings and not getattr(settings, 'enforcement_enabled', True):
         return
 
@@ -1352,8 +1472,19 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
                bool(request), getattr(request, 'method', None))
         return
 
-    # --- Global enforcement master switch ---
     settings = _get_settings()
+    model_label = get_model_label(instance)
+
+    # --- Maintenance mode ---
+    # Before the master switch and before enforce_on_delete: neither may lift
+    # it. A deletion is exactly the change a maintenance window exists to stop.
+    maintenance_error = check_maintenance_mode(request, instance, settings)
+    if maintenance_error:
+        _probe('  block: maintenance mode')
+        _block_for_maintenance(request, instance, model_label, 'delete',
+                               maintenance_error)
+
+    # --- Global enforcement master switch ---
     if settings and not getattr(settings, 'enforcement_enabled', True):
         _probe('  skip: enforcement_enabled=False')
         return
@@ -1361,8 +1492,6 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     if not _get_setting('enforce_on_delete', True):
         _probe('  skip: enforce_on_delete=False')
         return
-
-    model_label = get_model_label(instance)
 
     # --- Exemption checks (BEFORE any per-model DB queries) ---
     if is_exempt_model(instance):

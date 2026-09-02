@@ -181,8 +181,12 @@ zastrzeżone dla superużytkowników, o ile nie zaznaczono inaczej.
 | **Instrukcja** | Strona z dowolnym tekstem dla własnych użytkowników. Widoczna dla wszystkich zalogowanych użytkowników, gdy włączona |
 | **Zarządzanie poprawkami** | Patrz rozdział 9 |
 
-Dwa ustawienia zasługują na osobną wzmiankę:
+Trzy ustawienia zasługują na osobną wzmiankę:
 
+- **Tryb konserwacji** — odbiera prawo zapisu wszystkim poza superużytkownikami
+  i wyświetla u góry czerwony komunikat. Wyłączeni użytkownicy, wyłączone grupy,
+  zasady modeli ani tryb próbny go nie znoszą. Przełączenie dociera do każdego
+  procesu roboczego w ciągu 30 sekund.
 - **Wyłącznik globalny** — wstrzymuje wszystkie kontrole, na przykład podczas okna
   serwisowego.
 - **Tryb próbny (dry-run)** — rejestruje naruszenia, niczego nie blokując. Właściwy

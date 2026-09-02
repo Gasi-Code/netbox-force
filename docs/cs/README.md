@@ -180,8 +180,12 @@ vyhrazeny superuživatelům, pokud není uvedeno jinak.
 | **Návod** | Volná textová stránka pro vlastní uživatele. Viditelná všem přihlášeným uživatelům, je-li zapnuta |
 | **Správa záplat** | Viz oddíl 9 |
 
-Dvě nastavení si zaslouží zvláštní zmínku:
+Tři nastavení si zaslouží zvláštní zmínku:
 
+- **Režim údržby** — odebere právo zápisu všem kromě superuživatelů a nahoře
+  zobrazí červené upozornění. Výjimky uživatelů a skupin, zásady modelů ani
+  zkušební režim jej neruší. Přepnutí se ke každému pracovnímu procesu dostane
+  do 30 sekund.
 - **Globální vypínač** — pozastaví všechny kontroly, například během servisního
   okna.
 - **Zkušební režim (dry-run)** — porušení zaznamenává, ale nic neblokuje. Správný

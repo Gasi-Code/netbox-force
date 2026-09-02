@@ -182,8 +182,12 @@ beperkt tenzij anders vermeld.
 | **Handleiding** | Vrije tekstpagina voor de eigen gebruikers. Zichtbaar voor alle ingelogde gebruikers wanneer ingeschakeld |
 | **Patchbeheer** | Zie paragraaf 9 |
 
-Twee instellingen verdienen aparte vermelding:
+Drie instellingen verdienen aparte vermelding:
 
+- **Onderhoudsmodus** — ontneemt iedereen behalve superusers het schrijfrecht en
+  toont bovenaan een rode melding. Uitgezonderde gebruikers, uitgezonderde
+  groepen, modelbeleid en de proefmodus heffen hem niet op. De omschakeling
+  bereikt elk werkproces binnen 30 seconden.
 - **Globale schakelaar** — zet alle controles stil, bijvoorbeeld tijdens een
   onderhoudsvenster.
 - **Proefmodus (dry-run)** — legt overtredingen vast zonder iets te blokkeren. De

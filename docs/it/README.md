@@ -182,8 +182,12 @@ riservate ai superutenti salvo diversa indicazione.
 | **Guida** | Pagina di testo libero per i propri utenti. Visibile a tutti gli utenti autenticati quando attivata |
 | **Gestione patch** | Vedi sezione 9 |
 
-Due impostazioni meritano una menzione a parte:
+Tre impostazioni meritano una menzione a parte:
 
+- **Modalità manutenzione** — toglie il permesso di scrittura a tutti tranne ai
+  superutenti e mostra un avviso rosso in alto. Utenti e gruppi esentati, criteri
+  di modello e modalità di prova non la disattivano. Il passaggio raggiunge ogni
+  processo di lavoro entro 30 secondi.
 - **Interruttore globale** — sospende tutti i controlli, per esempio durante una
   finestra di manutenzione.
 - **Modalità di prova (dry-run)** — registra le violazioni senza bloccare nulla.

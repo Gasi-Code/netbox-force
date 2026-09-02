@@ -153,13 +153,14 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.9.1'
+    version = '5.10.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
     min_version = '4.0.0'
 
     middleware = [
         'netbox_force.middleware.RequestContextMiddleware',
+        'netbox_force.middleware.MaintenanceBannerMiddleware',
     ]
 
     # Standalone top-level nav section (like Slurp'it).

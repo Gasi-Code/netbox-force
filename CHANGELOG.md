@@ -12,6 +12,48 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.10.0 — Maintenance mode, and the changelog message that was too long
+
+**A generated changelog message could exceed what NetBox stores it in.** Editing
+an object with several changed fields produced an auto-generated message longer
+than the 200 characters `ObjectChange.message` holds, and PostgreSQL rejected it
+*after* the object had been saved. The user got NetBox's server error page —
+`DataError: value too long for type character varying(200)` — with nothing to
+say what had gone wrong. It surfaced most often on models where a validation
+rule had previously stopped the save before it ever reached that point, which is
+why it looked like a Validation Rules problem.
+
+Every generated message now passes through one function that trims it to the
+limit, and the limit is read from the model rather than written down, so a
+NetBox release that widens the column is used to the full width. Eight call
+sites were affected, including the patch-management sync, which built a message
+from a field that is itself 200 characters wide.
+
+**Maintenance mode.** One switch on the settings page takes write access away
+from everyone but superusers. While it is on, every page carries a red banner
+saying so, in all sixteen languages, and every blocked attempt is recorded in
+the violation log under its own reason.
+
+It is checked before every other rule in the plugin, and nothing that can be
+configured lifts it: not the global enforcement switch, not a model policy, not
+the exempt user list, not the exempt group list, and not dry-run mode. A switch
+that a configuration entry can turn off is not a maintenance mode.
+
+Its list of never-blocked models is deliberately much shorter than the ordinary
+exemption list. Sessions and user rows stay writable, because signing in writes
+both and blocking them would lock out every account including the administrator
+who has to turn the mode back off. Journal entries, image attachments and saved
+filters do *not* stay writable — those are content and configuration, and they
+are what the mode exists to stop.
+
+Two limits worth knowing, both documented on the switch itself: settings are
+cached for 30 seconds per worker process, so turning the mode on takes up to
+half a minute to reach every worker; and enforcement happens on the request
+path, so background jobs and scripts run by the RQ worker are unaffected, as
+they already were for every other rule.
+
+---
+
 ### v5.9.1 — The rest of the escaping, and object permissions where they belong
 
 Two follow-ups to 5.9.0, both found by the verification script rather than by

@@ -183,8 +183,12 @@ pages sont réservées aux superutilisateurs sauf mention contraire.
 | **Guide** | Page de texte libre pour vos propres utilisateurs. Visible par tous les utilisateurs connectés lorsqu'activée |
 | **Gestion des correctifs** | Voir la section 9 |
 
-Deux paramètres méritent une mention à part :
+Trois paramètres méritent une mention à part :
 
+- **Mode maintenance** — retire le droit d'écriture à tous sauf aux
+  superutilisateurs et affiche un bandeau rouge en haut. Les utilisateurs et
+  groupes exemptés, les politiques de modèle et le mode d'essai ne le lèvent pas.
+  Le basculement atteint chaque processus de travail en 30 secondes.
 - **Interrupteur global** — suspend toutes les vérifications, par exemple pendant
   une fenêtre de maintenance.
 - **Mode d'essai (dry-run)** — consigne les infractions sans rien bloquer. C'est

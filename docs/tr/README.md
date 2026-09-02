@@ -180,8 +180,12 @@ sayfalar süper kullanıcılarla sınırlıdır.
 | **Kılavuz** | Kendi kullanıcılarınız için serbest metin sayfası. Açıkken tüm oturum açmış kullanıcılara görünür |
 | **Yama yönetimi** | Bkz. bölüm 9 |
 
-İki ayar ayrıca anılmayı hak eder:
+Üç ayar ayrıca anılmayı hak eder:
 
+- **Bakım modu** — süper kullanıcılar dışında herkesten yazma hakkını alır ve
+  üstte kırmızı bir uyarı gösterir. Muaf kullanıcılar, muaf gruplar, model
+  ilkeleri ve deneme kipi bunu kaldırmaz. Değişiklik her iş sürecine 30 saniye
+  içinde ulaşır.
 - **Genel anahtar** — örneğin bir bakım penceresi sırasında tüm denetimleri duraklatır.
 - **Deneme kipi (dry-run)** — ihlalleri kaydeder ama hiçbir şeyi engellemez. Yeni bir
   kuralı devreye almanın doğru yolu: gerçekten kimse durdurulmadan önce neyin

@@ -42,6 +42,7 @@ pytest                                # runs netbox_force/tests/ (per pyproject.
 ```
 HTTP Request → RequestContextMiddleware (thread-local request storage)
             → Model.save()/delete() → pre_save/pre_delete signal (signals.py)
+            → maintenance mode (superuser-only bypass, before every exemption)
             → exemption checks (model/user/group/global toggle/no real change)
             → change window → naming convention → required field
             → changelog presence/length → blocked phrases → ticket reference
@@ -51,6 +52,8 @@ HTTP Request → RequestContextMiddleware (thread-local request storage)
 - Violations are not written inside the signal handler — `AbortRequest` triggers a DB rollback that would also roll back a `Violation.objects.create()` call made there. Instead, `middleware.queue_pending_violation()` buffers violation dicts in thread-local storage, and `RequestContextMiddleware._flush_pending_violations()` writes them (and fires webhooks) **after** the view returns, outside `transaction.atomic()`. Any new violation-reason code path must use this queue, not a direct `Violation.objects.create()`.
 - Changelog comment is read from `comments` (UI form field) or `changelog_message` (API JSON body) — see `get_changelog_comment()` in `signals.py`.
 - `EXEMPT_MODELS` in `signals.py` hardcodes system models (auth, sessions, NetBox internals, migration recorder) that must never be checked, independent of user-configured exemptions.
+- Maintenance mode (`ForceSettings.maintenance_mode`) is checked by `check_maintenance_mode()` **before** every other check in both handlers, and blocks via `_block_for_maintenance()` rather than the handlers' `_enforce()` closure — that closure honours `dry_run`, which must not weaken maintenance mode. The only bypass is `request.user.is_superuser`. It uses its own, much shorter `MAINTENANCE_EXEMPT_MODELS` list: `sessions.session`, `users.user` and `auth.user` must stay on it or nobody can sign in, while content models such as `extras.journalentry` are deliberately left off. When adding a check that must not be configurable away, follow this pattern rather than adding it to the ordinary rule chain.
+- `MaintenanceBannerMiddleware` (`middleware.py`) inserts the red banner after the opening `<body>` tag of finished HTML, because NetBox has no plugin hook that renders on every page. It refuses to touch anything that is not a 200 `text/html` non-streaming response for a signed-in user outside `/api/`, and skips HTMX fragments (`HX-Request`) and compressed bodies (`Content-Encoding`).
 
 ### i18n
 

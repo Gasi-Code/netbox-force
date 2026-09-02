@@ -13,6 +13,23 @@
         <form method="post">
             {% csrf_token %}
 
+            {# Maintenance Mode — first, because it is the switch with the
+               widest effect on the whole installation. #}
+            <div class="card mb-4 {% if form.maintenance_mode.value %}border-danger{% endif %}">
+                <h5 class="card-header {% if form.maintenance_mode.value %}bg-danger text-white{% endif %}">
+                    <i class="mdi mdi-alert-octagon"></i> {{ ui.section_maintenance|default:"Maintenance Mode" }}
+                </h5>
+                <div class="card-body">
+                    <div class="mb-0 form-check">
+                        {{ form.maintenance_mode }}
+                        <label class="form-check-label" for="id_maintenance_mode">
+                            <strong>{{ ui.label_maintenance_mode|default:"Enable maintenance mode" }}</strong>
+                        </label>
+                        <div class="form-text">{{ ui.help_maintenance_mode|default:"While active, only superusers can create, change or delete objects. Everyone else is blocked and sees a red notice at the top. Exempt users, exempt groups, model policies and dry-run mode do not lift it. It takes up to 30 seconds for the change to reach every worker process." }}</div>
+                    </div>
+                </div>
+            </div>
+
             {# Language #}
             <div class="card mb-4">
                 <h5 class="card-header">

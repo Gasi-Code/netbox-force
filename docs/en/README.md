@@ -181,8 +181,12 @@ superusers unless stated otherwise.
 | **Guide** | A free-text page for your own users. Visible to all logged-in users when enabled |
 | **Patch Management** | See section 9 |
 
-Two settings deserve their own mention:
+Three settings deserve their own mention:
 
+- **Maintenance mode** — takes write access away from everyone but superusers
+  and shows a red notice at the top. Exempt users, exempt groups, model policies
+  and dry-run mode do not lift it. The switch reaches every worker process
+  within 30 seconds.
 - **Global enforcement toggle** — pauses all checks, for example during a
   maintenance window.
 - **Dry-run mode** — records violations without blocking anything. The right way

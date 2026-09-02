@@ -180,8 +180,12 @@ superlietotājiem, ja vien nav norādīts citādi.
 | **Pamācība** | Brīva teksta lapa saviem lietotājiem. Redzama visiem pieteiktajiem lietotājiem, kad ieslēgta |
 | **Ielāpu pārvaldība** | Skat. 9. nodaļu |
 
-Divi iestatījumi pelna atsevišķu pieminējumu:
+Trīs iestatījumi pelna atsevišķu pieminējumu:
 
+- **Apkopes režīms** — atņem rakstīšanas tiesības visiem, izņemot
+  superlietotājus, un augšpusē parāda sarkanu paziņojumu. Izņēmuma lietotāji,
+  izņēmuma grupas, modeļu politikas un izmēģinājuma režīms to neatceļ.
+  Pārslēgšana sasniedz katru darba procesu 30 sekunžu laikā.
 - **Globālais slēdzis** — aptur visas pārbaudes, piemēram, apkopes loga laikā.
 - **Izmēģinājuma režīms (dry-run)** — reģistrē pārkāpumus, neko nebloķējot. Pareizais
   veids, kā ieviest jaunu noteikumu: redz, kas *būtu* bloķēts, pirms kāds patiešām

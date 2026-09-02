@@ -32,6 +32,7 @@ class ForceSettingsForm(forms.ModelForm):
         model = ForceSettings
         fields = [
             'language',
+            'maintenance_mode',
             'enforcement_enabled',
             'min_length',
             'enforce_on_create',
@@ -144,6 +145,9 @@ class ForceSettingsForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': 1,
                 'max': 100,
+            }),
+            'maintenance_mode': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
             }),
             'enforcement_enabled': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',

@@ -182,8 +182,12 @@ páginas están restringidas a superusuarios salvo que se indique lo contrario.
 | **Guía** | Página de texto libre para sus propios usuarios. Visible para todos los usuarios autenticados cuando está activada |
 | **Gestión de parches** | Véase la sección 9 |
 
-Dos ajustes merecen mención aparte:
+Tres ajustes merecen mención aparte:
 
+- **Modo de mantenimiento** — retira el permiso de escritura a todos salvo a los
+  superusuarios y muestra un aviso rojo en la parte superior. Los usuarios y
+  grupos exentos, las políticas de modelo y el modo de prueba no lo desactivan.
+  El cambio llega a todos los procesos de trabajo en 30 segundos.
 - **Interruptor global** — suspende todas las comprobaciones, por ejemplo durante
   una ventana de mantenimiento.
 - **Modo de prueba (dry-run)** — registra las infracciones sin bloquear nada. Es

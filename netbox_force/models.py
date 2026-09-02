@@ -201,6 +201,20 @@ class ForceSettings(models.Model):
         help_text='Disable to pause all enforcement globally (e.g. during maintenance windows).',
     )
 
+    # --- Maintenance mode ---
+    # Deliberately not covered by any exemption this model carries. The switch
+    # above pauses enforcement; this one takes write access away, and a
+    # maintenance mode that the exempt-user list can lift is not one.
+    maintenance_mode = models.BooleanField(
+        default=False,
+        verbose_name='Maintenance mode',
+        help_text=(
+            'While enabled, only superusers can create, change or delete '
+            'objects. Everyone else sees a banner and is blocked. Takes up to '
+            '30 seconds to reach every worker process.'
+        ),
+    )
+
     # --- Exemptions: Group-based ---
     exempt_groups = models.TextField(
         blank=True,
@@ -1005,6 +1019,7 @@ class Violation(models.Model):
         ('naming_violation', 'Naming Convention Violation'),
         ('required_field', 'Required Field Missing'),
         ('change_window', 'Outside Change Window'),
+        ('maintenance_mode', 'Maintenance Mode'),
     ]
 
     ACTION_CHOICES = [

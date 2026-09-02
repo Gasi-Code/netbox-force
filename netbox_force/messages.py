@@ -34,6 +34,9 @@ MESSAGES = {
             "Änderungen sind außerhalb des Änderungsfensters nicht erlaubt "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox befindet sich im Wartungsmodus. Es können derzeit keine Einträge angelegt, geändert oder gelöscht werden.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'Erstellen',
         'action_edit': 'Ändern',
@@ -74,6 +77,9 @@ MESSAGES = {
         'change_window': (
             "Changes are not allowed outside the change window "
             "({start} - {end}, {weekdays})."
+        ),
+        'maintenance_mode': (
+            'NetBox is in maintenance mode. Entries cannot currently be created, changed or deleted.'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'creating',
@@ -117,6 +123,9 @@ MESSAGES = {
             "No se permiten cambios fuera de la ventana de cambios "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox está en modo de mantenimiento. Actualmente no se pueden crear, modificar ni eliminar entradas.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'crear',
         'action_edit': 'modificar',
@@ -159,6 +168,9 @@ MESSAGES = {
             "Změny nejsou povoleny mimo okno změn "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox je v režimu údržby. Momentálně nelze vytvářet, měnit ani mazat žádné záznamy.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'vytvoření',
         'action_edit': 'úpravě',
@@ -199,6 +211,9 @@ MESSAGES = {
         'change_window': (
             "Ændringer er ikke tilladt uden for ændringsvinduet "
             "({start} - {end}, {weekdays})."
+        ),
+        'maintenance_mode': (
+            'NetBox er i vedligeholdelsestilstand. Der kan i øjeblikket ikke oprettes, ændres eller slettes poster.'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'oprettelse',
@@ -242,6 +257,9 @@ MESSAGES = {
             "Les modifications ne sont pas autorisées en dehors de la "
             "fenêtre de modification ({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox est en mode maintenance. Aucune entrée ne peut actuellement être créée, modifiée ou supprimée.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'la création',
         'action_edit': 'la modification',
@@ -284,6 +302,9 @@ MESSAGES = {
             "Le modifiche non sono consentite al di fuori della finestra "
             "di modifica ({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox è in modalità manutenzione. Al momento non è possibile creare, modificare o eliminare voci.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'creazione',
         'action_edit': 'modifica',
@@ -324,6 +345,9 @@ MESSAGES = {
         'change_window': (
             "変更ウィンドウ外での変更は許可されていません "
             "（{start} - {end}、{weekdays}）。"
+        ),
+        'maintenance_mode': (
+            'NetBox はメンテナンスモードです。現在、項目の作成・変更・削除はできません。'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': '作成',
@@ -367,6 +391,9 @@ MESSAGES = {
             "Izmaiņas nav atļautas ārpus izmaiņu loga "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox darbojas apkopes režīmā. Pašlaik nevar izveidot, mainīt vai dzēst ierakstus.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'izveidošana',
         'action_edit': 'rediģēšana',
@@ -408,6 +435,9 @@ MESSAGES = {
         'change_window': (
             "Wijzigingen zijn niet toegestaan buiten het wijzigingsvenster "
             "({start} - {end}, {weekdays})."
+        ),
+        'maintenance_mode': (
+            'NetBox staat in onderhoudsmodus. Er kunnen momenteel geen items worden aangemaakt, gewijzigd of verwijderd.'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'aanmaken',
@@ -451,6 +481,9 @@ MESSAGES = {
             "Zmiany nie są dozwolone poza oknem zmian "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox jest w trybie konserwacji. Obecnie nie można tworzyć, zmieniać ani usuwać wpisów.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'tworzenia',
         'action_edit': 'edycji',
@@ -492,6 +525,9 @@ MESSAGES = {
         'change_window': (
             "As alterações não são permitidas fora da janela de alterações "
             "({start} - {end}, {weekdays})."
+        ),
+        'maintenance_mode': (
+            'O NetBox está em modo de manutenção. De momento não é possível criar, alterar nem eliminar registos.'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'criar',
@@ -535,6 +571,9 @@ MESSAGES = {
             "Изменения не разрешены вне окна изменений "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox находится в режиме обслуживания. Сейчас нельзя создавать, изменять или удалять записи.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'создании',
         'action_edit': 'изменении',
@@ -576,6 +615,9 @@ MESSAGES = {
         'change_window': (
             "Değişikliklere değişiklik penceresi dışında izin "
             "verilmemektedir ({start} - {end}, {weekdays})."
+        ),
+        'maintenance_mode': (
+            'NetBox bakım modunda. Şu anda kayıt oluşturulamaz, değiştirilemez veya silinemez.'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'oluşturma',
@@ -619,6 +661,9 @@ MESSAGES = {
             "Зміни не дозволені за межами вікна змін "
             "({start} - {end}, {weekdays})."
         ),
+        'maintenance_mode': (
+            'NetBox перебуває в режимі обслуговування. Наразі не можна створювати, змінювати або видаляти записи.'
+        ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': 'створенні',
         'action_edit': 'зміні',
@@ -659,6 +704,9 @@ MESSAGES = {
         'change_window': (
             "变更窗口之外不允许进行更改 "
             "（{start} - {end}，{weekdays}）。"
+        ),
+        'maintenance_mode': (
+            'NetBox 处于维护模式。当前无法创建、修改或删除条目。'
         ),
         'dry_run_prefix': '[DRY-RUN] ',
         'action_create': '创建',
@@ -702,6 +750,9 @@ API_MESSAGES = {
     'change_window': (
         "Changes are not allowed outside the change window "
         "({start} - {end}, {weekdays})."
+    ),
+    'maintenance_mode': (
+        "NetBox is in maintenance mode. Entries cannot currently be created, changed or deleted. Only superusers can write."
     ),
 }
 
