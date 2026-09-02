@@ -421,6 +421,29 @@ python manage.py migrate netbox_force
 sudo systemctl restart netbox netbox-rq
 ```
 
+### Docker
+
+The plugin is installed into the image at build time, so redeploying the stack only picks up a new version if the image is actually rebuilt:
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+Migrations run on their own — the NetBox service uses the image's entrypoint, which applies them at startup.
+
+If you write your own compose file, give the built image a version-numbered tag rather than `latest`. A service that declares both a `build:` and an `image:` tag whose value already exists locally is not rebuilt, so redeploying the stack reports success and quietly keeps serving the previous plugin version. A tag that moves with the plugin version does not exist locally after an upgrade, which forces the build.
+
+Inside the container `pip install git+…` does not work — the image ships no `git`. Install from the GitHub tarball instead:
+
+```bash
+pip install --force-reinstall --no-cache-dir \
+  "https://github.com/Gasi-Code/netbox-force/archive/refs/heads/main.tar.gz"
+```
+
+That is a throwaway fix for testing; it is lost when the container is recreated.
+
 ---
 
 ## Configuration
