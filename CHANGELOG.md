@@ -12,6 +12,35 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.10.1 — The banner covered the way home
+
+**The maintenance banner sat on top of the NetBox logo.** It was inserted after
+the opening `<body>` tag as a sticky bar at the top of the viewport. NetBox's
+sidebar is `position: fixed` and starts at the same place, so the banner
+covered the logo — which is the link back to the home page. The banner now goes
+at the top of the content column, in normal flow, and carries no positioning of
+its own. Nothing overlaps.
+
+**A template comment was printed onto the page.** Django's `{# … #}` comment
+only works on a single line; spread over two it is not a comment at all. One
+such comment appeared above the Maintenance Mode card on the settings page and
+another inside the guide page. Both are now `{% comment %}` blocks.
+
+**The ticket pattern and the CheckMK service pattern accepted a regular
+expression that can hang a worker.** Validation rules have rejected nested
+quantifiers such as `(a+)+` since v5.9, but the other two administrator-supplied
+patterns did not get the same check, and the ticket pattern is matched against
+the changelog comment on every single save. All three now share one guard.
+
+**Violation list links did not escape their filter values.** A username
+containing `&` or `#` produced a CSV export or pagination link that dropped the
+rest of the query string.
+
+**The auto-generated changelog message was trimmed twice, by two different
+limits.** The deletion path trimmed to a hardcoded 200 characters after the
+signal had already trimmed it to the width the model actually reports. Both now
+read the same limit.
+
 ### v5.10.0 — Maintenance mode, and the changelog message that was too long
 
 **A generated changelog message could exceed what NetBox stores it in.** Editing
