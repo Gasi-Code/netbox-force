@@ -24,7 +24,7 @@ pytest                                # runs netbox_force/tests/ (per pyproject.
 
 ### Bumping the version
 
-The version lives in **three** places and all three must move together:
+The version lives in **four** places and all four must move together:
 
 | File | Field |
 |---|---|
@@ -67,8 +67,8 @@ HTTP Request → RequestContextMiddleware (thread-local request storage)
 - Violations are not written inside the signal handler — `AbortRequest` triggers a DB rollback that would also roll back a `Violation.objects.create()` call made there. Instead, `middleware.queue_pending_violation()` buffers violation dicts in thread-local storage, and `RequestContextMiddleware._flush_pending_violations()` writes them (and fires webhooks) **after** the view returns, outside `transaction.atomic()`. Any new violation-reason code path must use this queue, not a direct `Violation.objects.create()`.
 - Changelog comment is read from `comments` (UI form field) or `changelog_message` (API JSON body) — see `get_changelog_comment()` in `signals.py`.
 - `EXEMPT_MODELS` in `signals.py` hardcodes system models (auth, sessions, NetBox internals, migration recorder) that must never be checked, independent of user-configured exemptions.
-- Maintenance mode (`ForceSettings.maintenance_mode`) is checked by `check_maintenance_mode()` **before** every other check in both handlers, and blocks via `_block_for_maintenance()` rather than the handlers' `_enforce()` closure — that closure honours `dry_run`, which must not weaken maintenance mode. The only bypass is `request.user.is_superuser`. It uses its own, much shorter `MAINTENANCE_EXEMPT_MODELS` list: `sessions.session`, `users.user` and `auth.user` must stay on it or nobody can sign in, while content models such as `extras.journalentry` are deliberately left off. When adding a check that must not be configurable away, follow this pattern rather than adding it to the ordinary rule chain.
-- `MaintenanceBannerMiddleware` (`middleware.py`) inserts the red banner after the opening `<body>` tag of finished HTML, because NetBox has no plugin hook that renders on every page. It refuses to touch anything that is not a 200 `text/html` non-streaming response for a signed-in user outside `/api/`, and skips HTMX fragments (`HX-Request`) and compressed bodies (`Content-Encoding`).
+- Maintenance mode (`ForceSettings.maintenance_mode`) is checked by `check_maintenance_mode()` **before** every other check in both handlers, and blocks via `_block_for_maintenance()` rather than the handlers' `_enforce()` closure — that closure honours `dry_run`, which must not weaken maintenance mode. The only bypass is `request.user.is_superuser`. It uses its own, much shorter `MAINTENANCE_EXEMPT_MODELS` list: `sessions.session`, `users.user` and `auth.user` must stay on it or nobody can sign in, while content models such as `extras.journalentry` are deliberately left off. When adding a check that must not be configurable away, follow this pattern rather than adding it to the ordinary rule chain. Like every other check in `signals.py` it needs an HTTP request: a write with no request behind it — an RQ job, a NetBox custom script, `manage.py` — is not blocked, because the handlers return early before the check runs.
+- `MaintenanceBannerMiddleware` (`middleware.py`) inserts the red banner at the top of NetBox's `page-wrapper` — the content column — falling back to the opening `<body>` tag, because NetBox has no plugin hook that renders on every page. It refuses to touch anything that is not a 200 `text/html` non-streaming response for a signed-in user outside `/api/`, and skips HTMX fragments (`HX-Request`) and compressed bodies (`Content-Encoding`). The banner carries no `position`/`z-index`: NetBox's sidebar is `position: fixed` and holds the logo that links home, so a sticky bar at `top: 0` covers it. Keep the banner in normal flow.
 
 ### i18n
 
@@ -91,7 +91,7 @@ Language is a per-installation DB setting (`ForceSettings.language`), not a per-
 This repo currently mixes the active plugin with leftover/unrelated material — don't assume every file is part of `netbox_force`:
 
 - **`netbox_changelog_enforcer/`** and the root-level `__init__.py`, `apps.py`, `middleware.py`, `signals.py` — an earlier, simpler prototype plugin that `netbox_force` superseded and replaced (see commit history and `CLAUDE_CODE_HANDOFF.md`, itself a German-language handoff doc for that prototype, now superseded). These are untracked in git; treat as historical reference only, not live code.
-- **`netbox_force/templates/netbox_force/wizard_*.html`** — leftover templates from a guided-wizard feature that was fully removed from the plugin (commit `5507ba4`, "remove: vollständige Entfernung des Wizard-Features"). No view or URL in `views.py`/`urls.py` references them anymore.
+- **The old migration lineage** — `netbox_force/migrations/0002_v4_features.py`, `0003_v41_features.py` and `0004_v42_modules.py` sit in the working copy but are listed in `.gitignore`; `0001_initial.py` squashed them. They are not shipped, but `.gitignore` does not stop Python from importing them: an editable install (`pip install -e .`) straight from this directory gives Django two leaf migrations and refuses to run. Delete them locally before installing this folder in place.
 - **`wizard_scripts/`** — standalone NetBox *Custom Scripts* (`extras.scripts.Script` subclasses) for a specific organization's NetBox deployment, run via NetBox's own Custom Scripts feature. Unrelated to the `netbox_force` plugin and not packaged/installed with it. `wizard_scripts/PERMISSIONS.md` documents the permission groups for running these scripts.
 
 When asked to work "on the plugin," scope changes to `netbox_force/` unless told otherwise.
