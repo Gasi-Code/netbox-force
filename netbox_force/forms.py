@@ -16,6 +16,32 @@ from .models import (
 # Valid model label pattern: app_label.model_name
 _MODEL_LABEL_RE = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$')
 
+# A quantifier applied to a group that itself ends in a quantifier —
+# (a+)+, (\w+\s?)*, (.*)+ — backtracks exponentially on input that nearly
+# matches. Every pattern here is written by an administrator, but all of them
+# are applied to values ordinary users submit, so one careless rule hands every
+# user a way to hang a worker.
+# '?' counts inside the group — (\w+\s?)* backtracks just as badly as (a+)+ —
+# but a '?' applied to the group is harmless, because an optional group
+# repeats at most once.
+_NESTED_QUANTIFIER_RE = re.compile(
+    r'\([^)]*[+*?}]\s*\)\s*[+*]'      # (…+)+   (…\s?)*   (…{2,4})*
+    r'|\([^)]*[+*?}]\s*\)\s*\{'       # (…+){2,}
+)
+
+_BACKTRACKING_HELP = (
+    'This pattern nests one quantifier inside another (for example "(a+)+"). '
+    'On a value that almost matches, that backtracks for a very long time and '
+    'blocks the worker handling the save. Rewrite it without the nested '
+    'repetition.'
+)
+
+
+def _reject_catastrophic_backtracking(value):
+    """Raises ValidationError when a pattern can backtrack exponentially."""
+    if value and _NESTED_QUANTIFIER_RE.search(value):
+        raise ValidationError(_BACKTRACKING_HELP, code='catastrophic_backtracking')
+
 
 def _app_config(app_label):
     """AppConfig for an app label, or None when the app is not installed."""
@@ -343,6 +369,7 @@ class ForceSettingsForm(forms.ModelForm):
             re.compile(pattern)
         except re.error as exc:
             raise forms.ValidationError(f'Invalid regular expression: {exc}')
+        _reject_catastrophic_backtracking(pattern)
         return pattern
 
     def save(self, commit=True):
@@ -401,6 +428,9 @@ class ForceSettingsForm(forms.ModelForm):
                 params={'error': str(e)},
                 code='invalid_regex',
             )
+        # Matched against the changelog comment on every save, so the same
+        # backtracking guard the naming rules get applies here too.
+        _reject_catastrophic_backtracking(value.strip())
         return value
 
     def clean_change_window_weekdays(self):
@@ -781,19 +811,6 @@ class ValidationRuleForm(forms.ModelForm):
             )
         return value.lower()
 
-    # A quantifier applied to a group that itself ends in a quantifier —
-    # (a+)+, (\w+\s?)*, (.*)+ — backtracks exponentially on input that nearly
-    # matches. The pattern is written by an administrator, but it is applied to
-    # values any user can submit, so one careless rule hands every user a way
-    # to hang a worker.
-    # A repeated group whose own content repeats. '?' counts inside the group —
-    # (\w+\s?)* backtracks just as badly as (a+)+ — but a '?' applied to the
-    # group is harmless, because an optional group repeats at most once.
-    _NESTED_QUANTIFIER = re.compile(
-        r'\([^)]*[+*?}]\s*\)\s*[+*]'      # (…+)+   (…\s?)*   (…{2,4})*
-        r'|\([^)]*[+*?}]\s*\)\s*\{'       # (…+){2,}
-    )
-
     def clean_regex_pattern(self):
         """Validate regex pattern if provided."""
         value = self.cleaned_data.get('regex_pattern', '')
@@ -807,14 +824,7 @@ class ValidationRuleForm(forms.ModelForm):
                 params={'error': str(e)},
                 code='invalid_regex',
             )
-        if self._NESTED_QUANTIFIER.search(value):
-            raise ValidationError(
-                'This pattern nests one quantifier inside another (for example '
-                '"(a+)+"). On a value that almost matches, that backtracks for '
-                'a very long time and blocks the worker handling the save. '
-                'Rewrite it without the nested repetition.',
-                code='catastrophic_backtracking',
-            )
+        _reject_catastrophic_backtracking(value)
         return value
 
     def clean(self):

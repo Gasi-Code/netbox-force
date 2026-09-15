@@ -35,11 +35,13 @@
     {{ guide.content|json_script:"guide-html-data" }}
     <div class="card">
         <div class="card-body p-0">
-            {# allow-same-origin is deliberately absent: combined with
-               allow-scripts it lets the framed document reach back into
-               NetBox's origin — session cookies included — which is no
-               sandbox at all. Without it the guide renders in an opaque
-               origin and cannot touch the page around it. #}
+            {% comment %}
+                allow-same-origin is deliberately absent: combined with
+                allow-scripts it lets the framed document reach back into
+                NetBox's origin — session cookies included — which is no
+                sandbox at all. Without it the guide renders in an opaque
+                origin and cannot touch the page around it.
+            {% endcomment %}
             <iframe id="guide-iframe" style="width: 100%; border: none; min-height: 600px;"
                     sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
         </div>

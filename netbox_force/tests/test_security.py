@@ -292,6 +292,33 @@ class RegexRuleValidationTests(TestCase):
         form.cleaned_data = {'regex_pattern': r'^sw-[a-z0-9]{2,8}$'}
         self.assertEqual(form.clean_regex_pattern(), r'^sw-[a-z0-9]{2,8}$')
 
+    def test_the_ticket_pattern_is_guarded_too(self):
+        """
+        It is matched against the changelog comment on every save, so a nested
+        quantifier there is the same hole as one in a naming rule.
+        """
+        from netbox_force.forms import ForceSettingsForm
+
+        form = ForceSettingsForm()
+        form.cleaned_data = {'ticket_pattern': '(a+)+'}
+        with self.assertRaises(Exception):
+            form.clean_ticket_pattern()
+
+    def test_an_ordinary_ticket_pattern_is_accepted(self):
+        from netbox_force.forms import ForceSettingsForm
+
+        form = ForceSettingsForm()
+        form.cleaned_data = {'ticket_pattern': r'[A-Z]+-\d+'}
+        self.assertEqual(form.clean_ticket_pattern(), r'[A-Z]+-\d+')
+
+    def test_the_checkmk_service_pattern_is_guarded_too(self):
+        from netbox_force.forms import ForceSettingsForm
+
+        form = ForceSettingsForm()
+        form.cleaned_data = {'checkmk_service_pattern': r'(\w+\s?)*'}
+        with self.assertRaises(Exception):
+            form.clean_checkmk_service_pattern()
+
 
 class RegexSubjectBoundTests(TestCase):
     """F10: the value a pattern is applied to is bounded."""

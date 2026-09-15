@@ -252,6 +252,16 @@ class MaintenanceBannerTests(TestCase):
         response = HttpResponse(body, content_type='text/html; charset=utf-8')
         return response
 
+    @classmethod
+    def _netbox_page(cls):
+        """The shape NetBox renders: a fixed sidebar, then the content column."""
+        return cls._page(
+            b'<!doctype html><html><head></head><body>'
+            b'<div class="page">'
+            b'<aside class="navbar navbar-vertical">LOGO</aside>'
+            b'<div class="page-wrapper"><div id="page-content">Hi</div></div>'
+            b'</div></body></html>')
+
     def _get(self, path='/dcim/devices/', user=None, **headers):
         request = self.factory.get(path, **headers)
         request.user = user if user is not None else _user()
@@ -262,11 +272,35 @@ class MaintenanceBannerTests(TestCase):
         self.assertIn(b'data-netbox-force-maintenance', response.content)
         self.assertIn('maintenance mode'.encode(), response.content.lower())
 
-    def test_banner_lands_directly_after_the_body_tag(self):
-        response = self._run(self._get(), self._page())
-        body = response.content
-        self.assertLess(body.index(b'<body'), body.index(b'data-netbox-force-maintenance'))
-        self.assertLess(body.index(b'data-netbox-force-maintenance'), body.index(b'Hi'))
+    def test_banner_lands_inside_the_content_column(self):
+        """
+        Not after <body>. NetBox's sidebar is position:fixed and carries the
+        logo, which is the link back to the home page; a banner placed over it
+        takes that link away.
+        """
+        body = self._run(self._get(), self._netbox_page()).content
+        self.assertLess(body.index(b'page-wrapper'),
+                        body.index(b'data-netbox-force-maintenance'))
+        self.assertLess(body.index(b'data-netbox-force-maintenance'),
+                        body.index(b'page-content'))
+        self.assertLess(body.index(b'LOGO'),
+                        body.index(b'data-netbox-force-maintenance'))
+
+    def test_the_banner_never_overlays_the_page(self):
+        """position:fixed or sticky is what put it on top of the logo."""
+        body = self._run(self._get(), self._netbox_page()).content.lower()
+        banner = body[body.index(b'data-netbox-force-maintenance'):]
+        banner = banner[:banner.index(b'</div>')]
+        self.assertNotIn(b'position:fixed', banner.replace(b' ', b''))
+        self.assertNotIn(b'position:sticky', banner.replace(b' ', b''))
+        self.assertNotIn(b'z-index', banner)
+
+    def test_a_page_without_the_wrapper_falls_back_to_the_body_tag(self):
+        body = self._run(self._get(), self._page()).content
+        self.assertLess(body.index(b'<body'),
+                        body.index(b'data-netbox-force-maintenance'))
+        self.assertLess(body.index(b'data-netbox-force-maintenance'),
+                        body.index(b'Hi'))
 
     def test_a_compressed_body_is_left_alone(self):
         """Inserting bytes into a gzipped body would corrupt the page."""

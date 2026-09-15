@@ -120,6 +120,8 @@ class RequestContextMiddleware:
                 from core.models import ObjectChange
             except ImportError:
                 from extras.models import ObjectChange
+            # Imported here, not at module scope: signals imports this module.
+            from .signals import _fit_changelog
 
             for item in pending:
                 request_id = item.get('request_id')
@@ -130,7 +132,7 @@ class RequestContextMiddleware:
                     changed_object_id=item['object_id'],
                     action=item['action'],
                     message='',
-                ).update(message=item['message'][:200])
+                ).update(message=_fit_changelog(item['message']))
         except Exception:
             logger.debug('Could not apply auto-generated changelog messages',
                          exc_info=True)
@@ -174,13 +176,22 @@ class RequestContextMiddleware:
             _thread_locals.pending_violations = []
 
 
+# NetBox puts the whole content column in this wrapper, next to the sidebar
+# that carries the logo. The banner goes inside it so it spans the content and
+# leaves the navigation alone.
+_PAGE_WRAPPER_RE = re.compile(rb'<div[^>]*page-wrapper[^>]*>', re.IGNORECASE)
+
 _BODY_TAG_RE = re.compile(rb'<body[^>]*>', re.IGNORECASE)
 
 # Also the guard against injecting twice into the same document.
 _BANNER_MARKER = b'data-netbox-force-maintenance'
 
+# Deliberately no position/z-index. A sticky bar at the top of the viewport
+# lands on top of NetBox's fixed sidebar and covers the logo, which is the way
+# back to the home page. In normal flow the banner takes its own space and
+# pushes nothing over.
 _BANNER_STYLE = (
-    'position:sticky;top:0;z-index:1080;'
+    'display:block;margin:0 0 1rem;'
     'background:#c9252d;color:#fff;'
     'padding:.55rem 1rem;text-align:center;'
     'font-weight:600;font-size:.9rem;line-height:1.35;'
@@ -194,7 +205,7 @@ class MaintenanceBannerMiddleware:
 
     NetBox offers plugins no hook that renders on every page — a
     PluginTemplateExtension only reaches object detail views — so the notice is
-    added to the finished HTML instead, immediately after the opening body tag.
+    added to the finished HTML instead, at the top of the content column.
 
     The conditions below are all refusals, and the order is deliberate: the
     cheap request-shaped ones come before reading the settings row, and reading
@@ -259,7 +270,9 @@ class MaintenanceBannerMiddleware:
         content = response.content
         if _BANNER_MARKER in content:
             return
-        match = _BODY_TAG_RE.search(content)
+        # The content column first, the document body only as a fallback for a
+        # page that does not use NetBox's standard layout.
+        match = _PAGE_WRAPPER_RE.search(content) or _BODY_TAG_RE.search(content)
         if match is None:
             return
 

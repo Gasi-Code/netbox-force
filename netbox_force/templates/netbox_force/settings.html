@@ -13,8 +13,10 @@
         <form method="post">
             {% csrf_token %}
 
-            {# Maintenance Mode — first, because it is the switch with the
-               widest effect on the whole installation. #}
+            {% comment %}
+                Maintenance Mode — first, because it is the switch with the
+                widest effect on the whole installation.
+            {% endcomment %}
             <div class="card mb-4 {% if form.maintenance_mode.value %}border-danger{% endif %}">
                 <h5 class="card-header {% if form.maintenance_mode.value %}bg-danger text-white{% endif %}">
                     <i class="mdi mdi-alert-octagon"></i> {{ ui.section_maintenance|default:"Maintenance Mode" }}

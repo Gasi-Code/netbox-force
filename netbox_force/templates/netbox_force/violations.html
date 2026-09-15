@@ -67,7 +67,7 @@
                     {% endif %}
                 </span>
                 {% if violations.paginator.count > 0 %}
-                <a href="{% url 'plugins:netbox_force:violation_export_csv' %}?reason={{ filter_reason }}&username={{ filter_username }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}"
+                <a href="{% url 'plugins:netbox_force:violation_export_csv' %}?reason={{ filter_reason|urlencode }}&username={{ filter_username|urlencode }}&date_from={{ filter_date_from|urlencode }}&date_to={{ filter_date_to|urlencode }}"
                    class="btn btn-sm btn-outline-primary">
                     <i class="mdi mdi-download"></i> {{ ui.btn_export_csv|default:"CSV Export" }}
                 </a>
@@ -120,7 +120,7 @@
                     <ul class="pagination pagination-sm justify-content-center">
                         {% if violations.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ violations.previous_page_number }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                            <a class="page-link" href="?page={{ violations.previous_page_number }}{% if filter_reason %}&reason={{ filter_reason|urlencode }}{% endif %}{% if filter_username %}&username={{ filter_username|urlencode }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from|urlencode }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to|urlencode }}{% endif %}">
                                 &laquo;
                             </a>
                         </li>
@@ -131,7 +131,7 @@
                             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                             {% elif num > violations.number|add:'-5' and num < violations.number|add:'5' %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if filter_reason %}&reason={{ filter_reason|urlencode }}{% endif %}{% if filter_username %}&username={{ filter_username|urlencode }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from|urlencode }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to|urlencode }}{% endif %}">
                                     {{ num }}
                                 </a>
                             </li>
@@ -140,7 +140,7 @@
 
                         {% if violations.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ violations.next_page_number }}{% if filter_reason %}&reason={{ filter_reason }}{% endif %}{% if filter_username %}&username={{ filter_username }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}">
+                            <a class="page-link" href="?page={{ violations.next_page_number }}{% if filter_reason %}&reason={{ filter_reason|urlencode }}{% endif %}{% if filter_username %}&username={{ filter_username|urlencode }}{% endif %}{% if filter_date_from %}&date_from={{ filter_date_from|urlencode }}{% endif %}{% if filter_date_to %}&date_to={{ filter_date_to|urlencode }}{% endif %}">
                                 &raquo;
                             </a>
                         </li>
