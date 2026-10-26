@@ -754,6 +754,10 @@ API_MESSAGES = {
     'maintenance_mode': (
         "NetBox is in maintenance mode. Entries cannot currently be created, changed or deleted. Only superusers can write."
     ),
+    'background_not_allowed': (
+        "Background bulk writes (background=true) cannot be checked by "
+        "NetBox Force. Repeat the request without background=true."
+    ),
 }
 
 
