@@ -5,7 +5,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![NetBox](https://img.shields.io/badge/NetBox-4.x-informational)](https://github.com/netbox-community/netbox)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-5.10.1-green)](https://github.com/Gasi-Code/netbox-force)
+[![Version](https://img.shields.io/badge/version-5.11.0-green)](https://github.com/Gasi-Code/netbox-force)
 
 **Documentation in your language:**
 [čeština](docs/cs/README.md) ·
@@ -323,7 +323,7 @@ A Patch Management dashboard widget can be added to the NetBox home screen. It s
 
 | Component | Version | Notes |
 |---|---|---|
-| **NetBox** | 4.0.0 or later | |
+| **NetBox** | 4.6.0 or later | Tested on 4.6.10 and 4.7.3. Older releases are no longer tested |
 | **Python** | 3.10 or later | |
 | **Database** | PostgreSQL | Required by NetBox itself |
 | **cryptography** | any | Ships with NetBox. Without it the CheckMK secret and the Graylog token are stored unencrypted, and the plugin says so on the settings page |

@@ -12,6 +12,36 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.11.0 — NetBox 4.7
+
+Tested on NetBox 4.6.10 and 4.7.3. The minimum supported NetBox is now 4.6.0.
+
+**A bulk delete recorded a changelog message for the first object only.** The
+text typed or generated for a deletion was read from the request once and then
+consumed, so every further object of the same request was deleted with an empty
+message. The text is now read once per request and every object gets its own
+message. A message typed by the user is never overwritten.
+
+**NetBox 4.7 background bulk writes bypassed every check.** A REST bulk create,
+update or delete sent with `?background=true` runs in an RQ worker, where no
+HTTP request exists. Every check in `signals.py` returns early without a
+request, so such a write skipped the changelog, naming, required-field and
+change-window checks, and maintenance mode. The plugin now refuses the request
+before it is queued: HTTP 400 with the message "Background bulk writes
+(background=true) cannot be checked by NetBox Force. Repeat the request without
+background=true." The refusal is recorded as a violation with the reason
+`background_write`, or `maintenance_mode` while maintenance mode is on. Exempt
+users, exempt models, a model policy that switches enforcement off, the global
+switch, and the delete switch for bulk deletes are honoured as for any other
+write; dry-run records the violation and lets the request through. A request
+without `background=true` is enforced as before.
+
+Writes that never pass an HTTP request — NetBox custom scripts, `manage.py`,
+and RQ jobs started by other plugins — remain outside what the plugin can
+check.
+
+---
+
 ### v5.10.1 — The banner covered the way home
 
 **The maintenance banner sat on top of the NetBox logo.** It was inserted after
