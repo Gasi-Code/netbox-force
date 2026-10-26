@@ -153,10 +153,10 @@ class NetboxForceConfig(PluginConfig):
     name = 'netbox_force'
     verbose_name = 'NetBox Force'
     description = 'Enforces changelog messages, validation policies, and compliance rules on object changes'
-    version = '5.10.1'
+    version = '5.11.0'
     author = 'Gasi-Code'
     base_url = 'netbox-force'
-    min_version = '4.0.0'
+    min_version = '4.6.0'
 
     middleware = [
         'netbox_force.middleware.RequestContextMiddleware',
@@ -190,6 +190,11 @@ class NetboxForceConfig(PluginConfig):
         # with a reason nor enforced.
         from .formpatch import install_delete_changelog_field
         install_delete_changelog_field()
+
+        # NetBox 4.7 runs ?background=true bulk writes in a worker, where no
+        # request exists and every check in signals.py is skipped.
+        from .backgroundguard import install_background_guard
+        install_background_guard()
 
         # Registering the recurring CheckMK sync must never keep the plugin
         # from loading — no worker, an older NetBox, or an unmigrated DB all
