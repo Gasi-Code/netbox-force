@@ -1548,16 +1548,23 @@ def enforce_changelog_on_delete(sender, instance, **kwargs):
     _auto_generated_here = False
     if ((_auto_enabled_del or _ticket_enabled_del)
             and (_no_field_del or _auto_changelog_in_scope(instance))):
-        raw = ''
-        _names = (NATIVE_CHANGELOG_FIELDS if _native_changelog_offered(request)
-                  else CHANGELOG_FIELD_NAMES)
-        for fname in _names:
-            if hasattr(request, 'data') and isinstance(request.data, dict):
-                raw = (request.data.get(fname) or '').strip()
-            if not raw:
-                raw = request.POST.get(fname, '').strip()
-            if raw:
-                break
+        # Read the user's input once per request. After the first object of a
+        # bulk delete, request.POST holds the text generated for it, and
+        # reading it again would make every later object look as if the user
+        # had supplied a changelog — so none of them would get a message.
+        if not hasattr(request, '_original_changelog_input'):
+            _raw = ''
+            _names = (NATIVE_CHANGELOG_FIELDS if _native_changelog_offered(request)
+                      else CHANGELOG_FIELD_NAMES)
+            for fname in _names:
+                if hasattr(request, 'data') and isinstance(request.data, dict):
+                    _raw = (request.data.get(fname) or '').strip()
+                if not _raw:
+                    _raw = request.POST.get(fname, '').strip()
+                if _raw:
+                    break
+            request._original_changelog_input = _raw
+        raw = request._original_changelog_input
 
         # Decide whether to generate:
         # • empty field  → only when auto_changelog_enabled

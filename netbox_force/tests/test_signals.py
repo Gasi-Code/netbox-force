@@ -291,3 +291,81 @@ class ChangelogLengthTests(TestCase):
         self.assertTrue(injected)
         self.assertLessEqual(len(instance._changelog_message), 200)
         self.assertLessEqual(len(request.POST['changelog_message']), 200)
+
+
+class BulkDeleteChangelogTest(TestCase):
+    """
+    Deleting several objects in one request must give every one of them its own
+    generated message. The first object used to write its text into the shared
+    request.POST, which made every later object look as if the user had typed a
+    changelog — so only the first change record ever received a message.
+    """
+
+    def _delete(self, request, instances, queued, settings_override=None):
+        from netbox_force import signals
+
+        values = {'auto_changelog_enabled': True,
+                  'ticket_enabled': False,
+                  'enforce_on_delete': True,
+                  'language': 'de',
+                  'min_length': 10}
+        values.update(settings_override or {})
+
+        def setting(name, default=None):
+            return values.get(name, default)
+
+        force_settings = MagicMock(enforcement_enabled=True, dry_run=False)
+        with patch.object(signals, 'get_current_request', return_value=request), \
+             patch.object(signals, '_get_settings', return_value=force_settings), \
+             patch.object(signals, '_get_setting', side_effect=setting), \
+             patch.object(signals, 'check_maintenance_mode', return_value=None), \
+             patch.object(signals, 'is_exempt_model', return_value=False), \
+             patch.object(signals, 'is_exempt_user', return_value=False), \
+             patch.object(signals, 'check_change_window', return_value=None), \
+             patch.object(signals, 'changelog_input_available', return_value=True), \
+             patch.object(signals, '_auto_changelog_in_scope', return_value=True), \
+             patch.object(signals, '_native_changelog_offered', return_value=False), \
+             patch.object(signals, 'queue_pending_changelog', side_effect=queued.append):
+            for instance in instances:
+                signals.enforce_changelog_on_delete(sender=type(instance), instance=instance)
+
+    def _bulk_request(self, post_data=None):
+        request = _make_request('POST', '/ipam/vlans/delete/', post_data=post_data)
+        request.id = 'request-1'
+        return request
+
+    def test_every_object_gets_its_own_message(self):
+        instances = [_make_mock_instance('ipam', 'vlan', pk=pk) for pk in (1, 2, 3)]
+        for pk, instance in zip((1, 2, 3), instances):
+            instance.__str__ = lambda self, pk=pk: f'VLAN {pk}'
+            instance._changelog_message = None
+        queued = []
+
+        self._delete(self._bulk_request(), instances, queued)
+
+        self.assertEqual([item['object_id'] for item in queued], [1, 2, 3])
+        self.assertTrue(all(item['message'] for item in queued))
+        self.assertEqual(len({item['message'] for item in queued}), 3)
+
+    def test_ticket_only_input_is_combined_for_every_object(self):
+        instances = [_make_mock_instance('ipam', 'vlan', pk=pk) for pk in (1, 2)]
+        for instance in instances:
+            instance._changelog_message = None
+        queued = []
+
+        self._delete(self._bulk_request({'changelog_message': 'INC-1234'}),
+                     instances, queued, {'ticket_enabled': True})
+
+        self.assertEqual(len(queued), 2)
+        self.assertTrue(all(item['message'].startswith('INC-1234') for item in queued))
+
+    def test_text_typed_by_the_user_is_never_overwritten(self):
+        instances = [_make_mock_instance('ipam', 'vlan', pk=pk) for pk in (1, 2)]
+        for instance in instances:
+            instance._changelog_message = None
+        queued = []
+
+        self._delete(self._bulk_request({'changelog_message': 'Decommissioned after migration'}),
+                     instances, queued)
+
+        self.assertEqual(queued, [])
