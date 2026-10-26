@@ -191,6 +191,11 @@ class NetboxForceConfig(PluginConfig):
         from .formpatch import install_delete_changelog_field
         install_delete_changelog_field()
 
+        # NetBox 4.7 runs ?background=true bulk writes in a worker, where no
+        # request exists and every check in signals.py is skipped.
+        from .backgroundguard import install_background_guard
+        install_background_guard()
+
         # Registering the recurring CheckMK sync must never keep the plugin
         # from loading — no worker, an older NetBox, or an unmigrated DB all
         # end up here during normal operation.
