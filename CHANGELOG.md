@@ -12,6 +12,32 @@ Version numbers follow the plugin version reported in the NetBox UI and by
 
 ---
 
+### v5.11.1 — A full HTML guide opened as bare text
+
+**A guide written as a complete HTML page showed up unformatted and dead.**
+Since the security hardening the standalone guide, which the dashboard widget
+opens, was served with `default-src 'self'; sandbox allow-popups`. That policy
+forbids inline `<style>` and `<script>`, and a full page keeps its CSS and its
+navigation script inline, so all of it was blocked. Guides in plain HTML were
+not affected, because those are sanitised and wrapped by the plugin.
+
+A guide that starts with `<!DOCTYPE` or `<html` now gets its own policy. Inline
+CSS and JavaScript are allowed, and the guide can still load images and fonts
+from NetBox or from `data:` URLs. Everything else stays shut: `connect-src`,
+`form-action` and `base-uri` are `'none'`, so the page can neither send data
+anywhere nor re-point its links, and `frame-ancestors 'none'` keeps other pages
+from framing it. The iframe on the guide page allows scripts for the same
+reason.
+
+**The sandbox stays effective because it never gets `allow-same-origin`.**
+Without that token the guide runs with an opaque origin: its script cannot read
+NetBox's cookies, call NetBox's API as the signed-in user, or touch the page
+around the iframe. A script in the guide can therefore do what the guide's
+author wrote it to do and nothing that reaches into NetBox. Links opened from
+the guide use popups that leave the sandbox, so NetBox pages behave normally.
+
+---
+
 ### v5.11.0 — NetBox 4.7
 
 Tested on NetBox 4.6.10 and 4.7.3. The minimum supported NetBox is now 4.6.0.

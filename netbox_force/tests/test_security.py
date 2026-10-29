@@ -342,3 +342,64 @@ class CheckmkInputBoundTests(TestCase):
     def test_host_name_cap_matches_the_column(self):
         from netbox_force.sync import MAX_HOST_NAME
         self.assertLessEqual(MAX_HOST_NAME, 255)
+
+
+class GuideStandaloneCspTests(TestCase):
+    """
+    A full HTML guide ships its own inline CSS and JS and needs a policy that
+    lets it run. It stays inert because the sandbox has no allow-same-origin:
+    the page gets an opaque origin and cannot reach NetBox's cookies or API.
+    """
+
+    OLD_CSP = "default-src 'self'; sandbox allow-popups"
+
+    def _serve(self, content):
+        from netbox_force.views import GuideStandaloneView
+
+        request = RequestFactory().get('/plugins/netbox-force/guide/standalone/')
+        guide = MagicMock(content=content)
+        with patch('netbox_force.views.ForceSettings.get_settings',
+                   return_value=MagicMock(guide_enabled=True)), \
+             patch('netbox_force.views.GuidePage.get_guide', return_value=guide):
+            return GuideStandaloneView().get(request)
+
+    def test_full_html_guide_gets_the_policy_that_lets_it_run(self):
+        from netbox_force.views import _FULL_HTML_GUIDE_CSP
+
+        response = self._serve('<!DOCTYPE html><html><body>x</body></html>')
+
+        self.assertEqual(response['Content-Security-Policy'], _FULL_HTML_GUIDE_CSP)
+        self.assertIn("style-src 'unsafe-inline'", _FULL_HTML_GUIDE_CSP)
+        self.assertIn("script-src 'unsafe-inline'", _FULL_HTML_GUIDE_CSP)
+
+    def test_full_html_sandbox_never_regains_the_origin(self):
+        from netbox_force.views import _FULL_HTML_GUIDE_CSP
+
+        sandbox = _FULL_HTML_GUIDE_CSP.split('sandbox', 1)[1]
+        self.assertIn('allow-scripts', sandbox)
+        self.assertNotIn('allow-same-origin', sandbox)
+
+    def test_full_html_guide_cannot_send_anything_out(self):
+        from netbox_force.views import _FULL_HTML_GUIDE_CSP
+
+        for directive in ("connect-src 'none'", "form-action 'none'",
+                          "base-uri 'none'", "frame-ancestors 'none'"):
+            with self.subTest(directive=directive):
+                self.assertIn(directive, _FULL_HTML_GUIDE_CSP)
+
+    def test_simple_html_keeps_the_old_policy(self):
+        response = self._serve('<p>plain guide</p>')
+
+        self.assertEqual(response['Content-Security-Policy'], self.OLD_CSP)
+        self.assertNotIn('allow-scripts', response['Content-Security-Policy'])
+
+    def test_iframe_sandbox_allows_scripts_but_not_the_origin(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                            'templates', 'netbox_force', 'guide.html')
+        with open(path, encoding='utf-8') as handle:
+            html = handle.read()
+
+        sandbox = re.search(r'id="guide-iframe".*?sandbox="([^"]*)"', html, re.S)
+        self.assertIsNotNone(sandbox)
+        self.assertIn('allow-scripts', sandbox.group(1).split())
+        self.assertNotIn('allow-same-origin', sandbox.group(1).split())
