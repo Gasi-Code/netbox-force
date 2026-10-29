@@ -2203,6 +2203,19 @@ class ImportTemplateDownloadView(AuthenticatedRequiredMixin, View):
 
 _FULL_HTML_RE = re.compile(r'^\s*<!DOCTYPE|^\s*<html', re.IGNORECASE)
 
+_FULL_HTML_GUIDE_CSP = (
+    "default-src 'none'; "
+    "style-src 'unsafe-inline'; "
+    "script-src 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self' data:; "
+    "connect-src 'none'; "
+    "form-action 'none'; "
+    "base-uri 'none'; "
+    "frame-ancestors 'none'; "
+    "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox"
+)
+
 
 class GuideView(AuthenticatedRequiredMixin, View):
     """Displays the user guide page (read-only for all users)."""
@@ -2261,9 +2274,16 @@ class GuideStandaloneView(AuthenticatedRequiredMixin, View):
         }
 
         if _FULL_HTML_RE.search(content):
+            # A full HTML guide brings its own inline CSS and JS (navigation,
+            # tools). It runs in an opaque-origin sandbox: allow-scripts
+            # WITHOUT allow-same-origin, so the script cannot read NetBox's
+            # cookies or responses. connect-src/form-action 'none' stop it
+            # from sending anything anywhere; popups escape the sandbox so
+            # NetBox links opened from the guide work normally.
             response = HttpResponse(content, content_type='text/html')
             for header, value in response_headers.items():
                 response[header] = value
+            response['Content-Security-Policy'] = _FULL_HTML_GUIDE_CSP
             return response
 
         content = _sanitize_guide_html(content)
